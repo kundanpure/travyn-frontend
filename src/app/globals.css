@@ -1,0 +1,458 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap");
+@import "tailwindcss";
+
+/*
+ * ═══════════════════════════════════════════════════════════════
+ *  TRAVYN — Tailwind v4 Theme + Custom Design Tokens
+ *  All custom properties registered with @theme so Tailwind
+ *  recognises them; component classes live in @layer components.
+ * ═══════════════════════════════════════════════════════════════
+ */
+
+@theme {
+  --color-bg-deep: #06080c;
+  --color-bg-base: #0a0f18;
+  --color-bg-raised: #0f1520;
+  --color-bg-surface: #141c2b;
+  --color-bg-elevated: #1a2438;
+  --color-bg-hover: #1f2d44;
+
+  --color-primary: #2dd4a8;
+  --color-primary-dim: #1fae8a;
+  --color-primary-bright: #5ee7c4;
+
+  --color-accent: #f0a030;
+  --color-accent-dim: #d08c28;
+  --color-accent-bright: #ffc048;
+
+  --color-txt-white: #f8fafc;
+  --color-txt-primary: #e2e8f0;
+  --color-txt-secondary: #94a3b8;
+  --color-txt-muted: #64748b;
+  --color-txt-dim: #475569;
+
+  --color-line: rgba(255, 255, 255, 0.06);
+  --color-line-hover: rgba(255, 255, 255, 0.12);
+  --color-line-active: rgba(45, 212, 168, 0.3);
+
+  --color-danger: #f87171;
+  --color-success: #2dd4a8;
+  --color-warning: #f0a030;
+
+  --font-family-display: "Outfit", "Inter", sans-serif;
+
+  --animate-mesh-pulse: mesh-pulse 8s ease-in-out infinite;
+  --animate-orb-drift: orb-drift 12s ease-in-out infinite;
+  --animate-orb-drift-rev: orb-drift 15s ease-in-out 3s infinite reverse;
+  --animate-spin-slow: spin-slow 25s linear infinite;
+  --animate-shimmer-text: shimmer-text 6s ease-in-out infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-float-reverse: float-reverse 7s ease-in-out infinite;
+  --animate-pulse-glow: pulse-glow 3s ease-in-out infinite;
+
+  @keyframes mesh-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+  @keyframes orb-drift {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(30px, -20px) scale(1.1); }
+    50% { transform: translate(-20px, 15px) scale(0.95); }
+    75% { transform: translate(15px, 25px) scale(1.05); }
+  }
+  @keyframes spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  @keyframes shimmer-text {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-14px); }
+  }
+  @keyframes float-reverse {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(12px); }
+  }
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(45, 212, 168, 0.25); }
+    50% { box-shadow: 0 0 50px rgba(45, 212, 168, 0.25), 0 0 80px rgba(45, 212, 168, 0.1); }
+  }
+  @keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+/* ───────────────────────── BASE ───────────────────────── */
+
+@layer base {
+  *, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background-color: var(--color-bg-deep);
+    color: var(--color-txt-primary);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
+
+  ::selection {
+    background: var(--color-primary);
+    color: var(--color-bg-deep);
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+
+/* ────────────────────── COMPONENTS ─────────────────────── */
+
+@layer components {
+
+  /* ── Layout ── */
+  .t-container {
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+  @media (min-width: 768px) {
+    .t-container { padding-left: 40px; padding-right: 40px; }
+  }
+
+  /* ── Glass ── */
+  .t-glass {
+    background: rgba(14, 20, 32, 0.6);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid var(--color-line);
+  }
+  .t-glass-strong {
+    background: rgba(10, 15, 24, 0.88);
+    backdrop-filter: blur(32px) saturate(1.6);
+    -webkit-backdrop-filter: blur(32px) saturate(1.6);
+    border: 1px solid var(--color-line-hover);
+  }
+
+  /* ── Gradient Text ── */
+  .t-gradient-text {
+    background: linear-gradient(135deg, var(--color-primary-bright), var(--color-accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .t-gradient-text-hero {
+    background: linear-gradient(
+      135deg,
+      var(--color-txt-white) 0%,
+      var(--color-primary-bright) 40%,
+      var(--color-accent-bright) 70%,
+      var(--color-txt-white) 100%
+    );
+    background-size: 200% 200%;
+    animation: shimmer-text 6s ease-in-out infinite;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── Hero Mesh ── */
+  .t-hero-mesh {
+    position: relative;
+    background: var(--color-bg-deep);
+    overflow: hidden;
+  }
+  .t-hero-mesh::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(45, 212, 168, 0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 20% 40%, rgba(45, 212, 168, 0.06) 0%, transparent 50%),
+      radial-gradient(ellipse 50% 40% at 80% 30%, rgba(240, 160, 48, 0.06) 0%, transparent 50%);
+    animation: mesh-pulse 8s ease-in-out infinite;
+  }
+
+  /* ── Orbs ── */
+  .t-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    will-change: transform;
+  }
+  .t-orb-primary {
+    background: radial-gradient(circle, rgba(45, 212, 168, 0.25), transparent 70%);
+    animation: orb-drift 12s ease-in-out infinite;
+  }
+  .t-orb-accent {
+    background: radial-gradient(circle, rgba(240, 160, 48, 0.20), transparent 70%);
+    animation: orb-drift 15s ease-in-out 3s infinite reverse;
+  }
+
+  /* ── Grid Pattern ── */
+  .t-grid-pattern {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  /* ── Buttons ── */
+  .t-btn-primary {
+    position: relative;
+    background: linear-gradient(135deg, var(--color-primary-dim), var(--color-primary));
+    color: var(--color-bg-deep);
+    padding: 14px 32px;
+    border-radius: 9999px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 0.01em;
+    border: none;
+    cursor: pointer;
+    transition: all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-decoration: none;
+  }
+  .t-btn-primary:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(45, 212, 168, 0.25), 0 0 60px rgba(45, 212, 168, 0.12);
+    color: var(--color-bg-deep);
+  }
+  .t-btn-primary:active { transform: translateY(-1px); }
+
+  .t-btn-outline {
+    position: relative;
+    background: transparent;
+    color: var(--color-txt-primary);
+    padding: 14px 32px;
+    border-radius: 9999px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: 1.5px solid var(--color-line-hover);
+    cursor: pointer;
+    transition: all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-decoration: none;
+  }
+  .t-btn-outline:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary-bright);
+    transform: translateY(-3px);
+    box-shadow: 0 0 30px rgba(45, 212, 168, 0.2);
+  }
+
+  .t-btn-ghost {
+    background: transparent;
+    color: var(--color-txt-secondary);
+    padding: 10px 20px;
+    border-radius: 9999px;
+    font-weight: 500;
+    font-size: 0.9rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+  }
+  .t-btn-ghost:hover {
+    color: var(--color-txt-white);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  /* ── Nav Link ── */
+  .t-nav-link {
+    color: var(--color-txt-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    transition: all 0.25s ease;
+    text-decoration: none;
+  }
+  .t-nav-link:hover {
+    color: var(--color-txt-white);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  /* ── Card ── */
+  .t-card {
+    position: relative;
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-line);
+    border-radius: 20px;
+    padding: 32px;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  .t-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, var(--color-line), transparent 40%, transparent 60%, var(--color-line));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    transition: background 0.4s ease;
+  }
+  .t-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35), 0 0 40px rgba(45, 212, 168, 0.08);
+  }
+  .t-card:hover::before {
+    background: linear-gradient(135deg, var(--color-primary), rgba(240, 160, 48, 0.3), var(--color-primary));
+  }
+
+  /* ── Badge ── */
+  .t-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+  }
+  .t-badge-primary {
+    background: rgba(45, 212, 168, 0.08);
+    color: var(--color-primary-bright);
+    border: 1px solid rgba(45, 212, 168, 0.15);
+  }
+  .t-badge-accent {
+    background: rgba(240, 160, 48, 0.06);
+    color: var(--color-accent-bright);
+    border: 1px solid rgba(240, 160, 48, 0.15);
+  }
+
+  /* ── Icon Box ── */
+  .t-icon-box {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .t-icon-box-primary {
+    background: rgba(45, 212, 168, 0.08);
+    color: var(--color-primary);
+    border: 1px solid rgba(45, 212, 168, 0.1);
+  }
+  .t-icon-box-accent {
+    background: rgba(240, 160, 48, 0.06);
+    color: var(--color-accent);
+    border: 1px solid rgba(240, 160, 48, 0.1);
+  }
+
+  /* ── Stat Card ── */
+  .t-stat-card {
+    text-align: center;
+    padding: 24px 16px;
+    border-radius: 16px;
+    border: 1px solid transparent;
+    transition: all 0.3s ease;
+  }
+  .t-stat-card:hover {
+    background: rgba(45, 212, 168, 0.05);
+    border-color: var(--color-line-active);
+  }
+
+  /* ── Section Divider ── */
+  .t-divider {
+    height: 1px;
+    max-width: 80%;
+    margin: 0 auto;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--color-line-hover) 20%,
+      rgba(45, 212, 168, 0.2) 50%,
+      var(--color-line-hover) 80%,
+      transparent
+    );
+  }
+
+  /* ── Input ── */
+  .t-input {
+    width: 100%;
+    padding: 14px 18px;
+    background: var(--color-bg-raised);
+    border: 1.5px solid var(--color-line);
+    border-radius: 12px;
+    color: var(--color-txt-primary);
+    font-family: "Inter", sans-serif;
+    font-size: 0.95rem;
+    transition: all 0.25s ease;
+    outline: none;
+  }
+  .t-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(45, 212, 168, 0.2), 0 0 20px rgba(45, 212, 168, 0.06);
+  }
+  .t-input::placeholder { color: var(--color-txt-dim); }
+
+  /* ── Safety Checklist Row ── */
+  .t-check-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    transition: background 0.2s ease;
+  }
+  .t-check-row:hover { background: rgba(45, 212, 168, 0.05); }
+
+  /* ── Footer Social Button ── */
+  .t-social-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: var(--color-bg-surface);
+    color: var(--color-txt-muted);
+    border: 1px solid var(--color-line);
+    transition: all 0.2s ease;
+  }
+  .t-social-btn:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+}

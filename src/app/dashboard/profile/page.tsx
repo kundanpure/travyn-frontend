@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import {
   User, Edit3, Save, X, Mountain, Landmark, Palette, PartyPopper, Wallet,
   Sun, Moon, Clock, Loader2, CheckCircle2, Laptop, Globe, UtensilsCrossed,
-  ChevronRight, Camera
+  ChevronRight, Camera, Check, Plus
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import api from "@/lib/api";
@@ -30,6 +30,12 @@ const sleepOptions = [
   { value: "EARLY_BIRD", label: "Early Bird", icon: Sun, desc: "Up with the sunrise" },
   { value: "NIGHT_OWL", label: "Night Owl", icon: Moon, desc: "Late nights, late mornings" },
   { value: "FLEXIBLE", label: "Flexible", icon: Clock, desc: "I adapt to the group" },
+];
+
+const languageOptions = [
+  "English", "Hindi", "Bengali", "Telugu", "Marathi", "Tamil", "Urdu", "Gujarati",
+  "Kannada", "Malayalam", "Punjabi", "Spanish", "French", "German", "Japanese",
+  "Korean", "Mandarin", "Arabic", "Portuguese", "Russian", "Italian", "Thai",
 ];
 
 interface ProfileData {
@@ -67,11 +73,28 @@ export default function ProfilePage() {
     fetchProfile();
   }, []);
 
+  // Sanitize API response to ensure no null/undefined values for controlled inputs
+  const sanitize = (data: Partial<ProfileData>): ProfileData => ({
+    bio: data.bio ?? "",
+    travelStyle: data.travelStyle ?? "",
+    budgetMin: data.budgetMin ?? 0,
+    budgetMax: data.budgetMax ?? 0,
+    sleepSchedule: data.sleepSchedule ?? "",
+    personalityScale: data.personalityScale ?? 5,
+    foodPreference: data.foodPreference ?? "",
+    languages: data.languages ?? "",
+    remoteWorker: data.remoteWorker ?? false,
+    profilePhotoUrl: data.profilePhotoUrl ?? "",
+    coverPhotoUrl: data.coverPhotoUrl ?? "",
+    profileCompleteness: data.profileCompleteness ?? 0,
+  });
+
   const fetchProfile = async () => {
     try {
       const res = await api.get("/users/me/profile");
-      setProfile(res.data);
-      setForm(res.data);
+      const safe = sanitize(res.data);
+      setProfile(safe);
+      setForm(safe);
     } catch {
       // Profile doesn't exist yet — keep empty
     } finally {
@@ -83,8 +106,9 @@ export default function ProfilePage() {
     setSaving(true);
     try {
       const res = await api.put("/users/me/profile", form);
-      setProfile(res.data);
-      setForm(res.data);
+      const safe = sanitize(res.data);
+      setProfile(safe);
+      setForm(safe);
       setEditing(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -92,6 +116,16 @@ export default function ProfilePage() {
       // handle error
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Language helpers
+  const selectedLanguages = form.languages ? form.languages.split(",").map(l => l.trim()).filter(Boolean) : [];
+  const toggleLanguage = (lang: string) => {
+    if (selectedLanguages.includes(lang)) {
+      setForm({ ...form, languages: selectedLanguages.filter(l => l !== lang).join(", ") });
+    } else {
+      setForm({ ...form, languages: [...selectedLanguages, lang].join(", ") });
     }
   };
 
@@ -373,13 +407,33 @@ export default function ProfilePage() {
             </FormSection>
 
             <FormSection title="Languages Spoken" icon={Globe}>
-              <input
-                type="text"
-                className="t-input w-full"
-                placeholder="English, Hindi, Spanish"
-                value={form.languages}
-                onChange={(e) => setForm({ ...form, languages: e.target.value })}
-              />
+              <div className="flex flex-wrap gap-2">
+                {languageOptions.map((lang) => {
+                  const isSelected = selectedLanguages.includes(lang);
+                  return (
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() => toggleLanguage(lang)}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                      style={{
+                        background: isSelected ? "rgba(167,139,250,0.15)" : "var(--color-bg-deep)",
+                        color: isSelected ? "#a78bfa" : "var(--color-txt-muted)",
+                        border: `1px solid ${isSelected ? "rgba(167,139,250,0.4)" : "var(--color-line)"}`,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {isSelected ? <Check size={12} /> : <Plus size={12} />}
+                      {lang}
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedLanguages.length > 0 && (
+                <div className="mt-2 text-xs" style={{ color: "var(--color-txt-muted)" }}>
+                  Selected: {selectedLanguages.join(", ")}
+                </div>
+              )}
             </FormSection>
           </div>
 

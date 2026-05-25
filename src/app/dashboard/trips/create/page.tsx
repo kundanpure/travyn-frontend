@@ -5,9 +5,14 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft, ArrowRight, Check, Loader2, MapPin, Calendar, Users,
   Mountain, Crown, Car, Landmark, Compass, Monitor, PartyPopper,
-  Shield, Heart, Zap, Eye
+  Shield, Heart, Zap, Eye, AlertTriangle
 } from "lucide-react";
 import api from "@/lib/api";
+
+interface ValidationError {
+  field: string;
+  message: string;
+}
 
 const tripTypes = [
   { value: "BACKPACKING", label: "Backpacking", icon: Mountain, color: "#2dd4a8" },
@@ -26,6 +31,7 @@ export default function CreateTripPage() {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<ValidationError[]>([]);
 
   const [form, setForm] = useState({
     title: "",
@@ -47,16 +53,25 @@ export default function CreateTripPage() {
     return true;
   };
 
+  const getFieldError = (field: string) => fieldErrors.find(e => e.field === field)?.message;
+
   const handleSubmit = async () => {
     setSaving(true);
     setError("");
+    setFieldErrors([]);
     try {
       const res = await api.post("/trips", form);
       const id = res.data?.id || res.data;
       router.push(`/dashboard/trips/${id}`);
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { message?: string } } };
-      setError(err?.response?.data?.message || "Failed to create trip");
+      const err = e as { response?: { data?: { message?: string; details?: ValidationError[] } } };
+      const data = err?.response?.data;
+      if (data?.details && data.details.length > 0) {
+        setFieldErrors(data.details);
+        setError("");
+      } else {
+        setError(data?.message || "Failed to create trip");
+      }
     } finally {
       setSaving(false);
     }
@@ -382,7 +397,31 @@ export default function CreateTripPage() {
               />
             </div>
 
-            {error && (
+            {/* Validation Errors */}
+            {fieldErrors.length > 0 && (
+              <div
+                className="rounded-xl p-4 space-y-2"
+                style={{ background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.25)" }}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <AlertTriangle size={16} style={{ color: "#f87171" }} />
+                  <span className="text-sm font-semibold" style={{ color: "#f87171" }}>Please fix the following:</span>
+                </div>
+                {fieldErrors.map((fe, i) => (
+                  <div key={i} className="flex items-start gap-2 text-sm" style={{ color: "var(--color-txt-secondary)" }}>
+                    <span
+                      className="px-1.5 py-0.5 rounded text-xs font-mono flex-shrink-0"
+                      style={{ background: "rgba(248,113,113,0.15)", color: "#fca5a5" }}
+                    >
+                      {fe.field}
+                    </span>
+                    <span>{fe.message}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {error && !fieldErrors.length && (
               <div className="p-3 rounded-lg text-sm" style={{ background: "rgba(248,113,113,0.1)", color: "#f87171" }}>
                 {error}
               </div>

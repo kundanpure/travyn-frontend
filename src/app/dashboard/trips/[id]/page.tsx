@@ -25,7 +25,7 @@ interface TripDetail {
   status: string;
   maxSize: number;
   memberCount: number;
-  spotsLeft: number;
+  availableSpots: number;
   tripCode: string;
   womenOnly: boolean;
   approvalMode: string;
@@ -205,7 +205,7 @@ export default function TripDetailPage() {
           {[
             { icon: MapPin, label: "Destination", value: trip.destination },
             { icon: Calendar, label: "Dates", value: `${formatDate(trip.startDate).split(",")[0]} – ${formatDate(trip.endDate).split(",")[0]}` },
-            { icon: Users, label: "Spots", value: `${trip.spotsLeft}/${trip.maxSize} left` },
+            { icon: Users, label: "Spots", value: `${trip.availableSpots}/${trip.maxSize} left` },
             { icon: Hash, label: "Trip Code", value: trip.tripCode },
           ].map(({ icon: Icon, label, value }, i) => (
             <div

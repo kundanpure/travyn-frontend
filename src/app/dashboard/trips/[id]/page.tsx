@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, MapPin, Calendar, Users, Hash, Shield, Heart, Clock,
-  Loader2, CheckCircle2, XCircle, UserPlus, Crown, User, Copy, Check
+  Loader2, CheckCircle2, XCircle, UserPlus, Crown, User, Copy, Check,
+  Map, DollarSign, MessageCircle
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
@@ -233,6 +234,36 @@ export default function TripDetailPage() {
           ))}
         </div>
       </div>
+
+      {/* Experience Features (Members Only) */}
+      {(isCreator || myMembership?.status === "APPROVED") && (
+        <div className="grid grid-cols-3 gap-3">
+          <button
+            onClick={() => router.push(`/dashboard/trips/${tripId}/itinerary`)}
+            className="flex flex-col items-center justify-center p-4 rounded-xl transition-all hover:-translate-y-1 hover:shadow-lg"
+            style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}
+          >
+            <Map size={24} className="mb-2" style={{ color: "var(--color-primary)" }} />
+            <span className="text-sm font-medium" style={{ color: "var(--color-txt-white)" }}>Itinerary</span>
+          </button>
+          <button
+            onClick={() => router.push(`/dashboard/trips/${tripId}/expenses`)}
+            className="flex flex-col items-center justify-center p-4 rounded-xl transition-all hover:-translate-y-1 hover:shadow-lg"
+            style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}
+          >
+            <DollarSign size={24} className="mb-2" style={{ color: "var(--color-accent)" }} />
+            <span className="text-sm font-medium" style={{ color: "var(--color-txt-white)" }}>Expenses</span>
+          </button>
+          <button
+            onClick={() => router.push(`/dashboard/trips/${tripId}/chat`)}
+            className="flex flex-col items-center justify-center p-4 rounded-xl transition-all hover:-translate-y-1 hover:shadow-lg"
+            style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}
+          >
+            <MessageCircle size={24} className="mb-2" style={{ color: "#60a5fa" }} />
+            <span className="text-sm font-medium" style={{ color: "var(--color-txt-white)" }}>Chat</span>
+          </button>
+        </div>
+      )}
 
       {/* Description */}
       {trip.description && (

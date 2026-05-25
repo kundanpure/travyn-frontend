@@ -52,6 +52,7 @@ export default function ItineraryPage() {
   const tripId = params.id as string;
 
   const [days, setDays] = useState<ItineraryDay[]>([]);
+  const [trip, setTrip] = useState<{ startDate: string; endDate: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [addingItem, setAddingItem] = useState<string | null>(null);
@@ -67,8 +68,12 @@ export default function ItineraryPage() {
 
   const fetchItinerary = useCallback(async () => {
     try {
-      const res = await api.get(`/trips/${tripId}/itinerary`);
+      const [res, tripRes] = await Promise.all([
+        api.get(`/trips/${tripId}/itinerary`),
+        api.get(`/trips/${tripId}`)
+      ]);
       setDays(res.data || []);
+      setTrip(tripRes.data);
       // Auto-expand all days on first load
       if (expandedDays.size === 0 && res.data?.length > 0) {
         setExpandedDays(new Set(res.data.map((d: ItineraryDay) => d.id)));
@@ -78,7 +83,7 @@ export default function ItineraryPage() {
     } finally {
       setLoading(false);
     }
-  }, [tripId]);
+  }, [tripId, expandedDays.size]);
 
   useEffect(() => {
     fetchItinerary();
@@ -230,6 +235,8 @@ export default function ItineraryPage() {
             <input
               type="date"
               value={dayForm.date}
+              min={trip?.startDate?.split("T")[0]}
+              max={trip?.endDate?.split("T")[0]}
               onChange={(e) => setDayForm({ ...dayForm, date: e.target.value })}
               className="t-input"
             />

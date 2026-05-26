@@ -28,7 +28,7 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
@@ -58,7 +58,8 @@ api.interceptors.response.use(
             return api(originalRequest);
           }
         }
-      } catch {
+      } catch (refreshError) {
+        console.error("Token refresh failed:", refreshError);
         // Refresh failed — clear auth and redirect
         localStorage.removeItem("travyn-auth");
         if (typeof window !== "undefined") {

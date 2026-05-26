@@ -9,8 +9,11 @@ export interface User {
   role: string;
   status: string;
   emailVerified: boolean;
+  gender: "MALE" | "FEMALE" | "NON_BINARY" | "PREFER_NOT_TO_SAY" | null;
+  genderChangesRemaining: number;
   createdAt: string;
 }
+
 
 interface AuthState {
   user: User | null;

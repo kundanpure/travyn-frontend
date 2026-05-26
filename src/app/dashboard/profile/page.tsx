@@ -4,10 +4,19 @@ import { useState, useEffect } from "react";
 import {
   User, Edit3, Save, X, Mountain, Landmark, Palette, PartyPopper, Wallet,
   Sun, Moon, Clock, Loader2, CheckCircle2, Laptop, Globe, UtensilsCrossed,
-  ChevronRight, Camera, Check, Plus
+  ChevronRight, Camera, Check, Plus, Shield, AlertTriangle
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import api from "@/lib/api";
+
+type Gender = "MALE" | "FEMALE" | "NON_BINARY" | "PREFER_NOT_TO_SAY";
+
+const genderOptions: { value: Gender; label: string; emoji: string }[] = [
+  { value: "MALE", label: "Male", emoji: "♂️" },
+  { value: "FEMALE", label: "Female", emoji: "♀️" },
+  { value: "NON_BINARY", label: "Non-binary", emoji: "⚧️" },
+  { value: "PREFER_NOT_TO_SAY", label: "Prefer not to say", emoji: "🔒" },
+];
 
 const travelStyles = [
   { value: "ADVENTURE", label: "Adventure", icon: Mountain, color: "#2dd4a8" },
@@ -15,6 +24,7 @@ const travelStyles = [
   { value: "RELAXATION", label: "Relaxation", icon: Sun, color: "#60a5fa" },
   { value: "PARTY", label: "Party", icon: PartyPopper, color: "#f472b6" },
   { value: "BUDGET", label: "Budget", icon: Wallet, color: "#a78bfa" },
+  { value: "LUXURY", label: "Luxury", icon: Palette, color: "#fbbf24" },
 ];
 
 const foodOptions = [
@@ -40,7 +50,7 @@ const languageOptions = [
 
 interface ProfileData {
   bio: string;
-  travelStyle: string;
+  travelStyles: string[];
   budgetMin: number;
   budgetMax: number;
   sleepSchedule: string;
@@ -54,29 +64,37 @@ interface ProfileData {
 }
 
 const emptyProfile: ProfileData = {
-  bio: "", travelStyle: "", budgetMin: 0, budgetMax: 0,
+  bio: "", travelStyles: [], budgetMin: 0, budgetMax: 0,
   sleepSchedule: "", personalityScale: 5, foodPreference: "",
   languages: "", remoteWorker: false, profilePhotoUrl: "",
   coverPhotoUrl: "", profileCompleteness: 0,
 };
 
 export default function ProfilePage() {
-  const { user } = useAuthStore();
+  const { user, setAuth } = useAuthStore();
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [profile, setProfile] = useState<ProfileData>(emptyProfile);
   const [form, setForm] = useState<ProfileData>(emptyProfile);
+  const [selectedGender, setSelectedGender] = useState<Gender | "">(user?.gender || "");
+  const [genderChangesRemaining, setGenderChangesRemaining] = useState<number>(user?.genderChangesRemaining ?? 2);
 
   useEffect(() => {
     fetchProfile();
   }, []);
 
-  // Sanitize API response to ensure no null/undefined values for controlled inputs
+  useEffect(() => {
+    if (user) {
+      setSelectedGender(user.gender || "");
+      setGenderChangesRemaining(user.genderChangesRemaining ?? 2);
+    }
+  }, [user]);
+
   const sanitize = (data: Partial<ProfileData>): ProfileData => ({
     bio: data.bio ?? "",
-    travelStyle: data.travelStyle ?? "",
+    travelStyles: Array.isArray(data.travelStyles) ? data.travelStyles : [],
     budgetMin: data.budgetMin ?? 0,
     budgetMax: data.budgetMax ?? 0,
     sleepSchedule: data.sleepSchedule ?? "",
@@ -105,17 +123,44 @@ export default function ProfilePage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await api.put("/users/me/profile", form);
+      const payload: Record<string, unknown> = { ...form };
+      // Only include gender in payload if it changed
+      const currentGenderOnServer = user?.gender || "";
+      if (selectedGender && selectedGender !== currentGenderOnServer) {
+        payload.gender = selectedGender;
+      } else {
+        delete payload.gender;
+      }
+
+      const res = await api.put("/users/me/profile", payload);
       const safe = sanitize(res.data);
       setProfile(safe);
       setForm(safe);
+
+      // Update gender changes remaining from response if gender changed
+      if (payload.gender && res.data.genderChangesRemaining !== undefined) {
+        setGenderChangesRemaining(res.data.genderChangesRemaining);
+      }
+
       setEditing(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch {
-      // handle error
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      const msg = axiosErr.response?.data?.message || "Failed to save profile.";
+      alert(msg);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Travel style multi-select toggle
+  const toggleTravelStyle = (value: string) => {
+    const current = form.travelStyles || [];
+    if (current.includes(value)) {
+      setForm({ ...form, travelStyles: current.filter(s => s !== value) });
+    } else {
+      setForm({ ...form, travelStyles: [...current, value] });
     }
   };
 
@@ -128,6 +173,8 @@ export default function ProfilePage() {
       setForm({ ...form, languages: [...selectedLanguages, lang].join(", ") });
     }
   };
+
+  const currentGenderLabel = genderOptions.find(g => g.value === (selectedGender || user?.gender))?.label || "Not set";
 
   if (loading) {
     return (
@@ -142,7 +189,7 @@ export default function ProfilePage() {
       {/* Success Toast */}
       {saved && (
         <div
-          className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-2xl animate-pulse"
+          className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-2xl"
           style={{
             background: "var(--color-bg-elevated)",
             border: "1px solid rgba(45, 212, 168, 0.3)",
@@ -228,6 +275,21 @@ export default function ProfilePage() {
           </h2>
           <p className="text-sm" style={{ color: "var(--color-txt-muted)" }}>{user?.email}</p>
 
+          {/* Gender badge */}
+          <div className="mt-2 flex items-center gap-2">
+            <Shield size={14} style={{ color: "var(--color-txt-muted)" }} />
+            <span className="text-xs" style={{ color: "var(--color-txt-muted)" }}>
+              Gender: <span style={{ color: "var(--color-txt-secondary)" }}>{currentGenderLabel}</span>
+              {genderChangesRemaining > 0 ? (
+                <span className="ml-2" style={{ color: "var(--color-txt-dim)" }}>
+                  ({genderChangesRemaining} change{genderChangesRemaining !== 1 ? "s" : ""} remaining)
+                </span>
+              ) : (
+                <span className="ml-2" style={{ color: "#f87171" }}>(No changes remaining)</span>
+              )}
+            </span>
+          </div>
+
           {!editing && profile.bio && (
             <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--color-txt-secondary)" }}>
               {profile.bio}
@@ -237,14 +299,14 @@ export default function ProfilePage() {
           {/* View Mode Badges */}
           {!editing && (
             <div className="mt-4 flex flex-wrap gap-2">
-              {profile.travelStyle && (
-                <Badge label={profile.travelStyle.replace("_", " ")} color="var(--color-primary)" />
-              )}
+              {(profile.travelStyles || []).map(style => (
+                <Badge key={style} label={style.replace(/_/g, " ")} color="var(--color-primary)" />
+              ))}
               {profile.sleepSchedule && (
-                <Badge label={profile.sleepSchedule.replace("_", " ")} color="var(--color-accent)" />
+                <Badge label={profile.sleepSchedule.replace(/_/g, " ")} color="var(--color-accent)" />
               )}
               {profile.foodPreference && profile.foodPreference !== "NO_PREFERENCE" && (
-                <Badge label={profile.foodPreference.replace("_", " ")} color="#f472b6" />
+                <Badge label={profile.foodPreference.replace(/_/g, " ")} color="#f472b6" />
               )}
               {profile.remoteWorker && <Badge label="Remote Worker" color="#60a5fa" />}
               {profile.languages && profile.languages.split(",").map((l, i) => (
@@ -266,8 +328,8 @@ export default function ProfilePage() {
                   value={profile.personalityScale <= 3 ? "Introvert" : profile.personalityScale >= 8 ? "Extrovert" : "Ambivert"}
                 />
               )}
-              {profile.travelStyle && (
-                <StatCard icon={Mountain} label="Style" value={profile.travelStyle.replace("_", " ")} />
+              {(profile.travelStyles || []).length > 0 && (
+                <StatCard icon={Mountain} label="Styles" value={(profile.travelStyles || []).map(s => s.replace(/_/g, " ")).join(", ")} />
               )}
             </div>
           )}
@@ -294,27 +356,88 @@ export default function ProfilePage() {
             </div>
           </FormSection>
 
-          {/* Travel Style */}
-          <FormSection title="Travel Style" icon={Mountain}>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              {travelStyles.map(({ value, label, icon: Icon, color }) => (
-                <button
-                  key={value}
-                  onClick={() => setForm({ ...form, travelStyle: value })}
-                  className="flex flex-col items-center gap-2 p-4 rounded-xl transition-all"
-                  style={{
-                    background: form.travelStyle === value ? `${color}15` : "var(--color-bg-deep)",
-                    border: `2px solid ${form.travelStyle === value ? color : "var(--color-line)"}`,
-                    cursor: "pointer",
-                  }}
+          {/* Gender Change */}
+          <FormSection title="Gender" icon={Shield}>
+            {genderChangesRemaining === 0 ? (
+              <div
+                className="flex items-center gap-2 p-3 rounded-lg text-sm"
+                style={{ background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", color: "#f87171" }}
+              >
+                <AlertTriangle size={16} />
+                You have used all {2} gender changes. This cannot be changed further.
+              </div>
+            ) : (
+              <>
+                <div
+                  className="flex items-center gap-2 mb-3 p-2.5 rounded-lg text-xs"
+                  style={{ background: "rgba(240,160,48,0.08)", border: "1px solid rgba(240,160,48,0.2)", color: "#f0a030" }}
                 >
-                  <Icon size={24} style={{ color: form.travelStyle === value ? color : "var(--color-txt-muted)" }} />
-                  <span className="text-xs font-medium" style={{ color: form.travelStyle === value ? color : "var(--color-txt-secondary)" }}>
-                    {label}
-                  </span>
-                </button>
-              ))}
+                  <AlertTriangle size={14} />
+                  You have <strong className="mx-1">{genderChangesRemaining}</strong> gender change{genderChangesRemaining !== 1 ? "s" : ""} remaining. Choose carefully.
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {genderOptions.map(({ value, label, emoji }) => {
+                    const isSelected = selectedGender === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setSelectedGender(value)}
+                        className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all"
+                        style={{
+                          background: isSelected ? "rgba(45,212,168,0.12)" : "var(--color-bg-deep)",
+                          border: `2px solid ${isSelected ? "var(--color-primary)" : "var(--color-line)"}`,
+                          color: isSelected ? "var(--color-primary-bright)" : "var(--color-txt-secondary)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span>{emoji}</span>
+                        <span>{label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </FormSection>
+
+          {/* Travel Style — multi-select */}
+          <FormSection title="Travel Style (select all that apply)" icon={Mountain}>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {travelStyles.map(({ value, label, icon: Icon, color }) => {
+                const isSelected = (form.travelStyles || []).includes(value);
+                return (
+                  <button
+                    key={value}
+                    onClick={() => toggleTravelStyle(value)}
+                    className="flex flex-col items-center gap-2 p-4 rounded-xl transition-all relative"
+                    style={{
+                      background: isSelected ? `${color}15` : "var(--color-bg-deep)",
+                      border: `2px solid ${isSelected ? color : "var(--color-line)"}`,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {isSelected && (
+                      <div
+                        className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center"
+                        style={{ background: color }}
+                      >
+                        <Check size={12} color="#fff" />
+                      </div>
+                    )}
+                    <Icon size={24} style={{ color: isSelected ? color : "var(--color-txt-muted)" }} />
+                    <span className="text-xs font-medium" style={{ color: isSelected ? color : "var(--color-txt-secondary)" }}>
+                      {label}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
+            {(form.travelStyles || []).length > 0 && (
+              <div className="mt-2 text-xs" style={{ color: "var(--color-txt-muted)" }}>
+                Selected: {(form.travelStyles || []).join(", ")}
+              </div>
+            )}
           </FormSection>
 
           {/* Budget */}
@@ -382,7 +505,7 @@ export default function ProfilePage() {
                 max={10}
                 value={form.personalityScale}
                 onChange={(e) => setForm({ ...form, personalityScale: parseInt(e.target.value) })}
-                className="w-full accent-emerald-400"
+                className="w-full"
                 style={{ accentColor: "var(--color-primary)" }}
               />
               <div className="text-center mt-1 text-sm font-medium" style={{ color: "var(--color-primary-bright)" }}>
@@ -463,7 +586,7 @@ export default function ProfilePage() {
           </FormSection>
 
           {/* Photo URL */}
-          <FormSection title="Profile Photo" icon={Camera}>
+          <FormSection title="Profile Photo URL" icon={Camera}>
             <input
               type="url"
               className="t-input w-full"
@@ -486,7 +609,7 @@ export default function ProfilePage() {
       )}
 
       {/* Empty State */}
-      {!editing && !profile.bio && !profile.travelStyle && (
+      {!editing && !profile.bio && (profile.travelStyles || []).length === 0 && (
         <div
           className="text-center py-12 rounded-2xl"
           style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}

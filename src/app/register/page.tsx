@@ -7,6 +7,15 @@ import { Compass, Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import api from "@/lib/api";
 
+type Gender = "MALE" | "FEMALE" | "NON_BINARY" | "PREFER_NOT_TO_SAY";
+
+const genderOptions: { value: Gender; label: string; emoji: string }[] = [
+  { value: "MALE", label: "Male", emoji: "♂️" },
+  { value: "FEMALE", label: "Female", emoji: "♀️" },
+  { value: "NON_BINARY", label: "Non-binary", emoji: "⚧️" },
+  { value: "PREFER_NOT_TO_SAY", label: "Prefer not to say", emoji: "🔒" },
+];
+
 export default function RegisterPage() {
   const router = useRouter();
   const { setAuth } = useAuthStore();
@@ -19,6 +28,7 @@ export default function RegisterPage() {
     email: "",
     password: "",
     confirmPassword: "",
+    gender: "" as Gender | "",
     agreeTerms: false,
   });
 
@@ -48,6 +58,10 @@ export default function RegisterPage() {
       setError("Password must be at least 10 characters");
       return;
     }
+    if (!form.gender) {
+      setError("Please select your gender");
+      return;
+    }
     if (!form.agreeTerms) {
       setError("You must agree to the Terms of Service");
       return;
@@ -60,6 +74,7 @@ export default function RegisterPage() {
         lastName: form.lastName,
         email: form.email,
         password: form.password,
+        gender: form.gender,
       });
       const data = res.data;
       setAuth(data.user, data.access_token, data.refresh_token);
@@ -169,6 +184,39 @@ export default function RegisterPage() {
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
+            </div>
+
+            {/* Gender — mandatory */}
+            <div>
+              <label className="block text-sm font-medium mb-2" style={{ color: "var(--color-txt-secondary)" }}>
+                Gender <span style={{ color: "var(--color-danger)" }}>*</span>
+                <span className="ml-2 text-xs font-normal" style={{ color: "var(--color-txt-muted)" }}>
+                  (can be changed up to 2 times)
+                </span>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {genderOptions.map(({ value, label, emoji }) => {
+                  const isSelected = form.gender === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      id={`gender-${value.toLowerCase()}`}
+                      onClick={() => setForm({ ...form, gender: value })}
+                      className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all"
+                      style={{
+                        background: isSelected ? "rgba(45,212,168,0.12)" : "var(--color-bg-deep)",
+                        border: `2px solid ${isSelected ? "var(--color-primary)" : "var(--color-line)"}`,
+                        color: isSelected ? "var(--color-primary-bright)" : "var(--color-txt-secondary)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span>{emoji}</span>
+                      <span>{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Password */}

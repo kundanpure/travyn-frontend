@@ -3,10 +3,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, MessageCircle, Send, Loader2, Users, Wifi, WifiOff
+  ArrowLeft, MessageCircle, Send, Loader2, Wifi, WifiOff
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 
 interface ChatMessage {
   id: string;
@@ -16,131 +18,74 @@ interface ChatMessage {
   senderInitials: string;
   content: string;
   messageType: "TEXT" | "SYSTEM";
-  createdAt: string;
+  // createdAt can arrive as ISO string, epoch ms number, [sec, nano] array,
+  // or {epochSecond, nano} object depending on how Jackson is configured.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  createdAt: any;
 }
 
-// Simple STOMP client that uses native WebSocket (no SockJS dep needed for basic WS)
-// For production, install @stomp/stompjs and sockjs-client
-class SimpleStompClient {
-  private ws: WebSocket | null = null;
-  private subscriptions: Map<string, (msg: ChatMessage) => void> = new Map();
-  private connected = false;
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  private reconnectDelay = 1000;
-  private maxReconnectDelay = 30000;
-  private onConnectChange: (connected: boolean) => void;
-  private url: string;
-  private token: string;
 
-  constructor(url: string, token: string, onConnectChange: (connected: boolean) => void) {
-    this.url = url;
-    this.token = token;
-    this.onConnectChange = onConnectChange;
-  }
+/**
+ * Safely parse a createdAt value from the backend, which may arrive in several
+ * formats depending on Jackson config:
+ *   - ISO-8601 string:  "2026-05-26T17:05:00.123Z"   (after our fix)
+ *   - Epoch ms number:  1748258400123
+ *   - Epoch s number:   1748258400     (< 1e10 = before year 2286)
+ *   - Array [sec, nano]: [1748258400, 123000000]   (old default)
+ *   - Object {epochSecond, nano}                    (old default)
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseDate(d: any): Date | null {
+  if (d == null) return null;
 
-  connect() {
-    try {
-      // Use SockJS-compatible URL for regular WebSocket
-      const wsUrl = this.url.replace("http://", "ws://").replace("https://", "wss://");
-      this.ws = new WebSocket(wsUrl + "/websocket");
-
-      this.ws.onopen = () => {
-        // Send STOMP CONNECT frame
-        const connectFrame = `CONNECT\nAuthorization:Bearer ${this.token}\naccept-version:1.2\nheart-beat:10000,10000\n\n\0`;
-        this.ws?.send(connectFrame);
-      };
-
-      this.ws.onmessage = (event) => {
-        const data = event.data as string;
-        if (data.startsWith("CONNECTED")) {
-          this.connected = true;
-          this.reconnectDelay = 1000;
-          this.onConnectChange(true);
-          // Resubscribe
-          this.subscriptions.forEach((_, dest) => {
-            this.sendSubscribe(dest);
-          });
-        } else if (data.startsWith("MESSAGE")) {
-          // Parse STOMP MESSAGE frame
-          const bodyStart = data.indexOf("\n\n");
-          if (bodyStart !== -1) {
-            const body = data.substring(bodyStart + 2).replace(/\0$/, "");
-            try {
-              const msg = JSON.parse(body) as ChatMessage;
-              // Find matching subscription
-              this.subscriptions.forEach((callback, dest) => {
-                if (data.includes(`destination:${dest}`)) {
-                  callback(msg);
-                }
-              });
-            } catch {}
-          }
-        }
-      };
-
-      this.ws.onclose = () => {
-        this.connected = false;
-        this.onConnectChange(false);
-        this.scheduleReconnect();
-      };
-
-      this.ws.onerror = () => {
-        this.connected = false;
-        this.onConnectChange(false);
-      };
-    } catch {
-      this.scheduleReconnect();
+  // Array format: [epochSecond, nanoAdjustment]
+  if (Array.isArray(d)) {
+    const [sec, nano] = d as number[];
+    if (typeof sec === "number") {
+      return new Date(sec * 1000 + Math.floor((nano || 0) / 1_000_000));
     }
+    return null;
   }
 
-  private scheduleReconnect() {
-    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);
-      this.connect();
-    }, this.reconnectDelay);
-  }
-
-  private sendSubscribe(destination: string) {
-    if (this.ws && this.connected) {
-      const id = `sub-${destination.replace(/\//g, "-")}`;
-      const frame = `SUBSCRIBE\nid:${id}\ndestination:${destination}\n\n\0`;
-      this.ws.send(frame);
+  // Object format: {epochSecond, nano}
+  if (typeof d === "object") {
+    const obj = d as { epochSecond?: number; nano?: number };
+    if (typeof obj.epochSecond === "number") {
+      return new Date(obj.epochSecond * 1000 + Math.floor((obj.nano || 0) / 1_000_000));
     }
+    return null;
   }
 
-  subscribe(destination: string, callback: (msg: ChatMessage) => void) {
-    this.subscriptions.set(destination, callback);
-    if (this.connected) {
-      this.sendSubscribe(destination);
-    }
+  // Number format: epoch ms (>= 1e10) or epoch seconds (< 1e10)
+  if (typeof d === "number") {
+    const ms = d < 1e10 ? d * 1000 : d;
+    const date = new Date(ms);
+    return isNaN(date.getTime()) ? null : date;
   }
 
-  sendMessage(destination: string, body: object) {
-    if (this.ws && this.connected) {
-      const json = JSON.stringify(body);
-      const frame = `SEND\ndestination:${destination}\ncontent-type:application/json\n\n${json}\0`;
-      this.ws.send(frame);
-    }
-  }
+  // String format: ISO-8601 or any other string Date can handle
+  const date = new Date(d as string);
+  return isNaN(date.getTime()) ? null : date;
+}
 
-  disconnect() {
-    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    if (this.ws) {
-      try {
-        if (this.connected) {
-          this.ws.send("DISCONNECT\n\n\0");
-        }
-        this.ws.close();
-      } catch {}
-    }
-    this.connected = false;
-    this.subscriptions.clear();
-  }
 
-  isConnected() {
-    return this.connected;
-  }
+function formatTime(d: string | number | null | undefined): string {
+  const date = parseDate(d);
+  if (!date) return "";
+  return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatDate(d: string | number | null | undefined): string {
+  const date = parseDate(d);
+  if (!date) return "Unknown date";
+
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) return "Today";
+  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return date.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
 }
 
 export default function ChatPage() {
@@ -156,7 +101,7 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const stompRef = useRef<SimpleStompClient | null>(null);
+  const stompClientRef = useRef<Client | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -165,20 +110,22 @@ export default function ChatPage() {
     }, 100);
   }, []);
 
-  // Load history
+  // Load message history
   useEffect(() => {
     const loadHistory = async () => {
       try {
         const res = await api.get(`/trips/${tripId}/chat/messages?page=0&size=50`);
         setMessages(res.data || []);
         scrollToBottom();
-      } catch {}
+      } catch {
+        // ignore
+      }
       setLoading(false);
     };
     loadHistory();
   }, [tripId, scrollToBottom]);
 
-  // WebSocket connection
+  // Real-time WebSocket via SockJS + STOMP
   useEffect(() => {
     const stored = localStorage.getItem("travyn-auth");
     if (!stored) return;
@@ -191,24 +138,66 @@ export default function ChatPage() {
       return;
     }
 
+    if (!token) return;
+
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
-    const wsBaseUrl = apiUrl.replace("/api/v1", "/ws");
+    const wsBaseUrl = apiUrl.replace("/api/v1", "");
 
-    const client = new SimpleStompClient(wsBaseUrl, token, setConnected);
-    stompRef.current = client;
+    const client = new Client({
+      // SockJS factory — compatible with Spring's withSockJS()
+      webSocketFactory: () => new SockJS(`${wsBaseUrl}/ws`),
+      connectHeaders: {
+        Authorization: `Bearer ${token}`,
+      },
+      reconnectDelay: 5000,
+      heartbeatIncoming: 10000,
+      heartbeatOutgoing: 10000,
 
-    client.connect();
-    client.subscribe(`/topic/chat/${tripId}`, (msg) => {
-      setMessages((prev) => {
-        // Deduplicate by id
-        if (prev.some(m => m.id === msg.id)) return prev;
-        return [...prev, msg];
-      });
-      scrollToBottom();
+      onConnect: () => {
+        setConnected(true);
+
+        // Subscribe to the trip's chat topic
+        client.subscribe(`/topic/chat/${tripId}`, (frame) => {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const msg = JSON.parse(frame.body) as any;
+
+            // Normalize createdAt — WebSocket Jackson may send Instant in
+            // various formats. Convert everything to an ISO string so
+            // parseDate always succeeds.
+            const parsedDate = parseDate(msg.createdAt);
+            msg.createdAt = parsedDate
+              ? parsedDate.toISOString()
+              : new Date().toISOString(); // fallback: use current time
+
+            setMessages((prev) => {
+              if (prev.some(m => m.id === msg.id)) return prev;
+              return [...prev, msg as ChatMessage];
+            });
+            scrollToBottom();
+          } catch {
+            // ignore parse errors
+          }
+        });
+      },
+
+      onDisconnect: () => {
+        setConnected(false);
+      },
+
+      onStompError: (frame) => {
+        console.error("STOMP error:", frame);
+        setConnected(false);
+      },
     });
 
+    client.activate();
+    stompClientRef.current = client;
+
     return () => {
-      client.disconnect();
+      client.deactivate();
+      stompClientRef.current = null;
+      setConnected(false);
     };
   }, [tripId, scrollToBottom]);
 
@@ -219,18 +208,22 @@ export default function ChatPage() {
     setSending(true);
     setMessage("");
 
-    if (stompRef.current?.isConnected()) {
-      // Send via WebSocket
-      stompRef.current.sendMessage(`/app/chat/${tripId}`, { content });
+    const stomp = stompClientRef.current;
+    if (stomp?.connected) {
+      // Real-time send via WebSocket
+      stomp.publish({
+        destination: `/app/chat/${tripId}`,
+        body: JSON.stringify({ content }),
+      });
       setSending(false);
     } else {
-      // Fallback to REST
+      // Fallback to REST API when WebSocket not available
       try {
         const res = await api.post(`/trips/${tripId}/chat/messages`, { content });
         setMessages((prev) => [...prev, res.data]);
         scrollToBottom();
       } catch {
-        setMessage(content); // Restore on failure
+        setMessage(content); // restore on failure
       }
       setSending(false);
     }
@@ -245,16 +238,11 @@ export default function ChatPage() {
     }
   };
 
-  const formatTime = (d: string) =>
-    new Date(d).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
-
   // Group messages by date
   const groupedMessages: { date: string; messages: ChatMessage[] }[] = [];
   messages.forEach((msg) => {
-    const dateStr = new Date(msg.createdAt).toDateString();
+    const date = parseDate(msg.createdAt);
+    const dateStr = date ? date.toDateString() : "unknown";
     const last = groupedMessages[groupedMessages.length - 1];
     if (last && last.date === dateStr) {
       last.messages.push(msg);
@@ -294,7 +282,7 @@ export default function ChatPage() {
               {connected ? (
                 <>
                   <Wifi size={10} style={{ color: "#2dd4a8" }} />
-                  <span style={{ color: "#2dd4a8" }}>Connected</span>
+                  <span style={{ color: "#2dd4a8" }}>Live</span>
                 </>
               ) : (
                 <>
@@ -415,7 +403,7 @@ export default function ChatPage() {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Type a message..."
+          placeholder={connected ? "Type a message..." : "Connecting..."}
           className="t-input flex-1"
           style={{ padding: "12px 16px", borderRadius: "9999px" }}
           maxLength={2000}

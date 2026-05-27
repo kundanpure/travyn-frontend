@@ -5,7 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, MapPin, Calendar, Users, Hash, Shield, Heart, Clock,
   Loader2, CheckCircle2, XCircle, UserPlus, Crown, User, Copy, Check,
-  Map, DollarSign, MessageCircle
+  Map, DollarSign, MessageCircle, Pencil, X, Save, IndianRupee,
+  Mountain, Car, Landmark, Compass, Monitor, PartyPopper
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
@@ -14,6 +15,16 @@ const typeColors: Record<string, string> = {
   BACKPACKING: "#2dd4a8", LUXURY: "#f0a030", ROAD_TRIP: "#60a5fa",
   CULTURAL: "#a78bfa", ADVENTURE: "#f472b6", WEEKEND: "#34d399", REMOTE_WORK: "#fbbf24",
 };
+
+const tripTypes = [
+  { value: "BACKPACKING", label: "Backpacking", icon: Mountain, color: "#2dd4a8" },
+  { value: "LUXURY", label: "Luxury", icon: Crown, color: "#f0a030" },
+  { value: "ROAD_TRIP", label: "Road Trip", icon: Car, color: "#60a5fa" },
+  { value: "CULTURAL", label: "Cultural", icon: Landmark, color: "#a78bfa" },
+  { value: "ADVENTURE", label: "Adventure", icon: Compass, color: "#f472b6" },
+  { value: "WEEKEND", label: "Weekend", icon: PartyPopper, color: "#34d399" },
+  { value: "REMOTE_WORK", label: "Remote Work", icon: Monitor, color: "#fbbf24" },
+];
 
 interface TripDetail {
   id: string;
@@ -34,6 +45,8 @@ interface TripDetail {
   coverImageUrl: string;
   creatorId: string;
   creatorName: string;
+  minBudget: number | null;
+  maxBudget: number | null;
 }
 
 interface TripMember {
@@ -67,6 +80,26 @@ export default function TripDetailPage() {
   const [joining, setJoining] = useState(false);
   const [copied, setCopied] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Edit state
+  const [editing, setEditing] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [editForm, setEditForm] = useState({
+    title: "",
+    destination: "",
+    description: "",
+    startDate: "",
+    endDate: "",
+    tripType: "",
+    maxSize: 6,
+    approvalMode: "MANUAL",
+    womenOnly: false,
+    tags: "",
+    coverImageUrl: "",
+    minBudget: "",
+    maxBudget: "",
+  });
 
   const isCreator = user?.id === trip?.creatorId;
   const myMembership = members.find((m) => m.userId === user?.id);
@@ -122,6 +155,61 @@ export default function TripDetailPage() {
       navigator.clipboard.writeText(trip.tripCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const openEditModal = () => {
+    if (!trip) return;
+    setEditForm({
+      title: trip.title || "",
+      destination: trip.destination || "",
+      description: trip.description || "",
+      startDate: trip.startDate || "",
+      endDate: trip.endDate || "",
+      tripType: trip.tripType || "ADVENTURE",
+      maxSize: trip.maxSize || 6,
+      approvalMode: trip.approvalMode || "MANUAL",
+      womenOnly: trip.womenOnly || false,
+      tags: trip.tags || "",
+      coverImageUrl: trip.coverImageUrl || "",
+      minBudget: trip.minBudget != null ? String(trip.minBudget) : "",
+      maxBudget: trip.maxBudget != null ? String(trip.maxBudget) : "",
+    });
+    setEditError("");
+    setEditing(true);
+  };
+
+  const editBudgetError =
+    editForm.minBudget && editForm.maxBudget && Number(editForm.minBudget) > Number(editForm.maxBudget);
+
+  const handleEditSave = async () => {
+    if (editBudgetError) return;
+    setEditSaving(true);
+    setEditError("");
+    try {
+      const payload: Record<string, unknown> = {
+        title: editForm.title,
+        destination: editForm.destination,
+        description: editForm.description,
+        startDate: editForm.startDate,
+        endDate: editForm.endDate,
+        tripType: editForm.tripType,
+        maxSize: editForm.maxSize,
+        approvalMode: editForm.approvalMode,
+        womenOnly: editForm.womenOnly,
+        tags: editForm.tags || null,
+        coverImageUrl: editForm.coverImageUrl || null,
+      };
+      if (editForm.minBudget) payload.minBudget = Number(editForm.minBudget);
+      if (editForm.maxBudget) payload.maxBudget = Number(editForm.maxBudget);
+
+      await api.put(`/trips/${tripId}`, payload);
+      setEditing(false);
+      await fetchTrip();
+    } catch (err: any) {
+      setEditError(err?.response?.data?.message || "Failed to update trip");
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -194,7 +282,24 @@ export default function TripDetailPage() {
                 </span>
               )}
             </div>
-            <h1 className="text-2xl font-bold" style={{ color: "white" }}>{trip.title}</h1>
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-bold" style={{ color: "white" }}>{trip.title}</h1>
+              {isCreator && (
+                <button
+                  onClick={openEditModal}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                  style={{
+                    background: "rgba(45, 212, 168, 0.15)",
+                    color: "#2dd4a8",
+                    border: "1px solid rgba(45, 212, 168, 0.3)",
+                    backdropFilter: "blur(8px)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <Pencil size={12} /> Edit Trip
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -208,7 +313,7 @@ export default function TripDetailPage() {
             { icon: Calendar, label: "Dates", value: `${formatDate(trip.startDate).split(",")[0]} – ${formatDate(trip.endDate).split(",")[0]}` },
             { icon: Users, label: "Spots", value: `${trip.availableSpots}/${trip.maxSize} left` },
             { icon: Hash, label: "Trip Code", value: trip.tripCode },
-          ].map(({ icon: Icon, label, value }, i) => (
+          ].map(({ icon: Icon, label, value }) => (
             <div
               key={label}
               className="p-4 text-center"
@@ -234,6 +339,22 @@ export default function TripDetailPage() {
           ))}
         </div>
       </div>
+
+      {/* Budget Display */}
+      {(trip.minBudget != null || trip.maxBudget != null) && (
+        <div
+          className="flex items-center gap-3 rounded-xl px-5 py-3"
+          style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}
+        >
+          <IndianRupee size={16} style={{ color: "var(--color-accent)" }} />
+          <div>
+            <div className="text-xs" style={{ color: "var(--color-txt-muted)" }}>Budget Range</div>
+            <div className="text-sm font-semibold" style={{ color: "var(--color-txt-white)" }}>
+              {trip.minBudget != null ? `₹${Number(trip.minBudget).toLocaleString()}` : "Any"} – {trip.maxBudget != null ? `₹${Number(trip.maxBudget).toLocaleString()}` : "Any"}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Experience Features (Members Only) */}
       {(isCreator || myMembership?.status === "APPROVED") && (
@@ -426,6 +547,290 @@ export default function TripDetailPage() {
           style={{ background: "rgba(45,212,168,0.05)", color: "var(--color-primary)", border: "1px solid rgba(45,212,168,0.15)" }}
         >
           <Crown size={12} className="inline mr-1" /> You are the creator of this trip
+        </div>
+      )}
+
+      {/* ─────────── EDIT TRIP MODAL ─────────── */}
+      {editing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setEditing(false)} />
+          <div
+            className="relative w-full max-w-lg mx-4 rounded-2xl shadow-2xl overflow-hidden"
+            style={{
+              background: "var(--color-bg-surface)",
+              border: "1px solid var(--color-line)",
+              maxHeight: "85vh",
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              className="flex items-center justify-between px-6 py-4 sticky top-0 z-10"
+              style={{ background: "var(--color-bg-surface)", borderBottom: "1px solid var(--color-line)" }}
+            >
+              <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: "var(--color-txt-white)" }}>
+                <Pencil size={18} style={{ color: "var(--color-primary)" }} /> Edit Trip
+              </h2>
+              <button
+                onClick={() => setEditing(false)}
+                style={{ background: "none", border: "none", cursor: "pointer" }}
+              >
+                <X size={20} style={{ color: "var(--color-txt-muted)" }} />
+              </button>
+            </div>
+
+            {/* Modal Body — scrollable */}
+            <div className="px-6 py-5 space-y-5 overflow-y-auto" style={{ maxHeight: "calc(85vh - 140px)" }}>
+              {editError && (
+                <div className="text-sm px-4 py-2 rounded-lg" style={{ background: "rgba(248,113,113,0.1)", color: "#f87171", border: "1px solid rgba(248,113,113,0.2)" }}>
+                  {editError}
+                </div>
+              )}
+
+              {/* Title */}
+              <div>
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>Trip Title *</label>
+                <input
+                  type="text"
+                  className="t-input w-full"
+                  value={editForm.title}
+                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                  placeholder="e.g. Himalayan Trek 2026"
+                />
+              </div>
+
+              {/* Destination */}
+              <div>
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>Destination *</label>
+                <div className="relative">
+                  <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-txt-muted)" }} />
+                  <input
+                    type="text"
+                    className="t-input w-full"
+                    style={{ paddingLeft: 32 }}
+                    value={editForm.destination}
+                    onChange={(e) => setEditForm({ ...editForm, destination: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold block mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>Start Date *</label>
+                  <input
+                    type="date"
+                    className="t-input w-full"
+                    value={editForm.startDate}
+                    onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold block mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>End Date *</label>
+                  <input
+                    type="date"
+                    className="t-input w-full"
+                    value={editForm.endDate}
+                    onChange={(e) => setEditForm({ ...editForm, endDate: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* Trip Type */}
+              <div>
+                <label className="text-xs font-semibold block mb-2" style={{ color: "var(--color-txt-secondary)" }}>Trip Type</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {tripTypes.map(({ value, label, icon: Icon, color: c }) => (
+                    <button
+                      key={value}
+                      onClick={() => setEditForm({ ...editForm, tripType: value })}
+                      className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl text-xs font-medium transition-all"
+                      style={{
+                        background: editForm.tripType === value ? `${c}15` : "var(--color-bg-deep)",
+                        border: editForm.tripType === value ? `2px solid ${c}` : "1px solid var(--color-line)",
+                        color: editForm.tripType === value ? c : "var(--color-txt-muted)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <Icon size={16} />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>Description</label>
+                <textarea
+                  className="t-input w-full"
+                  rows={3}
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  placeholder="What's this trip about?"
+                  style={{ resize: "vertical" }}
+                />
+              </div>
+
+              {/* Max Size */}
+              <div>
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>
+                  Max Group Size: {editForm.maxSize}
+                </label>
+                <input
+                  type="range"
+                  min={2}
+                  max={12}
+                  value={editForm.maxSize}
+                  onChange={(e) => setEditForm({ ...editForm, maxSize: Number(e.target.value) })}
+                  className="w-full"
+                  style={{ accentColor: "var(--color-primary)" }}
+                />
+                <div className="flex justify-between text-xs" style={{ color: "var(--color-txt-dim)" }}>
+                  <span>2</span><span>12</span>
+                </div>
+              </div>
+
+              {/* Budget */}
+              <div>
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>Budget Range (₹)</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="relative">
+                    <IndianRupee size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-txt-muted)" }} />
+                    <input
+                      type="number"
+                      className="t-input w-full"
+                      style={{ paddingLeft: 32 }}
+                      placeholder="Min"
+                      min={0}
+                      value={editForm.minBudget}
+                      onChange={(e) => setEditForm({ ...editForm, minBudget: e.target.value })}
+                    />
+                  </div>
+                  <div className="relative">
+                    <IndianRupee size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-txt-muted)" }} />
+                    <input
+                      type="number"
+                      className="t-input w-full"
+                      style={{ paddingLeft: 32 }}
+                      placeholder="Max"
+                      min={0}
+                      value={editForm.maxBudget}
+                      onChange={(e) => setEditForm({ ...editForm, maxBudget: e.target.value })}
+                    />
+                  </div>
+                </div>
+                {editBudgetError && (
+                  <span className="text-xs mt-1 block" style={{ color: "#f87171" }}>
+                    ⚠ Minimum budget must be less than maximum budget
+                  </span>
+                )}
+              </div>
+
+              {/* Approval Mode */}
+              <div>
+                <label className="text-xs font-semibold block mb-2" style={{ color: "var(--color-txt-secondary)" }}>Approval Mode</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { value: "MANUAL", label: "Manual Approval", desc: "Review each request" },
+                    { value: "AUTO", label: "Auto Approve", desc: "Anyone can join" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setEditForm({ ...editForm, approvalMode: opt.value })}
+                      className="p-3 rounded-xl text-left transition-all"
+                      style={{
+                        background: editForm.approvalMode === opt.value ? "rgba(45,212,168,0.1)" : "var(--color-bg-deep)",
+                        border: editForm.approvalMode === opt.value ? "2px solid var(--color-primary)" : "1px solid var(--color-line)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <div className="text-sm font-medium" style={{ color: editForm.approvalMode === opt.value ? "var(--color-primary)" : "var(--color-txt-secondary)" }}>
+                        {opt.label}
+                      </div>
+                      <div className="text-xs" style={{ color: "var(--color-txt-dim)" }}>{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Women Only */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium" style={{ color: "var(--color-txt-secondary)" }}>Women Only</div>
+                  <div className="text-xs" style={{ color: "var(--color-txt-dim)" }}>Restrict to women travelers</div>
+                </div>
+                <button
+                  onClick={() => setEditForm({ ...editForm, womenOnly: !editForm.womenOnly })}
+                  className="w-12 h-6 rounded-full transition-all relative"
+                  style={{
+                    background: editForm.womenOnly ? "var(--color-primary)" : "var(--color-bg-deep)",
+                    border: "1px solid var(--color-line)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div
+                    className="w-5 h-5 rounded-full absolute top-0.5 transition-all"
+                    style={{
+                      background: "white",
+                      left: editForm.womenOnly ? "24px" : "2px",
+                    }}
+                  />
+                </button>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>Tags</label>
+                <input
+                  type="text"
+                  className="t-input w-full"
+                  value={editForm.tags}
+                  onChange={(e) => setEditForm({ ...editForm, tags: e.target.value })}
+                  placeholder="e.g. trekking, photography, food"
+                />
+              </div>
+
+              {/* Cover Image URL */}
+              <div>
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>Cover Image URL</label>
+                <input
+                  type="text"
+                  className="t-input w-full"
+                  value={editForm.coverImageUrl}
+                  onChange={(e) => setEditForm({ ...editForm, coverImageUrl: e.target.value })}
+                  placeholder="https://..."
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              className="px-6 py-4 flex gap-3 sticky bottom-0"
+              style={{ background: "var(--color-bg-surface)", borderTop: "1px solid var(--color-line)" }}
+            >
+              <button
+                onClick={() => setEditing(false)}
+                className="t-btn-outline flex-1 flex items-center justify-center gap-2"
+                style={{ padding: "12px" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditSave}
+                disabled={editSaving || !editForm.title || !editForm.destination || !editForm.startDate || !editForm.endDate || !!editBudgetError}
+                className="t-btn-primary flex-1 flex items-center justify-center gap-2"
+                style={{ padding: "12px" }}
+              >
+                {editSaving ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <>
+                    <Save size={16} /> Save Changes
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

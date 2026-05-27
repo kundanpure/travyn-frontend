@@ -120,6 +120,8 @@ export default function ProfilePage() {
     }
   };
 
+  const profileBudgetError = form.budgetMin > 0 && form.budgetMax > 0 && form.budgetMin > form.budgetMax;
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -464,6 +466,11 @@ export default function ProfilePage() {
                 />
               </div>
             </div>
+            {profileBudgetError && (
+              <span className="text-xs mt-1 block" style={{ color: "#f87171" }}>
+                ⚠ Minimum budget must be less than maximum budget
+              </span>
+            )}
           </FormSection>
 
           {/* Sleep Schedule */}
@@ -599,7 +606,7 @@ export default function ProfilePage() {
           {/* Save Button */}
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || profileBudgetError}
             className="t-btn-primary w-full flex items-center justify-center gap-2"
             style={{ padding: "14px" }}
           >

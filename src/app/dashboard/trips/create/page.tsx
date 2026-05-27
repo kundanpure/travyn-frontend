@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft, ArrowRight, Check, Loader2, MapPin, Calendar, Users,
   Mountain, Crown, Car, Landmark, Compass, Monitor, PartyPopper,
-  Shield, Heart, Zap, Eye, AlertTriangle
+  Shield, Heart, Zap, Eye, AlertTriangle, IndianRupee
 } from "lucide-react";
 import api from "@/lib/api";
 
@@ -45,10 +45,14 @@ export default function CreateTripPage() {
     description: "",
     tags: "",
     coverImageUrl: "",
+    minBudget: "",
+    maxBudget: "",
   });
 
+  const budgetError = form.minBudget && form.maxBudget && Number(form.minBudget) > Number(form.maxBudget);
+
   const canNext = () => {
-    if (step === 0) return form.title && form.destination && form.startDate && form.endDate && form.tripType;
+    if (step === 0) return form.title && form.destination && form.startDate && form.endDate && form.tripType && !budgetError;
     if (step === 1) return form.maxSize >= 2 && form.maxSize <= 12;
     return true;
   };
@@ -60,7 +64,12 @@ export default function CreateTripPage() {
     setError("");
     setFieldErrors([]);
     try {
-      const res = await api.post("/trips", form);
+      const payload = {
+        ...form,
+        minBudget: form.minBudget ? Number(form.minBudget) : null,
+        maxBudget: form.maxBudget ? Number(form.maxBudget) : null,
+      };
+      const res = await api.post("/trips", payload);
       const id = res.data?.id || res.data;
       router.push(`/dashboard/trips/${id}`);
     } catch (e: unknown) {
@@ -213,6 +222,45 @@ export default function CreateTripPage() {
                 ))}
               </div>
             </div>
+
+            {/* Budget Range */}
+            <div>
+              <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--color-txt-secondary)" }}>
+                Budget Range (per person)
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="relative">
+                  <IndianRupee size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-txt-muted)" }} />
+                  <input
+                    type="number"
+                    className="t-input w-full"
+                    style={{ paddingLeft: 32 }}
+                    placeholder="Min budget"
+                    min={0}
+                    value={form.minBudget}
+                    onChange={(e) => setForm({ ...form, minBudget: e.target.value })}
+                  />
+                </div>
+                <div className="relative">
+                  <IndianRupee size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-txt-muted)" }} />
+                  <input
+                    type="number"
+                    className="t-input w-full"
+                    style={{ paddingLeft: 32 }}
+                    placeholder="Max budget"
+                    min={0}
+                    value={form.maxBudget}
+                    onChange={(e) => setForm({ ...form, maxBudget: e.target.value })}
+                  />
+                </div>
+              </div>
+              <span className="text-xs mt-1 block" style={{ color: "var(--color-txt-muted)" }}>Optional — helps travelers plan ahead</span>
+              {budgetError && (
+                <span className="text-xs mt-1 block" style={{ color: "#f87171" }}>
+                  ⚠ Minimum budget must be less than maximum budget
+                </span>
+              )}
+            </div>
           </div>
         )}
 
@@ -351,6 +399,17 @@ export default function CreateTripPage() {
                   <span className="flex items-center gap-1"><MapPin size={12} /> {form.destination}</span>
                   <span className="flex items-center gap-1"><Calendar size={12} /> {form.startDate} → {form.endDate}</span>
                   <span className="flex items-center gap-1"><Users size={12} /> Up to {form.maxSize}</span>
+                  {(form.minBudget || form.maxBudget) && (
+                    <span className="flex items-center gap-1">
+                      <IndianRupee size={12} />
+                      {form.minBudget && form.maxBudget
+                        ? `₹${Number(form.minBudget).toLocaleString()} – ₹${Number(form.maxBudget).toLocaleString()}`
+                        : form.minBudget
+                          ? `From ₹${Number(form.minBudget).toLocaleString()}`
+                          : `Up to ₹${Number(form.maxBudget).toLocaleString()}`
+                      }
+                    </span>
+                  )}
                 </div>
                 <div className="flex gap-2 flex-wrap">
                   <span className="px-2 py-0.5 rounded text-xs" style={{ background: "rgba(45,212,168,0.1)", color: "#2dd4a8" }}>

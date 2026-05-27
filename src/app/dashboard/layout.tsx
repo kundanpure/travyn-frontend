@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -19,8 +19,13 @@ import {
   Menu,
   X,
   ChevronDown,
+  Check,
+  CheckCheck,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
+import { useNotificationStore } from "@/stores/notification-store";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -33,16 +38,116 @@ const navItems = [
   { href: "/dashboard/settings", icon: Settings, label: "Settings" },
 ];
 
+function timeAgo(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "Just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDays = Math.floor(diffHr / 24);
+  return `${diffDays}d ago`;
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const stompRef = useRef<Client | null>(null);
+
+  const {
+    notifications,
+    unreadCount,
+    fetchNotifications,
+    fetchUnreadCount,
+    markAsRead,
+    markAllAsRead,
+    addNotification,
+  } = useNotificationStore();
 
   const handleLogout = () => {
     logout();
     router.push("/login");
+  };
+
+  // Fetch notifications on mount
+  useEffect(() => {
+    fetchNotifications();
+    fetchUnreadCount();
+  }, [fetchNotifications, fetchUnreadCount]);
+
+  // WebSocket subscription for real-time notifications
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const stored = localStorage.getItem("travyn-auth");
+    if (!stored) return;
+
+    let token = "";
+    try {
+      const { state } = JSON.parse(stored);
+      token = state?.accessToken || "";
+    } catch {
+      return;
+    }
+    if (!token) return;
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
+    const wsBaseUrl = apiUrl.replace("/api/v1", "");
+
+    const client = new Client({
+      webSocketFactory: () => new SockJS(`${wsBaseUrl}/ws`),
+      connectHeaders: {
+        Authorization: `Bearer ${token}`,
+      },
+      reconnectDelay: 5000,
+      heartbeatIncoming: 10000,
+      heartbeatOutgoing: 10000,
+
+      onConnect: () => {
+        client.subscribe(`/topic/user.${user.id}.notifications`, (frame) => {
+          try {
+            const notification = JSON.parse(frame.body);
+            addNotification(notification);
+          } catch {
+            // ignore parse errors
+          }
+        });
+      },
+    });
+
+    client.activate();
+    stompRef.current = client;
+
+    return () => {
+      client.deactivate();
+      stompRef.current = null;
+    };
+  }, [user?.id, addNotification]);
+
+  // Close notification dropdown on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const handleNotifClick = (notif: { id: string; read: boolean; referenceId: string | null }) => {
+    if (!notif.read) markAsRead(notif.id);
+    setNotifOpen(false);
+    if (notif.referenceId) {
+      router.push(`/dashboard/trips/${notif.referenceId}/chat`);
+    }
   };
 
   return (
@@ -208,24 +313,134 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             <div className="flex items-center gap-3">
               {/* Notifications */}
-              <button
-                className="relative p-2 rounded-lg transition-colors"
-                style={{ background: "none", border: "none", cursor: "pointer" }}
-              >
-                <Bell size={20} style={{ color: "var(--color-txt-secondary)" }} />
-                <span
-                  className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center"
-                  style={{ background: "var(--color-danger)", color: "white" }}
+              <div className="relative" ref={notifRef}>
+                <button
+                  className="relative p-2 rounded-lg transition-colors"
+                  style={{ background: "none", border: "none", cursor: "pointer" }}
+                  onClick={() => {
+                    setNotifOpen(!notifOpen);
+                    setUserMenuOpen(false);
+                  }}
                 >
-                  3
-                </span>
-              </button>
+                  <Bell size={20} style={{ color: "var(--color-txt-secondary)" }} />
+                  {unreadCount > 0 && (
+                    <span
+                      className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center"
+                      style={{ background: "var(--color-danger)", color: "white" }}
+                    >
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Notification Dropdown */}
+                {notifOpen && (
+                  <div
+                    className="absolute right-0 top-12 w-80 rounded-xl shadow-2xl overflow-hidden"
+                    style={{
+                      background: "var(--color-bg-elevated)",
+                      border: "1px solid var(--color-line)",
+                      maxHeight: "400px",
+                    }}
+                  >
+                    {/* Header */}
+                    <div
+                      className="flex items-center justify-between px-4 py-3"
+                      style={{ borderBottom: "1px solid var(--color-line)" }}
+                    >
+                      <span className="text-sm font-semibold" style={{ color: "var(--color-txt-white)" }}>
+                        Notifications
+                      </span>
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markAllAsRead();
+                          }}
+                          className="flex items-center gap-1 text-xs"
+                          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-primary)" }}
+                        >
+                          <CheckCheck size={14} />
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+
+                    {/* List */}
+                    <div style={{ maxHeight: "340px", overflowY: "auto" }}>
+                      {notifications.length === 0 ? (
+                        <div className="px-4 py-8 text-center">
+                          <Bell size={28} className="mx-auto mb-2" style={{ color: "var(--color-txt-dim)" }} />
+                          <p className="text-sm" style={{ color: "var(--color-txt-muted)" }}>
+                            No notifications yet
+                          </p>
+                        </div>
+                      ) : (
+                        notifications.map((notif) => (
+                          <button
+                            key={notif.id}
+                            onClick={() => handleNotifClick(notif)}
+                            className="w-full flex items-start gap-3 px-4 py-3 text-left transition-colors"
+                            style={{
+                              background: notif.read ? "transparent" : "rgba(45, 212, 168, 0.05)",
+                              border: "none",
+                              borderBottom: "1px solid var(--color-line)",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <div
+                              className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mt-0.5"
+                              style={{
+                                background: notif.read
+                                  ? "var(--color-bg-surface)"
+                                  : "rgba(45, 212, 168, 0.15)",
+                              }}
+                            >
+                              <MessageCircle
+                                size={14}
+                                style={{
+                                  color: notif.read ? "var(--color-txt-muted)" : "var(--color-primary)",
+                                }}
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p
+                                className="text-sm leading-snug"
+                                style={{
+                                  color: notif.read
+                                    ? "var(--color-txt-muted)"
+                                    : "var(--color-txt-primary)",
+                                  fontWeight: notif.read ? 400 : 500,
+                                }}
+                              >
+                                {notif.message}
+                              </p>
+                              <span className="text-xs" style={{ color: "var(--color-txt-dim)" }}>
+                                {timeAgo(notif.createdAt)}
+                              </span>
+                            </div>
+                            {!notif.read && (
+                              <div
+                                className="flex-shrink-0 w-2 h-2 rounded-full mt-2"
+                                style={{ background: "var(--color-primary)" }}
+                              />
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* User Menu */}
               <div className="relative">
                 <button
                   className="flex items-center gap-2 p-1.5 rounded-lg transition-colors"
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  onClick={() => {
+                    setUserMenuOpen(!userMenuOpen);
+                    setNotifOpen(false);
+                  }}
                   style={{ background: "none", border: "none", cursor: "pointer" }}
                 >
                   <div

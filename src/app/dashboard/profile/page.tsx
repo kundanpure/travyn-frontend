@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import api from "@/lib/api";
+import ImageUploadModal from "../components/ImageUploadModal";
+import { BUCKETS } from "@/lib/supabase";
 
 type Gender = "MALE" | "FEMALE" | "NON_BINARY" | "PREFER_NOT_TO_SAY";
 
@@ -79,6 +81,11 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<ProfileData>(emptyProfile);
   const [form, setForm] = useState<ProfileData>(emptyProfile);
   const [selectedGender, setSelectedGender] = useState<Gender | "">(user?.gender || "");
+  const [showAvatarUpload, setShowAvatarUpload] = useState(false);
+  const [showCoverUpload, setShowCoverUpload] = useState(false);
+  const [coverHover, setCoverHover] = useState(false);
+  const [avatarHover, setAvatarHover] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [genderChangesRemaining, setGenderChangesRemaining] = useState<number>(user?.genderChangesRemaining ?? 2);
 
   useEffect(() => {
@@ -153,6 +160,42 @@ export default function ProfilePage() {
       alert(msg);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Handle avatar upload
+  const handleAvatarUpload = async (url: string) => {
+    setShowAvatarUpload(false);
+    setUploadingPhoto(true);
+    try {
+      const res = await api.put("/users/me/profile", { ...form, profilePhotoUrl: url });
+      const safe = sanitize(res.data);
+      setProfile(safe);
+      setForm(safe);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      alert("Failed to update profile photo.");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  // Handle cover upload
+  const handleCoverUpload = async (url: string) => {
+    setShowCoverUpload(false);
+    setUploadingPhoto(true);
+    try {
+      const res = await api.put("/users/me/profile", { ...form, coverPhotoUrl: url });
+      const safe = sanitize(res.data);
+      setProfile(safe);
+      setForm(safe);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      alert("Failed to update cover photo.");
+    } finally {
+      setUploadingPhoto(false);
     }
   };
 
@@ -252,26 +295,83 @@ export default function ProfilePage() {
       >
         {/* Cover + Avatar */}
         <div
-          className="h-32 relative"
+          className="h-40 relative cursor-pointer group"
           style={{
-            background: profile.coverPhotoUrl
-              ? `url(${profile.coverPhotoUrl}) center/cover`
+            backgroundImage: profile.coverPhotoUrl
+              ? `url(${profile.coverPhotoUrl})`
               : "linear-gradient(135deg, rgba(45,212,168,0.3), rgba(240,160,48,0.2))",
+            backgroundPosition: "center",
+            backgroundSize: "cover",
           }}
+          onMouseEnter={() => setCoverHover(true)}
+          onMouseLeave={() => setCoverHover(false)}
+          onClick={() => setShowCoverUpload(true)}
         >
+          {/* Cover hover overlay */}
           <div
-            className="absolute -bottom-10 left-6 w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-bold shadow-xl"
+            className="absolute inset-0 flex items-center justify-center transition-opacity duration-200"
             style={{
-              background: "linear-gradient(135deg, var(--color-primary), var(--color-accent))",
+              background: "rgba(0, 0, 0, 0.5)",
+              opacity: coverHover ? 1 : 0,
+            }}
+          >
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full" style={{
+              background: "rgba(255, 255, 255, 0.15)",
+              backdropFilter: "blur(8px)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+            }}>
+              <Camera size={16} style={{ color: "#fff" }} />
+              <span className="text-xs font-semibold" style={{ color: "#fff" }}>
+                {profile.coverPhotoUrl ? "Change Cover" : "Add Cover Photo"}
+              </span>
+            </div>
+          </div>
+
+          {/* Avatar */}
+          <div
+            className="absolute -bottom-12 left-6 w-24 h-24 rounded-2xl flex items-center justify-center text-2xl font-bold shadow-xl cursor-pointer overflow-hidden"
+            style={{
+              backgroundImage: profile.profilePhotoUrl
+                ? `url(${profile.profilePhotoUrl})`
+                : "linear-gradient(135deg, var(--color-primary), var(--color-accent))",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
               color: "#06080c",
               border: "3px solid var(--color-bg-surface)",
             }}
+            onMouseEnter={(e) => { e.stopPropagation(); setAvatarHover(true); }}
+            onMouseLeave={(e) => { e.stopPropagation(); setAvatarHover(false); }}
+            onClick={(e) => { e.stopPropagation(); setShowAvatarUpload(true); }}
           >
-            {user?.firstName?.[0]}{user?.lastName?.[0]}
+            {/* Show initials only if no photo */}
+            {!profile.profilePhotoUrl && (
+              <span>{user?.firstName?.[0]}{user?.lastName?.[0]}</span>
+            )}
+
+            {/* Avatar hover overlay */}
+            <div
+              className="absolute inset-0 flex items-center justify-center rounded-2xl transition-opacity duration-200"
+              style={{
+                background: "rgba(0, 0, 0, 0.55)",
+                opacity: avatarHover ? 1 : 0,
+              }}
+            >
+              <Camera size={20} style={{ color: "#fff" }} />
+            </div>
+
+            {/* Uploading spinner */}
+            {uploadingPhoto && (
+              <div
+                className="absolute inset-0 flex items-center justify-center rounded-2xl"
+                style={{ background: "rgba(0, 0, 0, 0.6)" }}
+              >
+                <Loader2 size={20} className="animate-spin" style={{ color: "var(--color-primary-bright)" }} />
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="pt-14 px-6 pb-6">
+        <div className="pt-16 px-6 pb-6">
           <h2 className="text-xl font-bold" style={{ color: "var(--color-txt-white)" }}>
             {user?.firstName} {user?.lastName}
           </h2>
@@ -592,15 +692,76 @@ export default function ProfilePage() {
             </button>
           </FormSection>
 
-          {/* Photo URL */}
-          <FormSection title="Profile Photo URL" icon={Camera}>
-            <input
-              type="url"
-              className="t-input w-full"
-              placeholder="https://example.com/your-photo.jpg"
-              value={form.profilePhotoUrl}
-              onChange={(e) => setForm({ ...form, profilePhotoUrl: e.target.value })}
-            />
+          {/* Photo Upload CTA */}
+          <FormSection title="Profile & Cover Photos" icon={Camera}>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setShowAvatarUpload(true)}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl transition-all"
+                style={{
+                  background: "var(--color-bg-deep)",
+                  border: "2px dashed var(--color-line-hover)",
+                  cursor: "pointer",
+                }}
+              >
+                {profile.profilePhotoUrl ? (
+                  <div
+                    className="w-14 h-14 rounded-full"
+                    style={{
+                      background: `url(${profile.profilePhotoUrl}) center/cover`,
+                      border: "2px solid var(--color-primary)",
+                    }}
+                  />
+                ) : (
+                  <div
+                    className="w-14 h-14 rounded-full flex items-center justify-center"
+                    style={{
+                      background: "rgba(45, 212, 168, 0.1)",
+                      border: "1px solid rgba(45, 212, 168, 0.2)",
+                    }}
+                  >
+                    <Camera size={20} style={{ color: "var(--color-primary)" }} />
+                  </div>
+                )}
+                <span className="text-xs font-medium" style={{ color: "var(--color-txt-secondary)" }}>
+                  {profile.profilePhotoUrl ? "Change Avatar" : "Upload Avatar"}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCoverUpload(true)}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl transition-all"
+                style={{
+                  background: "var(--color-bg-deep)",
+                  border: "2px dashed var(--color-line-hover)",
+                  cursor: "pointer",
+                }}
+              >
+                {profile.coverPhotoUrl ? (
+                  <div
+                    className="w-14 h-10 rounded-lg"
+                    style={{
+                      background: `url(${profile.coverPhotoUrl}) center/cover`,
+                      border: "2px solid var(--color-accent)",
+                    }}
+                  />
+                ) : (
+                  <div
+                    className="w-14 h-10 rounded-lg flex items-center justify-center"
+                    style={{
+                      background: "rgba(240, 160, 48, 0.1)",
+                      border: "1px solid rgba(240, 160, 48, 0.2)",
+                    }}
+                  >
+                    <Camera size={16} style={{ color: "var(--color-accent)" }} />
+                  </div>
+                )}
+                <span className="text-xs font-medium" style={{ color: "var(--color-txt-secondary)" }}>
+                  {profile.coverPhotoUrl ? "Change Cover" : "Upload Cover"}
+                </span>
+              </button>
+            </div>
           </FormSection>
 
           {/* Save Button */}
@@ -636,6 +797,31 @@ export default function ProfilePage() {
             <Edit3 size={16} /> Get Started <ChevronRight size={16} />
           </button>
         </div>
+      )}
+      {/* Avatar Upload Modal */}
+      {showAvatarUpload && user && (
+        <ImageUploadModal
+          bucket={BUCKETS.AVATARS}
+          userId={user.id}
+          cropShape="round"
+          aspect={1}
+          title="Upload Profile Photo"
+          onUploadComplete={handleAvatarUpload}
+          onClose={() => setShowAvatarUpload(false)}
+        />
+      )}
+
+      {/* Cover Upload Modal */}
+      {showCoverUpload && user && (
+        <ImageUploadModal
+          bucket={BUCKETS.COVERS}
+          userId={user.id}
+          cropShape="rect"
+          aspect={16 / 5}
+          title="Upload Cover Photo"
+          onUploadComplete={handleCoverUpload}
+          onClose={() => setShowCoverUpload(false)}
+        />
       )}
     </div>
   );

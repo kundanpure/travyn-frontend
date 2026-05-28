@@ -3,12 +3,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, MessageCircle, Send, Loader2, Wifi, WifiOff
+  ArrowLeft, MessageCircle, Send, Loader2, Wifi, WifiOff, Image as ImageIcon
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
+import ChatAttachmentMenu from "../../../components/ChatAttachmentMenu";
 
 interface ChatMessage {
   id: string;
@@ -17,7 +18,7 @@ interface ChatMessage {
   senderName: string;
   senderInitials: string;
   content: string;
-  messageType: "TEXT" | "SYSTEM";
+  messageType: "TEXT" | "SYSTEM" | "IMAGE";
   // createdAt can arrive as ISO string, epoch ms number, [sec, nano] array,
   // or {epochSecond, nano} object depending on how Jackson is configured.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -99,6 +100,7 @@ export default function ChatPage() {
   const [message, setMessage] = useState("");
   const [connected, setConnected] = useState(false);
   const [sending, setSending] = useState(false);
+  const [expandedImage, setExpandedImage] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const stompClientRef = useRef<Client | null>(null);
@@ -156,8 +158,8 @@ export default function ChatPage() {
       onConnect: () => {
         setConnected(true);
 
-        // Subscribe to the trip's chat topic
-        client.subscribe(`/topic/chat/${tripId}`, (frame) => {
+        // Subscribe to the trip's chat topic using lowercase UUID to match backend's UUID.toString()
+        client.subscribe(`/topic/chat/${tripId.toLowerCase()}`, (frame) => {
           try {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const msg = JSON.parse(frame.body) as any;
@@ -212,7 +214,7 @@ export default function ChatPage() {
     if (stomp?.connected) {
       // Real-time send via WebSocket
       stomp.publish({
-        destination: `/app/chat/${tripId}`,
+        destination: `/app/chat/${tripId.toLowerCase()}`,
         body: JSON.stringify({ content }),
       });
       setSending(false);
@@ -229,6 +231,28 @@ export default function ChatPage() {
     }
 
     inputRef.current?.focus();
+  };
+
+  // Send image message (from attachment menu)
+  const handleImageSend = async (imageUrl: string) => {
+    const stomp = stompClientRef.current;
+    if (stomp?.connected) {
+      stomp.publish({
+        destination: `/app/chat/${tripId.toLowerCase()}`,
+        body: JSON.stringify({ content: imageUrl, messageType: "IMAGE" }),
+      });
+    } else {
+      try {
+        const res = await api.post(`/trips/${tripId}/chat/messages`, {
+          content: imageUrl,
+          messageType: "IMAGE",
+        });
+        setMessages((prev) => [...prev, res.data]);
+        scrollToBottom();
+      } catch {
+        // ignore
+      }
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -363,20 +387,65 @@ export default function ChatPage() {
                         {msg.senderName}
                       </div>
                     )}
-                    <div
-                      className="px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed"
-                      style={{
-                        background: isOwn
-                          ? "linear-gradient(135deg, var(--color-primary-dim), var(--color-primary))"
-                          : "var(--color-bg-surface)",
-                        color: isOwn ? "var(--color-bg-deep)" : "var(--color-txt-primary)",
-                        borderBottomRightRadius: isOwn ? "6px" : "18px",
-                        borderBottomLeftRadius: isOwn ? "18px" : "6px",
-                        border: isOwn ? "none" : "1px solid var(--color-line)",
-                      }}
-                    >
-                      {msg.content}
-                    </div>
+
+                    {/* IMAGE message */}
+                    {msg.messageType === "IMAGE" ? (
+                      <div
+                        className="rounded-2xl overflow-hidden cursor-pointer transition-transform hover:scale-[1.02]"
+                        style={{
+                          borderBottomRightRadius: isOwn ? "6px" : "18px",
+                          borderBottomLeftRadius: isOwn ? "18px" : "6px",
+                          border: isOwn ? "2px solid var(--color-primary-dim)" : "1px solid var(--color-line)",
+                          maxWidth: 280,
+                        }}
+                        onClick={() => setExpandedImage(msg.content)}
+                      >
+                        <img
+                          src={msg.content}
+                          alt="Shared photo"
+                          loading="lazy"
+                          className="w-full h-auto block"
+                          style={{
+                            maxHeight: 300,
+                            objectFit: "cover",
+                            background: "var(--color-bg-surface)",
+                          }}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = "none";
+                          }}
+                        />
+                        <div
+                          className="flex items-center gap-1.5 px-3 py-1.5"
+                          style={{
+                            background: isOwn
+                              ? "linear-gradient(135deg, var(--color-primary-dim), var(--color-primary))"
+                              : "var(--color-bg-surface)",
+                          }}
+                        >
+                          <ImageIcon size={12} style={{ color: isOwn ? "var(--color-bg-deep)" : "var(--color-txt-muted)" }} />
+                          <span className="text-[11px] font-medium" style={{ color: isOwn ? "var(--color-bg-deep)" : "var(--color-txt-muted)" }}>
+                            Photo
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      /* TEXT message */
+                      <div
+                        className="px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed"
+                        style={{
+                          background: isOwn
+                            ? "linear-gradient(135deg, var(--color-primary-dim), var(--color-primary))"
+                            : "var(--color-bg-surface)",
+                          color: isOwn ? "var(--color-bg-deep)" : "var(--color-txt-primary)",
+                          borderBottomRightRadius: isOwn ? "6px" : "18px",
+                          borderBottomLeftRadius: isOwn ? "18px" : "6px",
+                          border: isOwn ? "none" : "1px solid var(--color-line)",
+                        }}
+                      >
+                        {msg.content}
+                      </div>
+                    )}
+
                     <div
                       className={`text-xs mt-0.5 ${isOwn ? "text-right mr-1" : "ml-1"}`}
                       style={{ color: "var(--color-txt-dim)" }}
@@ -395,9 +464,17 @@ export default function ChatPage() {
 
       {/* Input area */}
       <div
-        className="flex-shrink-0 px-4 py-3 flex gap-3"
+        className="flex-shrink-0 px-4 py-3 flex items-center gap-2"
         style={{ background: "var(--color-bg-surface)", borderTop: "1px solid var(--color-line)" }}
       >
+        {/* Attachment menu */}
+        {user && (
+          <ChatAttachmentMenu
+            userId={user.id}
+            onImageUploaded={handleImageSend}
+          />
+        )}
+
         <input
           ref={inputRef}
           value={message}
@@ -421,6 +498,32 @@ export default function ChatPage() {
           {sending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
         </button>
       </div>
+
+      {/* Expanded Image Viewer */}
+      {expandedImage && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center cursor-pointer"
+          style={{ background: "rgba(0, 0, 0, 0.9)" }}
+          onClick={() => setExpandedImage(null)}
+        >
+          <img
+            src={expandedImage}
+            alt="Full size photo"
+            className="max-w-[90vw] max-h-[90vh] rounded-xl shadow-2xl"
+            style={{ objectFit: "contain" }}
+          />
+          <div
+            className="absolute top-6 right-6 px-3 py-1.5 rounded-full text-xs font-medium"
+            style={{
+              background: "rgba(255,255,255,0.15)",
+              color: "#fff",
+              backdropFilter: "blur(8px)",
+            }}
+          >
+            Click anywhere to close
+          </div>
+        </div>
+      )}
     </div>
   );
 }

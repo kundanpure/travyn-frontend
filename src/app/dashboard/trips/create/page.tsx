@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft, ArrowRight, Check, Loader2, MapPin, Calendar, Users,
   Mountain, Crown, Car, Landmark, Compass, Monitor, PartyPopper,
-  Shield, Heart, Zap, Eye, AlertTriangle, IndianRupee
+  Shield, Heart, Zap, Eye, AlertTriangle, IndianRupee, ImagePlus
 } from "lucide-react";
 import api from "@/lib/api";
+import { useAuthStore } from "@/stores/auth-store";
+import ImageUploadModal from "@/app/dashboard/components/ImageUploadModal";
 
 interface ValidationError {
   field: string;
@@ -32,6 +34,8 @@ export default function CreateTripPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<ValidationError[]>([]);
+  const [showUpload, setShowUpload] = useState(false);
+  const { user } = useAuthStore();
 
   const [form, setForm] = useState({
     title: "",
@@ -432,17 +436,35 @@ export default function CreateTripPage() {
               </div>
             </div>
 
-            {/* Optional fields */}
+            {/* Cover Image Upload */}
             <div>
               <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--color-txt-secondary)" }}>
-                Cover Image URL (optional)
+                Cover Image (optional)
               </label>
-              <input
-                className="t-input w-full"
-                placeholder="https://example.com/cover.jpg"
-                value={form.coverImageUrl}
-                onChange={(e) => setForm({ ...form, coverImageUrl: e.target.value })}
-              />
+              <div className="flex items-center gap-4">
+                {form.coverImageUrl && (
+                  <div
+                    className="w-24 h-14 rounded-lg"
+                    style={{ 
+                      background: `url(${form.coverImageUrl}) center/cover`, 
+                      border: "1px solid var(--color-line)" 
+                    }}
+                  />
+                )}
+                <button
+                  onClick={() => setShowUpload(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
+                  style={{
+                    background: "rgba(45,212,168,0.05)",
+                    border: "1px dashed var(--color-primary)",
+                    color: "var(--color-primary-bright)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <ImagePlus size={16} />
+                  {form.coverImageUrl ? "Change Cover" : "Upload Cover"}
+                </button>
+              </div>
             </div>
             <div>
               <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--color-txt-secondary)" }}>
@@ -521,6 +543,21 @@ export default function CreateTripPage() {
           </button>
         )}
       </div>
+
+      {showUpload && user && (
+        <ImageUploadModal
+          bucket="covers"
+          userId={user.id}
+          cropShape="rect"
+          aspect={16 / 9}
+          title="Upload Trip Cover"
+          onUploadComplete={(url) => {
+            setForm({ ...form, coverImageUrl: url });
+            setShowUpload(false);
+          }}
+          onClose={() => setShowUpload(false)}
+        />
+      )}
     </div>
   );
 }

@@ -6,10 +6,11 @@ import {
   ArrowLeft, MapPin, Calendar, Users, Hash, Shield, Heart, Clock,
   Loader2, CheckCircle2, XCircle, UserPlus, Crown, User, Copy, Check,
   Map, DollarSign, MessageCircle, Pencil, X, Save, IndianRupee,
-  Mountain, Car, Landmark, Compass, Monitor, PartyPopper
+  Mountain, Car, Landmark, Compass, Monitor, PartyPopper, ImagePlus
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
+import ImageUploadModal from "@/app/dashboard/components/ImageUploadModal";
 
 const typeColors: Record<string, string> = {
   BACKPACKING: "#2dd4a8", LUXURY: "#f0a030", ROAD_TRIP: "#60a5fa",
@@ -85,6 +86,7 @@ export default function TripDetailPage() {
   const [editing, setEditing] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
+  const [showUpload, setShowUpload] = useState(false);
   const [editForm, setEditForm] = useState({
     title: "",
     destination: "",
@@ -790,16 +792,33 @@ export default function TripDetailPage() {
                 />
               </div>
 
-              {/* Cover Image URL */}
+              {/* Cover Image Upload */}
               <div>
-                <label className="text-xs font-semibold block mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>Cover Image URL</label>
-                <input
-                  type="text"
-                  className="t-input w-full"
-                  value={editForm.coverImageUrl}
-                  onChange={(e) => setEditForm({ ...editForm, coverImageUrl: e.target.value })}
-                  placeholder="https://..."
-                />
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>Cover Image (optional)</label>
+                <div className="flex items-center gap-4">
+                  {editForm.coverImageUrl && (
+                    <div
+                      className="w-24 h-14 rounded-lg"
+                      style={{
+                        background: `url(${editForm.coverImageUrl}) center/cover`,
+                        border: "1px solid var(--color-line)"
+                      }}
+                    />
+                  )}
+                  <button
+                    onClick={() => setShowUpload(true)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
+                    style={{
+                      background: "rgba(45,212,168,0.05)",
+                      border: "1px dashed var(--color-primary)",
+                      color: "var(--color-primary-bright)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <ImagePlus size={16} />
+                    {editForm.coverImageUrl ? "Change Cover" : "Upload Cover"}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -832,6 +851,21 @@ export default function TripDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showUpload && user && (
+        <ImageUploadModal
+          bucket="covers"
+          userId={user.id}
+          cropShape="rect"
+          aspect={16 / 9}
+          title="Upload Trip Cover"
+          onUploadComplete={(url) => {
+            setEditForm({ ...editForm, coverImageUrl: url });
+            setShowUpload(false);
+          }}
+          onClose={() => setShowUpload(false)}
+        />
       )}
     </div>
   );

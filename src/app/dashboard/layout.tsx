@@ -21,6 +21,8 @@ import {
   ChevronDown,
   Check,
   CheckCheck,
+  UserPlus,
+  XCircle,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useNotificationStore } from "@/stores/notification-store";
@@ -142,11 +144,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  const handleNotifClick = (notif: { id: string; read: boolean; referenceId: string | null }) => {
+  const handleNotifClick = (notif: { id: string; read: boolean; referenceId: string | null; type: string }) => {
     if (!notif.read) markAsRead(notif.id);
     setNotifOpen(false);
     if (notif.referenceId) {
-      router.push(`/dashboard/trips/${notif.referenceId}/chat`);
+      if (notif.type === "JOIN_APPROVED" || notif.type === "JOIN_REJECTED" || notif.type === "JOIN_REQUEST") {
+        router.push(`/dashboard/trips/${notif.referenceId}`);
+      } else {
+        router.push(`/dashboard/trips/${notif.referenceId}/chat`);
+      }
     }
   };
 
@@ -393,15 +399,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                               style={{
                                 background: notif.read
                                   ? "var(--color-bg-surface)"
+                                  : notif.type === "JOIN_APPROVED" ? "rgba(45, 212, 168, 0.15)"
+                                  : notif.type === "JOIN_REJECTED" ? "rgba(248, 113, 113, 0.15)"
+                                  : notif.type === "JOIN_REQUEST" ? "rgba(251, 191, 36, 0.15)"
                                   : "rgba(45, 212, 168, 0.15)",
                               }}
                             >
-                              <MessageCircle
-                                size={14}
-                                style={{
-                                  color: notif.read ? "var(--color-txt-muted)" : "var(--color-primary)",
-                                }}
-                              />
+                              {notif.type === "JOIN_APPROVED" ? (
+                                <UserPlus size={14} style={{ color: notif.read ? "var(--color-txt-muted)" : "#2dd4a8" }} />
+                              ) : notif.type === "JOIN_REJECTED" ? (
+                                <XCircle size={14} style={{ color: notif.read ? "var(--color-txt-muted)" : "#f87171" }} />
+                              ) : notif.type === "JOIN_REQUEST" ? (
+                                <UserPlus size={14} style={{ color: notif.read ? "var(--color-txt-muted)" : "#fbbf24" }} />
+                              ) : (
+                                <MessageCircle size={14} style={{ color: notif.read ? "var(--color-txt-muted)" : "var(--color-primary)" }} />
+                              )}
                             </div>
                             <div className="flex-1 min-w-0">
                               <p

@@ -756,29 +756,31 @@ export default function TripDetailPage() {
               </div>
 
               {/* Women Only */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-medium" style={{ color: "var(--color-txt-secondary)" }}>Women Only</div>
-                  <div className="text-xs" style={{ color: "var(--color-txt-dim)" }}>Restrict to women travelers</div>
-                </div>
-                <button
-                  onClick={() => setEditForm({ ...editForm, womenOnly: !editForm.womenOnly })}
-                  className="w-12 h-6 rounded-full transition-all relative"
-                  style={{
-                    background: editForm.womenOnly ? "var(--color-primary)" : "var(--color-bg-deep)",
-                    border: "1px solid var(--color-line)",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div
-                    className="w-5 h-5 rounded-full absolute top-0.5 transition-all"
+              {user?.gender === "FEMALE" && (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium" style={{ color: "var(--color-txt-secondary)" }}>Women Only</div>
+                    <div className="text-xs" style={{ color: "var(--color-txt-dim)" }}>Restrict to women travelers</div>
+                  </div>
+                  <button
+                    onClick={() => setEditForm({ ...editForm, womenOnly: !editForm.womenOnly })}
+                    className="w-12 h-6 rounded-full transition-all relative"
                     style={{
-                      background: "white",
-                      left: editForm.womenOnly ? "24px" : "2px",
+                      background: editForm.womenOnly ? "var(--color-primary)" : "var(--color-bg-deep)",
+                      border: "1px solid var(--color-line)",
+                      cursor: "pointer",
                     }}
-                  />
-                </button>
-              </div>
+                  >
+                    <div
+                      className="w-5 h-5 rounded-full absolute top-0.5 transition-all"
+                      style={{
+                        background: "white",
+                        left: editForm.womenOnly ? "24px" : "2px",
+                      }}
+                    />
+                  </button>
+                </div>
+              )}
 
               {/* Tags */}
               <div>

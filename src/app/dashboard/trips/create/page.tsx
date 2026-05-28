@@ -336,27 +336,29 @@ export default function CreateTripPage() {
             </div>
 
             {/* Women Only */}
-            <div className="flex items-center justify-between p-4 rounded-xl" style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)" }}>
-              <div className="flex items-center gap-3">
-                <Heart size={18} style={{ color: "#f472b6" }} />
-                <div>
-                  <div className="text-sm font-medium" style={{ color: "var(--color-txt-primary)" }}>Women Only</div>
-                  <div className="text-xs" style={{ color: "var(--color-txt-muted)" }}>Restrict to women-verified members</div>
+            {user?.gender === "FEMALE" && (
+              <div className="flex items-center justify-between p-4 rounded-xl" style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)" }}>
+                <div className="flex items-center gap-3">
+                  <Heart size={18} style={{ color: "#f472b6" }} />
+                  <div>
+                    <div className="text-sm font-medium" style={{ color: "var(--color-txt-primary)" }}>Women Only</div>
+                    <div className="text-xs" style={{ color: "var(--color-txt-muted)" }}>Restrict to women-verified members</div>
+                  </div>
                 </div>
-              </div>
-              <button
-                onClick={() => setForm({ ...form, womenOnly: !form.womenOnly })}
-                style={{ background: "none", border: "none", cursor: "pointer" }}
-              >
-                <div
-                  className="w-12 h-6 rounded-full relative transition-colors"
-                  style={{ background: form.womenOnly ? "#f472b6" : "var(--color-bg-surface)" }}
+                <button
+                  onClick={() => setForm({ ...form, womenOnly: !form.womenOnly })}
+                  style={{ background: "none", border: "none", cursor: "pointer" }}
                 >
-                  <div className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform"
-                    style={{ transform: form.womenOnly ? "translateX(26px)" : "translateX(2px)" }} />
-                </div>
-              </button>
-            </div>
+                  <div
+                    className="w-12 h-6 rounded-full relative transition-colors"
+                    style={{ background: form.womenOnly ? "#f472b6" : "var(--color-bg-surface)" }}
+                  >
+                    <div className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform"
+                      style={{ transform: form.womenOnly ? "translateX(26px)" : "translateX(2px)" }} />
+                  </div>
+                </button>
+              </div>
+            )}
 
             {/* Description */}
             <div>

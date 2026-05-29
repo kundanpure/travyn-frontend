@@ -45,6 +45,7 @@ export default function DiscoverPage() {
   const [loading, setLoading] = useState(true);
   const [destination, setDestination] = useState("");
   const [tripType, setTripType] = useState("");
+  const [statusFilter, setStatusFilter] = useState("OPEN");
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -60,6 +61,7 @@ export default function DiscoverPage() {
       const params = new URLSearchParams({ page: String(p), size: "12" });
       if (destination) params.set("destination", destination);
       if (tripType) params.set("type", tripType);
+      if (statusFilter) params.set("statusFilter", statusFilter);
 
       const res = await api.get(`/trips?${params}`);
       const data = res.data.content || res.data || [];
@@ -133,6 +135,16 @@ export default function DiscoverPage() {
             {tripTypes.map(({ value, label }) => (
               <option key={value} value={value}>{label}</option>
             ))}
+          </select>
+          <select
+            className="t-input"
+            style={{ minWidth: 150 }}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="OPEN">Open Trips</option>
+            <option value="UPCOMING">Upcoming Trips</option>
+            <option value="COMPLETED">Completed Trips</option>
           </select>
           <button
             onClick={handleSearch}

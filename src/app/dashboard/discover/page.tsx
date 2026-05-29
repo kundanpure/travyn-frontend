@@ -113,8 +113,8 @@ export default function DiscoverPage() {
         className="rounded-xl p-4"
         style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}
       >
-        <div className="flex gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-[200px]">
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="relative flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-txt-muted)" }} />
             <input
               type="text"
@@ -127,8 +127,7 @@ export default function DiscoverPage() {
             />
           </div>
           <select
-            className="t-input"
-            style={{ minWidth: 150 }}
+            className="t-input w-full md:w-[160px]"
             value={tripType}
             onChange={(e) => setTripType(e.target.value)}
           >
@@ -137,8 +136,7 @@ export default function DiscoverPage() {
             ))}
           </select>
           <select
-            className="t-input"
-            style={{ minWidth: 150 }}
+            className="t-input w-full md:w-[160px]"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
@@ -148,7 +146,7 @@ export default function DiscoverPage() {
           </select>
           <button
             onClick={handleSearch}
-            className="t-btn-primary flex items-center gap-2"
+            className="t-btn-primary flex items-center justify-center gap-2 w-full md:w-auto"
             style={{ padding: "10px 20px" }}
           >
             <Search size={16} /> Search

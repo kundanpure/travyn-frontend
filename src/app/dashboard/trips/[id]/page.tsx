@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
+import { useNotificationStore } from "@/stores/notification-store";
 import ImageUploadModal from "@/app/dashboard/components/ImageUploadModal";
 import { ReviewModal } from "@/app/dashboard/components/ReviewModal";
 import { TripReviewModal } from "@/app/dashboard/components/TripReviewModal";
@@ -84,6 +85,7 @@ export default function TripDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuthStore();
+  const { notifications } = useNotificationStore();
   const tripId = params.id as string;
 
   const [trip, setTrip] = useState<TripDetail | null>(null);
@@ -125,6 +127,20 @@ export default function TripDetailPage() {
   useEffect(() => {
     fetchTrip();
   }, [tripId]);
+
+  // Refetch trip if a relevant notification arrives
+  useEffect(() => {
+    if (notifications.length > 0) {
+      const latest = notifications[0];
+      if (
+        !latest.read && 
+        latest.referenceId === tripId && 
+        (latest.type === "JOIN_APPROVED" || latest.type === "JOIN_REJECTED" || latest.type === "JOIN_REQUEST")
+      ) {
+        fetchTrip();
+      }
+    }
+  }, [notifications, tripId]);
 
   const fetchTrip = async () => {
     setLoading(true);

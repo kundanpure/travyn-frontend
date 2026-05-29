@@ -14,6 +14,8 @@ export interface User {
   age?: number;
   dob?: string;
   genderChangesRemaining: number;
+  kycLockoutUntil?: string;
+  kycFailedAttempts?: number;
   createdAt: string;
 }
 

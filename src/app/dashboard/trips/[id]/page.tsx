@@ -419,7 +419,7 @@ export default function TripDetailPage() {
       )}
 
       {/* Join Action */}
-      {!isCreator && !myMembership && trip.status === "OPEN" && (
+      {!isCreator && !myMembership && trip.status === "OPEN" && new Date(trip.startDate) > new Date() && (
         <button
           onClick={handleJoin}
           disabled={joining}
@@ -428,6 +428,14 @@ export default function TripDetailPage() {
         >
           {joining ? <Loader2 size={18} className="animate-spin" /> : <><UserPlus size={18} /> Request to Join</>}
         </button>
+      )}
+      {!isCreator && !myMembership && trip.status === "OPEN" && new Date(trip.startDate) <= new Date() && (
+        <div
+          className="w-full text-center py-3 rounded-xl text-sm font-medium"
+          style={{ background: "rgba(248,113,113,0.1)", color: "#f87171", border: "1px solid rgba(248,113,113,0.2)" }}
+        >
+          <Clock size={16} className="inline mr-2" /> This trip has already started and is no longer accepting new members
+        </div>
       )}
       {myMembership?.status === "PENDING" && (
         <div

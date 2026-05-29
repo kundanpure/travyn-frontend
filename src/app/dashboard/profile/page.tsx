@@ -517,7 +517,9 @@ export default function ProfilePage() {
                 {user?.status === "KYC_VERIFIED" ? (
                   <div className="flex items-center justify-between p-3 rounded-xl border border-dashed" style={{ borderColor: "var(--color-line)", background: "rgba(255,255,255,0.02)" }}>
                     <span className="font-medium text-sm" style={{ color: "var(--color-txt-white)" }}>{user.firstName}</span>
-                    <Shield size={16} className="text-emerald-400" title="Name locked by Aadhaar KYC" />
+                    <span title="Name locked by Aadhaar KYC">
+                      <Shield size={16} className="text-emerald-400" />
+                    </span>
                   </div>
                 ) : (
                   <input 
@@ -531,7 +533,9 @@ export default function ProfilePage() {
                 {user?.status === "KYC_VERIFIED" ? (
                   <div className="flex items-center justify-between p-3 rounded-xl border border-dashed" style={{ borderColor: "var(--color-line)", background: "rgba(255,255,255,0.02)" }}>
                     <span className="font-medium text-sm" style={{ color: "var(--color-txt-white)" }}>{user.lastName}</span>
-                    <Shield size={16} className="text-emerald-400" title="Name locked by Aadhaar KYC" />
+                    <span title="Name locked by Aadhaar KYC">
+                      <Shield size={16} className="text-emerald-400" />
+                    </span>
                   </div>
                 ) : (
                   <input 

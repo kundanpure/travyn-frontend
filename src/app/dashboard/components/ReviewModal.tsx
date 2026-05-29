@@ -13,25 +13,42 @@ interface ReviewModalProps {
 }
 
 export function ReviewModal({ tripId, revieweeId, revieweeName, onClose, onSuccess }: ReviewModalProps) {
-  const [rating, setRating] = useState<number>(0);
-  const [hoverRating, setHoverRating] = useState<number>(0);
+  const [ratings, setRatings] = useState({
+    punctuality: 0,
+    cleanliness: 0,
+    communication: 0,
+    vibe: 0,
+    safety: 0
+  });
+  const [hoverRatings, setHoverRatings] = useState({
+    punctuality: 0,
+    cleanliness: 0,
+    communication: 0,
+    vibe: 0,
+    safety: 0
+  });
+  
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  const isFormValid = Object.values(ratings).every(r => r > 0);
+
   const handleSubmit = async () => {
-    if (rating === 0) {
-      setError("Please select a rating");
+    if (!isFormValid) {
+      setError("Please select all ratings");
       return;
     }
     setSubmitting(true);
     setError("");
     try {
-      await api.post('/reputation/reviews', {
-        tripId,
-        revieweeId,
-        rating,
-        comment
+      await api.post(`/trips/${tripId}/reviews/${revieweeId}`, {
+        punctualityRating: ratings.punctuality,
+        cleanlinessRating: ratings.cleanliness,
+        communicationRating: ratings.communication,
+        vibeRating: ratings.vibe,
+        safetyRating: ratings.safety,
+        textReview: comment
       });
       onSuccess();
     } catch (err: any) {
@@ -41,10 +58,34 @@ export function ReviewModal({ tripId, revieweeId, revieweeName, onClose, onSucce
     }
   };
 
+  const renderStars = (category: keyof typeof ratings, label: string) => (
+    <div className="flex items-center justify-between mb-3">
+      <span className="text-sm font-medium text-gray-300">{label}</span>
+      <div className="flex gap-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            type="button"
+            className="focus:outline-none transition-transform hover:scale-110"
+            onMouseEnter={() => setHoverRatings({ ...hoverRatings, [category]: star })}
+            onMouseLeave={() => setHoverRatings({ ...hoverRatings, [category]: 0 })}
+            onClick={() => setRatings({ ...ratings, [category]: star })}
+          >
+            <Star
+              size={24}
+              fill={(hoverRatings[category] || ratings[category]) >= star ? "#f0a030" : "transparent"}
+              color={(hoverRatings[category] || ratings[category]) >= star ? "#f0a030" : "#4b5563"}
+            />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md p-6 rounded-2xl shadow-2xl bg-gray-900 border border-gray-800">
+      <div className="relative w-full max-w-md p-6 rounded-2xl shadow-2xl bg-gray-900 border border-gray-800 max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-white"
@@ -63,23 +104,12 @@ export function ReviewModal({ tripId, revieweeId, revieweeName, onClose, onSucce
           </div>
         )}
 
-        <div className="flex justify-center gap-2 mb-6">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <button
-              key={star}
-              type="button"
-              className="focus:outline-none transition-transform hover:scale-110"
-              onMouseEnter={() => setHoverRating(star)}
-              onMouseLeave={() => setHoverRating(0)}
-              onClick={() => setRating(star)}
-            >
-              <Star
-                size={36}
-                fill={(hoverRating || rating) >= star ? "#f0a030" : "transparent"}
-                color={(hoverRating || rating) >= star ? "#f0a030" : "#4b5563"}
-              />
-            </button>
-          ))}
+        <div className="mb-6">
+          {renderStars("punctuality", "Punctuality")}
+          {renderStars("cleanliness", "Cleanliness")}
+          {renderStars("communication", "Communication")}
+          {renderStars("vibe", "Vibe")}
+          {renderStars("safety", "Safety")}
         </div>
 
         <div className="mb-6">
@@ -88,16 +118,17 @@ export function ReviewModal({ tripId, revieweeId, revieweeName, onClose, onSucce
           </label>
           <textarea
             className="w-full bg-gray-800 border border-gray-700 rounded-xl p-3 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
-            rows={4}
+            rows={3}
             placeholder="Share your experience..."
             value={comment}
             onChange={(e) => setComment(e.target.value)}
+            maxLength={500}
           />
         </div>
 
         <button
           onClick={handleSubmit}
-          disabled={submitting || rating === 0}
+          disabled={submitting || !isFormValid}
           className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-gray-900 font-bold flex items-center justify-center gap-2 transition-colors"
         >
           {submitting ? (

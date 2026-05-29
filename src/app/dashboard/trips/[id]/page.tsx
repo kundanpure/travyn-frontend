@@ -12,6 +12,7 @@ import api from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
 import ImageUploadModal from "@/app/dashboard/components/ImageUploadModal";
 import { ReviewModal } from "@/app/dashboard/components/ReviewModal";
+import { TripReviewModal } from "@/app/dashboard/components/TripReviewModal";
 
 const typeColors: Record<string, string> = {
   BACKPACKING: "#2dd4a8", LUXURY: "#f0a030", ROAD_TRIP: "#60a5fa",
@@ -69,6 +70,16 @@ interface JoinRequest {
   requestedAt: string;
 }
 
+interface TripReview {
+  id: string;
+  reviewerId: string;
+  reviewerName: string;
+  reviewerAvatarUrl: string;
+  rating: number;
+  textReview: string;
+  createdAt: string;
+}
+
 export default function TripDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -84,6 +95,8 @@ export default function TripDetailPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const [reviewMember, setReviewMember] = useState<{ id: string, name: string } | null>(null);
+  const [reviewingTrip, setReviewingTrip] = useState(false);
+  const [tripReviews, setTripReviews] = useState<TripReview[]>([]);
 
   // Edit state
   const [editing, setEditing] = useState(false);
@@ -116,12 +129,14 @@ export default function TripDetailPage() {
   const fetchTrip = async () => {
     setLoading(true);
     try {
-      const [tripRes, membersRes] = await Promise.all([
+      const [tripRes, membersRes, reviewsRes] = await Promise.all([
         api.get(`/trips/${tripId}`),
         api.get(`/trips/${tripId}/members`),
+        api.get(`/trips/${tripId}/reviews`),
       ]);
       setTrip(tripRes.data);
       setMembers(membersRes.data || []);
+      setTripReviews(reviewsRes.data || []);
 
       // Fetch pending requests if creator
       if (tripRes.data.creatorId === user?.id) {
@@ -274,8 +289,14 @@ export default function TripDetailPage() {
               <span
                 className="px-2.5 py-1 rounded-lg text-xs font-semibold"
                 style={{
-                  background: trip.status === "OPEN" ? "rgba(45,212,168,0.2)" : "rgba(156,163,175,0.2)",
-                  color: trip.status === "OPEN" ? "#2dd4a8" : "#9ca3af",
+                  background: trip.status === "OPEN" ? "rgba(45,212,168,0.2)"
+                    : trip.status === "COMPLETED" ? "rgba(96,165,250,0.2)"
+                    : trip.status === "CANCELLED" ? "rgba(248,113,113,0.2)"
+                    : "rgba(156,163,175,0.2)",
+                  color: trip.status === "OPEN" ? "#2dd4a8"
+                    : trip.status === "COMPLETED" ? "#60a5fa"
+                    : trip.status === "CANCELLED" ? "#f87171"
+                    : "#9ca3af",
                 }}
               >
                 {trip.status}
@@ -288,7 +309,7 @@ export default function TripDetailPage() {
             </div>
             <div className="flex items-center justify-between">
               <h1 className="text-2xl font-bold" style={{ color: "white" }}>{trip.title}</h1>
-              {isCreator && (
+              {isCreator && trip.status !== "COMPLETED" && trip.status !== "CANCELLED" && (
                 <button
                   onClick={openEditModal}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
@@ -301,6 +322,21 @@ export default function TripDetailPage() {
                   }}
                 >
                   <Pencil size={12} /> Edit Trip
+                </button>
+              )}
+              {(myMembership?.status === "APPROVED" || isCreator) && trip.status === "COMPLETED" && !tripReviews.some(r => r.reviewerId === user?.id) && (
+                <button
+                  onClick={() => setReviewingTrip(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                  style={{
+                    background: "rgba(240, 160, 48, 0.15)",
+                    color: "#f0a030",
+                    border: "1px solid rgba(240, 160, 48, 0.3)",
+                    backdropFilter: "blur(8px)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <Star size={12} /> Review Trip
                 </button>
               )}
             </div>
@@ -490,8 +526,8 @@ export default function TripDetailPage() {
                 </div>
               </div>
               
-              {/* Review Button */}
-              {m.userId !== user?.id && (isCreator || myMembership?.status === "APPROVED") && (
+              {/* Review Button — only visible after trip is COMPLETED */}
+              {m.userId !== user?.id && trip.status === "COMPLETED" && (isCreator || myMembership?.status === "APPROVED") && (
                 <button
                   onClick={() => setReviewMember({ id: m.userId, name: `${m.firstName} ${m.lastName}` })}
                   className="p-2 rounded-lg transition-colors flex items-center justify-center hover:scale-105"
@@ -557,6 +593,48 @@ export default function TripDetailPage() {
                   >
                     <XCircle size={16} style={{ color: "#f87171" }} />
                   </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Trip Reviews Section */}
+      {tripReviews.length > 0 && (
+        <div className="mt-8">
+          <div className="flex items-center gap-3 mb-6 px-2">
+            <div className="p-2 rounded-xl bg-orange-500/10 text-orange-400">
+              <Star size={20} />
+            </div>
+            <h2 className="text-xl font-bold text-white">Trip Reviews</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {tripReviews.map(review => (
+              <div key={review.id} className="p-5 rounded-2xl bg-gray-900/50 border border-gray-800/80 hover:border-gray-700 transition-colors">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    {review.reviewerAvatarUrl ? (
+                      <img src={review.reviewerAvatarUrl} alt={review.reviewerName} className="w-8 h-8 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold text-gray-400">
+                        {review.reviewerName.charAt(0)}
+                      </div>
+                    )}
+                    <span className="font-semibold text-white">{review.reviewerName}</span>
+                  </div>
+                  <div className="flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <Star key={star} size={14} fill={star <= review.rating ? "#f0a030" : "transparent"} color={star <= review.rating ? "#f0a030" : "#4b5563"} />
+                    ))}
+                  </div>
+                </div>
+                {review.textReview && (
+                  <p className="text-sm text-gray-300 leading-relaxed italic border-l-2 border-gray-700 pl-3">"{review.textReview}"</p>
+                )}
+                <div className="text-xs text-gray-500 mt-4 text-right">
+                  {new Date(review.createdAt).toLocaleDateString()}
                 </div>
               </div>
             ))}
@@ -903,6 +981,18 @@ export default function TripDetailPage() {
           onSuccess={() => {
             setReviewMember(null);
             alert("Review submitted successfully! It will be published once they review you too.");
+          }}
+        />
+      )}
+
+      {reviewingTrip && (
+        <TripReviewModal
+          tripId={trip.id}
+          tripTitle={trip.title}
+          onClose={() => setReviewingTrip(false)}
+          onSuccess={() => {
+            setReviewingTrip(false);
+            fetchTrip();
           }}
         />
       )}

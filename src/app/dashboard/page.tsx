@@ -73,10 +73,24 @@ export default function DashboardPage() {
   const { user } = useAuthStore();
   const [trips, setTrips] = useState<MyTrip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [trustScore, setTrustScore] = useState<number | null>(null);
 
   useEffect(() => {
     fetchTrips();
+    fetchTrustScore();
   }, []);
+
+  const fetchTrustScore = async () => {
+    try {
+      const userId = useAuthStore.getState().user?.id;
+      if (userId) {
+        const res = await api.get(`/users/${userId}/trust-score`);
+        setTrustScore(res.data.totalScore);
+      }
+    } catch {
+      // TrustScore not available yet
+    }
+  };
 
   const fetchTrips = async () => {
     try {
@@ -150,11 +164,8 @@ export default function DashboardPage() {
 
       {/* Premium Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        {/* TrustScore (Placeholder with Glow) */}
+        {/* TrustScore */}
         <div className="t-card relative overflow-hidden group" style={{ padding: 24, background: "var(--color-bg-deep)" }}>
-          <div className="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-100 transition-opacity">
-            <Lock size={14} style={{ color: "var(--color-txt-muted)" }} />
-          </div>
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 rounded-lg" style={{ background: "rgba(45,212,168,0.1)" }}>
               <Shield size={18} style={{ color: "var(--color-primary)" }} />
@@ -164,12 +175,20 @@ export default function DashboardPage() {
             </span>
           </div>
           <div className="flex items-end gap-1">
-            <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-200">
-              45
-            </span>
-            <span className="text-sm pb-1 font-medium" style={{ color: "var(--color-txt-muted)" }}>/100</span>
+            {trustScore !== null ? (
+              <>
+                <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-200">
+                  {trustScore}
+                </span>
+                <span className="text-sm pb-1 font-medium" style={{ color: "var(--color-txt-muted)" }}>/100</span>
+              </>
+            ) : (
+              <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-200">
+                —
+              </span>
+            )}
           </div>
-          <p className="text-xs mt-2" style={{ color: "var(--color-txt-dim)" }}>Verify ID to boost score (Coming Soon)</p>
+          <p className="text-xs mt-2" style={{ color: "var(--color-txt-dim)" }}>Verify ID to boost your score</p>
         </div>
 
         {/* Dynamic Trips Count */}
@@ -350,7 +369,7 @@ export default function DashboardPage() {
             <div>
               <h4 className="text-sm font-bold text-white mb-1">Verify Your Identity</h4>
               <p className="text-xs text-blue-200/70 mb-3">
-                Nomadly requires identity verification to unlock matching features and increase trust across the network.
+                Travyn requires identity verification to unlock matching features and increase trust across the network.
               </p>
               <Link href="/dashboard/settings/kyc" className="text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors inline-block mt-1">
                 Start Verification →

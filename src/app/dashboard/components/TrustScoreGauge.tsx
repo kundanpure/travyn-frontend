@@ -50,7 +50,7 @@ export function TrustScoreGauge({ score }: TrustScoreGaugeProps) {
         </div>
       </div>
       <div className="mt-4 text-center">
-        <h3 className="text-sm font-semibold text-gray-200">Nomadly TrustScore</h3>
+        <h3 className="text-sm font-semibold text-gray-200">Travyn TrustScore</h3>
         <p className="text-xs text-gray-500 mt-1 max-w-[150px]">
           Based on verified ID and community reviews.
         </p>

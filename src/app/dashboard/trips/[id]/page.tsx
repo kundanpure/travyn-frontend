@@ -201,7 +201,6 @@ export default function TripDetailPage() {
         tripType: editForm.tripType,
         maxSize: editForm.maxSize,
         approvalMode: editForm.approvalMode,
-        womenOnly: editForm.womenOnly,
         tags: editForm.tags || null,
         coverImageUrl: editForm.coverImageUrl || null,
       };
@@ -770,37 +769,32 @@ export default function TripDetailPage() {
                 </div>
               </div>
 
-              {/* Women Only */}
-              {user?.gender === "FEMALE" && (
-                <div className="flex items-center justify-between" style={{ opacity: user.status === "KYC_VERIFIED" ? 1 : 0.6 }}>
+              {/* Women Only — display-only in edit mode (set at creation time only) */}
+              {trip.womenOnly && (
+                <div className="flex items-center justify-between" style={{ opacity: 0.6 }}>
                   <div>
                     <div className="text-sm font-medium" style={{ color: "var(--color-txt-secondary)" }}>Women Only</div>
                     <div className="text-xs" style={{ color: "var(--color-txt-dim)" }}>
-                      {user.status === "KYC_VERIFIED" ? "Restrict to women travelers" : "Verify your identity to create women-only trips"}
+                      This setting was locked at trip creation and cannot be changed.
                     </div>
                   </div>
-                  <button
-                    onClick={() => {
-                      if (user.status === "KYC_VERIFIED") {
-                        setEditForm({ ...editForm, womenOnly: !editForm.womenOnly })
-                      }
-                    }}
-                    disabled={user.status !== "KYC_VERIFIED"}
-                    className="w-12 h-6 rounded-full transition-all relative"
+                  <div
+                    className="w-12 h-6 rounded-full relative"
                     style={{
-                      background: editForm.womenOnly ? "var(--color-primary)" : "var(--color-bg-deep)",
+                      background: "var(--color-primary)",
                       border: "1px solid var(--color-line)",
-                      cursor: user.status === "KYC_VERIFIED" ? "pointer" : "not-allowed",
+                      cursor: "not-allowed",
+                      opacity: 0.7,
                     }}
                   >
                     <div
                       className="w-5 h-5 rounded-full absolute top-0.5 transition-all"
                       style={{
                         background: "white",
-                        left: editForm.womenOnly ? "24px" : "2px",
+                        left: "24px",
                       }}
                     />
-                  </button>
+                  </div>
                 </div>
               )}
 

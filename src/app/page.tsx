@@ -45,17 +45,26 @@ function Reveal({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          observer.unobserve(el);
-        }
-      },
-      { threshold: 0.12 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
+    try {
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            setVisible(true);
+            observer.unobserve(el);
+          }
+        },
+        { threshold: 0.05, rootMargin: "50px" }
+      );
+      observer.observe(el);
+      
+      const fallbackTimer = setTimeout(() => setVisible(true), 1500);
+      return () => {
+        observer.disconnect();
+        clearTimeout(fallbackTimer);
+      };
+    } catch (e) {
+      setVisible(true);
+    }
   }, []);
 
   const transforms: Record<string, string> = {
@@ -97,26 +106,41 @@ function AnimatedCounter({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !started.current) {
+    try {
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting && !started.current) {
+            started.current = true;
+            const duration = 2000;
+            const startTime = performance.now();
+            const animate = (now: number) => {
+              const elapsed = now - startTime;
+              const progress = Math.min(elapsed / duration, 1);
+              const eased = 1 - (1 - progress) * (1 - progress);
+              setCount(Math.round(eased * target));
+              if (progress < 1) requestAnimationFrame(animate);
+            };
+            requestAnimationFrame(animate);
+          }
+        },
+        { threshold: 0.1, rootMargin: "50px" }
+      );
+      observer.observe(el);
+
+      const fallbackTimer = setTimeout(() => {
+        if (!started.current) {
           started.current = true;
-          const duration = 2000;
-          const startTime = performance.now();
-          const animate = (now: number) => {
-            const elapsed = now - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            const eased = 1 - (1 - progress) * (1 - progress);
-            setCount(Math.round(eased * target));
-            if (progress < 1) requestAnimationFrame(animate);
-          };
-          requestAnimationFrame(animate);
+          setCount(target);
         }
-      },
-      { threshold: 0.5 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
+      }, 2000);
+
+      return () => {
+        observer.disconnect();
+        clearTimeout(fallbackTimer);
+      };
+    } catch (e) {
+      setCount(target);
+    }
   }, [target]);
 
   return (

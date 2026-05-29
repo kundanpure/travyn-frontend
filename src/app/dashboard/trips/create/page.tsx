@@ -337,17 +337,24 @@ export default function CreateTripPage() {
 
             {/* Women Only */}
             {user?.gender === "FEMALE" && (
-              <div className="flex items-center justify-between p-4 rounded-xl" style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)" }}>
+              <div className="flex items-center justify-between p-4 rounded-xl" style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)", opacity: user.status === "KYC_VERIFIED" ? 1 : 0.6 }}>
                 <div className="flex items-center gap-3">
                   <Heart size={18} style={{ color: "#f472b6" }} />
                   <div>
                     <div className="text-sm font-medium" style={{ color: "var(--color-txt-primary)" }}>Women Only</div>
-                    <div className="text-xs" style={{ color: "var(--color-txt-muted)" }}>Restrict to women-verified members</div>
+                    <div className="text-xs" style={{ color: "var(--color-txt-muted)" }}>
+                      {user.status === "KYC_VERIFIED" ? "Restrict to verified women members" : "Verify your identity to create women-only trips"}
+                    </div>
                   </div>
                 </div>
                 <button
-                  onClick={() => setForm({ ...form, womenOnly: !form.womenOnly })}
-                  style={{ background: "none", border: "none", cursor: "pointer" }}
+                  onClick={() => {
+                    if (user.status === "KYC_VERIFIED") {
+                      setForm({ ...form, womenOnly: !form.womenOnly })
+                    }
+                  }}
+                  disabled={user.status !== "KYC_VERIFIED"}
+                  style={{ background: "none", border: "none", cursor: user.status === "KYC_VERIFIED" ? "pointer" : "not-allowed" }}
                 >
                   <div
                     className="w-12 h-6 rounded-full relative transition-colors"

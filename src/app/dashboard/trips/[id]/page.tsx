@@ -6,11 +6,12 @@ import {
   ArrowLeft, MapPin, Calendar, Users, Hash, Shield, Heart, Clock,
   Loader2, CheckCircle2, XCircle, UserPlus, Crown, User, Copy, Check,
   Map, DollarSign, MessageCircle, Pencil, X, Save, IndianRupee,
-  Mountain, Car, Landmark, Compass, Monitor, PartyPopper, ImagePlus
+  Mountain, Car, Landmark, Compass, Monitor, PartyPopper, ImagePlus, Star
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
 import ImageUploadModal from "@/app/dashboard/components/ImageUploadModal";
+import { ReviewModal } from "@/app/dashboard/components/ReviewModal";
 
 const typeColors: Record<string, string> = {
   BACKPACKING: "#2dd4a8", LUXURY: "#f0a030", ROAD_TRIP: "#60a5fa",
@@ -81,6 +82,8 @@ export default function TripDetailPage() {
   const [joining, setJoining] = useState(false);
   const [copied, setCopied] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const [reviewMember, setReviewMember] = useState<{ id: string, name: string } | null>(null);
 
   // Edit state
   const [editing, setEditing] = useState(false);
@@ -479,6 +482,18 @@ export default function TripDetailPage() {
                   {m.role === "CREATOR" ? "Creator" : "Member"}
                 </div>
               </div>
+              
+              {/* Review Button */}
+              {m.userId !== user?.id && (isCreator || myMembership?.status === "APPROVED") && (
+                <button
+                  onClick={() => setReviewMember({ id: m.userId, name: `${m.firstName} ${m.lastName}` })}
+                  className="p-2 rounded-lg transition-colors flex items-center justify-center hover:scale-105"
+                  style={{ background: "rgba(240, 160, 48, 0.1)", border: "1px solid rgba(240, 160, 48, 0.3)", color: "#f0a030" }}
+                  title="Leave a Review"
+                >
+                  <Star size={16} />
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -757,18 +772,25 @@ export default function TripDetailPage() {
 
               {/* Women Only */}
               {user?.gender === "FEMALE" && (
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between" style={{ opacity: user.status === "KYC_VERIFIED" ? 1 : 0.6 }}>
                   <div>
                     <div className="text-sm font-medium" style={{ color: "var(--color-txt-secondary)" }}>Women Only</div>
-                    <div className="text-xs" style={{ color: "var(--color-txt-dim)" }}>Restrict to women travelers</div>
+                    <div className="text-xs" style={{ color: "var(--color-txt-dim)" }}>
+                      {user.status === "KYC_VERIFIED" ? "Restrict to women travelers" : "Verify your identity to create women-only trips"}
+                    </div>
                   </div>
                   <button
-                    onClick={() => setEditForm({ ...editForm, womenOnly: !editForm.womenOnly })}
+                    onClick={() => {
+                      if (user.status === "KYC_VERIFIED") {
+                        setEditForm({ ...editForm, womenOnly: !editForm.womenOnly })
+                      }
+                    }}
+                    disabled={user.status !== "KYC_VERIFIED"}
                     className="w-12 h-6 rounded-full transition-all relative"
                     style={{
                       background: editForm.womenOnly ? "var(--color-primary)" : "var(--color-bg-deep)",
                       border: "1px solid var(--color-line)",
-                      cursor: "pointer",
+                      cursor: user.status === "KYC_VERIFIED" ? "pointer" : "not-allowed",
                     }}
                   >
                     <div
@@ -867,6 +889,19 @@ export default function TripDetailPage() {
             setShowUpload(false);
           }}
           onClose={() => setShowUpload(false)}
+        />
+      )}
+
+      {reviewMember && (
+        <ReviewModal
+          tripId={tripId}
+          revieweeId={reviewMember.id}
+          revieweeName={reviewMember.name}
+          onClose={() => setReviewMember(null)}
+          onSuccess={() => {
+            setReviewMember(null);
+            alert("Review submitted successfully! It will be published once they review you too.");
+          }}
         />
       )}
     </div>

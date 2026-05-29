@@ -9,10 +9,14 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import api from "@/lib/api";
+import { TrustScoreGauge } from "../components/TrustScoreGauge";
 import ImageUploadModal from "../components/ImageUploadModal";
 import { BUCKETS } from "@/lib/supabase";
 
 type Gender = "MALE" | "FEMALE" | "NON_BINARY" | "PREFER_NOT_TO_SAY";
+
+// ... Skipping ahead ... I will need a more targeted replace call. 
+// I'll do two separate replacements.
 
 const genderOptions: { value: Gender; label: string; emoji: string }[] = [
   { value: "MALE", label: "Male", emoji: "♂️" },
@@ -84,6 +88,7 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false);
   const [profile, setProfile] = useState<ProfileData>(emptyProfile);
   const [form, setForm] = useState<ProfileData>(emptyProfile);
+  const [trustScore, setTrustScore] = useState<number | null>(null);
   const [selectedGender, setSelectedGender] = useState<Gender | "">(user?.gender || "");
   const [showAvatarUpload, setShowAvatarUpload] = useState(false);
   const [showCoverUpload, setShowCoverUpload] = useState(false);
@@ -95,7 +100,22 @@ export default function ProfilePage() {
 
   useEffect(() => {
     fetchProfile();
+    fetchTrustScore();
   }, []);
+
+  const fetchTrustScore = async () => {
+    try {
+      // In a real app we might get the user ID from the auth store, 
+      // but for MVP we assume `/users/me` would work or we have user.id.
+      // Wait, `/users/{userId}/trust-score` requires userId.
+      if (useAuthStore.getState().user?.id) {
+        const res = await api.get(`/users/${useAuthStore.getState().user?.id}/trust-score`);
+        setTrustScore(res.data.totalScore);
+      }
+    } catch {
+      // Ignore
+    }
+  };
 
   useEffect(() => {
     if (editing) {
@@ -127,6 +147,7 @@ export default function ProfilePage() {
     if (user) {
       setSelectedGender(user.gender || "");
       setGenderChangesRemaining(user.genderChangesRemaining ?? 2);
+      if (trustScore === null) fetchTrustScore();
     }
   }, [user]);
 
@@ -424,47 +445,58 @@ export default function ProfilePage() {
         </div>
 
         <div className="pt-16 px-6 pb-6">
-          <div className="flex items-center gap-3 mb-1">
-            <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: "var(--color-txt-white)" }}>
-              {profile.firstName || user?.firstName} {profile.lastName || user?.lastName}
-              {user?.status === "KYC_VERIFIED" && <VerifiedBadge size={18} />}
-            </h2>
-            {user?.age && (
-              <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-gray-800 text-gray-300">
-                {user.age} yrs
-              </span>
-            )}
-            {user?.dob && (
-              <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-gray-800/50 text-gray-400 border border-gray-700/50">
-                DOB: {user.dob}
-              </span>
-            )}
-          </div>
-          <p className="text-sm font-medium mb-1" style={{ color: "var(--color-primary-bright)" }}>
-            @{profile.username || user?.username}
-          </p>
-          <p className="text-sm" style={{ color: "var(--color-txt-muted)" }}>{user?.email}</p>
+          <div className="flex flex-col md:flex-row justify-between gap-6">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-1">
+                <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: "var(--color-txt-white)" }}>
+                  {profile.firstName || user?.firstName} {profile.lastName || user?.lastName}
+                  {user?.status === "KYC_VERIFIED" && <VerifiedBadge size={18} />}
+                </h2>
+                {user?.age && (
+                  <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-gray-800 text-gray-300">
+                    {user.age} yrs
+                  </span>
+                )}
+                {user?.dob && (
+                  <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-gray-800/50 text-gray-400 border border-gray-700/50">
+                    DOB: {user.dob}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm font-medium mb-1" style={{ color: "var(--color-primary-bright)" }}>
+                @{profile.username || user?.username}
+              </p>
+              <p className="text-sm" style={{ color: "var(--color-txt-muted)" }}>{user?.email}</p>
 
-          {/* Gender badge */}
-          <div className="mt-2 flex items-center gap-2">
-            <Shield size={14} style={{ color: "var(--color-txt-muted)" }} />
-            <span className="text-xs" style={{ color: "var(--color-txt-muted)" }}>
-              Gender: <span style={{ color: "var(--color-txt-secondary)" }}>{currentGenderLabel}</span>
-              {genderChangesRemaining > 0 ? (
-                <span className="ml-2" style={{ color: "var(--color-txt-dim)" }}>
-                  ({genderChangesRemaining} change{genderChangesRemaining !== 1 ? "s" : ""} remaining)
+              {/* Gender badge */}
+              <div className="mt-2 flex items-center gap-2">
+                <Shield size={14} style={{ color: "var(--color-txt-muted)" }} />
+                <span className="text-xs" style={{ color: "var(--color-txt-muted)" }}>
+                  Gender: <span style={{ color: "var(--color-txt-secondary)" }}>{currentGenderLabel}</span>
+                  {genderChangesRemaining > 0 ? (
+                    <span className="ml-2" style={{ color: "var(--color-txt-dim)" }}>
+                      ({genderChangesRemaining} change{genderChangesRemaining !== 1 ? "s" : ""} remaining)
+                    </span>
+                  ) : (
+                    <span className="ml-2" style={{ color: "#f87171" }}>(No changes remaining)</span>
+                  )}
                 </span>
-              ) : (
-                <span className="ml-2" style={{ color: "#f87171" }}>(No changes remaining)</span>
-              )}
-            </span>
-          </div>
+              </div>
 
-          {!editing && profile.bio && (
-            <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--color-txt-secondary)" }}>
-              {profile.bio}
-            </p>
-          )}
+              {!editing && profile.bio && (
+                <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--color-txt-secondary)" }}>
+                  {profile.bio}
+                </p>
+              )}
+            </div>
+            
+            {/* TrustScore Gauge */}
+            {!editing && trustScore !== null && (
+              <div className="shrink-0 flex justify-start md:justify-end">
+                <TrustScoreGauge score={trustScore} />
+              </div>
+            )}
+          </div>
 
           {/* View Mode Badges */}
           {!editing && (

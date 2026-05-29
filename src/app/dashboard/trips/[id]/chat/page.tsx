@@ -104,7 +104,7 @@ export default function ChatPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const stompClientRef = useRef<Client | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
@@ -442,7 +442,7 @@ export default function ChatPage() {
                           border: isOwn ? "none" : "1px solid var(--color-line)",
                         }}
                       >
-                        {msg.content}
+                        <span style={{ whiteSpace: "pre-wrap" }}>{msg.content}</span>
                       </div>
                     )}
 
@@ -475,15 +475,21 @@ export default function ChatPage() {
           />
         )}
 
-        <input
+        <textarea
           ref={inputRef}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={connected ? "Type a message..." : "Connecting..."}
+          placeholder={connected ? "Type a message... (Shift+Enter for new line)" : "Connecting..."}
           className="t-input flex-1"
-          style={{ padding: "12px 16px", borderRadius: "9999px" }}
+          style={{ padding: "12px 16px", borderRadius: "24px", resize: "none", minHeight: "44px", maxHeight: "120px", lineHeight: "1.4" }}
           maxLength={2000}
+          rows={1}
+          onInput={(e) => {
+            const target = e.target as HTMLTextAreaElement;
+            target.style.height = "auto";
+            target.style.height = Math.min(target.scrollHeight, 120) + "px";
+          }}
         />
         <button
           onClick={handleSend}

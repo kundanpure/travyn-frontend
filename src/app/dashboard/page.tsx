@@ -38,8 +38,8 @@ function QuickActionCard({
     <Link
       href={href}
       className="group flex flex-col p-5 rounded-2xl transition-all hover:-translate-y-1 relative overflow-hidden"
-      style={{ 
-        background: "var(--color-bg-deep)", 
+      style={{
+        background: "var(--color-bg-deep)",
         border: "1px solid var(--color-line)",
         boxShadow: "0 4px 20px rgba(0,0,0,0.2)"
       }}
@@ -91,7 +91,7 @@ export default function DashboardPage() {
 
   const completedTrips = trips.filter(t => t.status === "COMPLETED").length;
   const activeTripsCount = trips.filter(t => t.memberStatus === "APPROVED").length;
-  
+
   const upcomingTrips = trips
     .filter(t => t.memberStatus === "APPROVED" && new Date(t.startDate) > new Date())
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
@@ -117,7 +117,7 @@ export default function DashboardPage() {
         }}
       >
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out" />
-        
+
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -140,7 +140,7 @@ export default function DashboardPage() {
             </Link>
           </div>
         </div>
-        
+
         <Compass
           size={180}
           className="absolute -right-10 -bottom-10 opacity-10 transition-transform duration-[10s] group-hover:rotate-45 ease-linear"
@@ -234,7 +234,7 @@ export default function DashboardPage() {
 
       {/* Main Two Column Layout */}
       <div className="grid lg:grid-cols-12 gap-8">
-        
+
         {/* Upcoming Trips Feed (Spans 7 cols) */}
         <div className="lg:col-span-7 space-y-4">
           <div className="flex items-center justify-between">
@@ -256,8 +256,8 @@ export default function DashboardPage() {
               <p className="text-sm" style={{ color: "var(--color-txt-muted)" }}>Loading your itinerary...</p>
             </div>
           ) : upcomingTrips.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 rounded-3xl text-center px-4" 
-                 style={{ background: "linear-gradient(180deg, var(--color-bg-deep) 0%, rgba(10,12,16,0) 100%)", border: "1px solid var(--color-line)" }}>
+            <div className="flex flex-col items-center justify-center py-16 rounded-3xl text-center px-4"
+              style={{ background: "linear-gradient(180deg, var(--color-bg-deep) 0%, rgba(10,12,16,0) 100%)", border: "1px solid var(--color-line)" }}>
               <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6" style={{ background: "rgba(45,212,168,0.1)" }}>
                 <MapPin size={32} style={{ color: "var(--color-primary)" }} />
               </div>
@@ -277,8 +277,8 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-4">
               {upcomingTrips.map(trip => (
-                <Link 
-                  key={trip.id} 
+                <Link
+                  key={trip.id}
                   href={`/dashboard/trips/${trip.id}`}
                   className="group block relative overflow-hidden rounded-2xl transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-900/20"
                   style={{ border: "1px solid var(--color-line)", background: "var(--color-bg-deep)" }}
@@ -292,8 +292,8 @@ export default function DashboardPage() {
                       <div className="w-full h-full bg-gradient-to-r from-emerald-900/40 to-slate-900" />
                     )}
                     <div className="absolute top-4 right-4">
-                      <span className="px-3 py-1 rounded-full text-xs font-bold shadow-sm backdrop-blur-md" 
-                            style={{ background: "rgba(0,0,0,0.6)", color: "white", border: "1px solid rgba(255,255,255,0.1)" }}>
+                      <span className="px-3 py-1 rounded-full text-xs font-bold shadow-sm backdrop-blur-md"
+                        style={{ background: "rgba(0,0,0,0.6)", color: "white", border: "1px solid rgba(255,255,255,0.1)" }}>
                         {new Date(trip.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </span>
                     </div>
@@ -343,7 +343,7 @@ export default function DashboardPage() {
               accent
             />
           </div>
-          
+
           {/* Trust Banner */}
           <div className="mt-6 p-5 rounded-2xl flex items-start gap-4" style={{ background: "rgba(96,165,250,0.05)", border: "1px solid rgba(96,165,250,0.1)" }}>
             <Info size={24} className="text-blue-400 flex-shrink-0 mt-0.5" />
@@ -352,9 +352,9 @@ export default function DashboardPage() {
               <p className="text-xs text-blue-200/70 mb-3">
                 Nomadly requires identity verification to unlock matching features and increase trust across the network.
               </p>
-              <button className="text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors">
+              <Link href="/dashboard/settings/kyc" className="text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors inline-block mt-1">
                 Start Verification →
-              </button>
+              </Link>
             </div>
           </div>
         </div>

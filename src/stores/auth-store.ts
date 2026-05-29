@@ -4,12 +4,15 @@ import { persist } from "zustand/middleware";
 export interface User {
   id: string;
   email: string;
+  username: string;
   firstName: string;
   lastName: string;
   role: string;
   status: string;
   emailVerified: boolean;
   gender: "MALE" | "FEMALE" | "NON_BINARY" | "PREFER_NOT_TO_SAY" | null;
+  age?: number;
+  dob?: string;
   genderChangesRemaining: number;
   createdAt: string;
 }
@@ -24,6 +27,7 @@ interface AuthState {
   setAuth: (user: User, accessToken: string, refreshToken: string) => void;
   setUser: (user: User) => void;
   setLoading: (loading: boolean) => void;
+  fetchUser: () => Promise<void>;
   logout: () => void;
 }
 
@@ -57,6 +61,17 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           isLoading: false,
         }),
+
+      fetchUser: async () => {
+        try {
+          // Import api here to avoid circular dependencies if needed, or just assume it's available
+          const { default: api } = await import("@/lib/api");
+          const res = await api.get("/auth/me");
+          set({ user: res.data });
+        } catch (error) {
+          console.error("Failed to fetch user", error);
+        }
+      },
     }),
     {
       name: "travyn-auth",

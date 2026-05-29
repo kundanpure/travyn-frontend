@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import VerifiedBadge from "../components/VerifiedBadge";
 import {
   User, Edit3, Save, X, Mountain, Landmark, Palette, PartyPopper, Wallet,
-  Sun, Moon, Clock, Loader2, CheckCircle2, Laptop, Globe, UtensilsCrossed,
+  Sun, Moon, Clock, Loader2, CheckCircle2, CheckCircle, AlertCircle, Laptop, Globe, UtensilsCrossed,
   ChevronRight, Camera, Check, Plus, Shield, AlertTriangle
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
@@ -51,6 +52,9 @@ const languageOptions = [
 ];
 
 interface ProfileData {
+  username: string;
+  firstName: string;
+  lastName: string;
   bio: string;
   travelStyles: string[];
   budgetMin: number;
@@ -66,7 +70,7 @@ interface ProfileData {
 }
 
 const emptyProfile: ProfileData = {
-  bio: "", travelStyles: [], budgetMin: 0, budgetMax: 0,
+  username: "", firstName: "", lastName: "", bio: "", travelStyles: [], budgetMin: 0, budgetMax: 0,
   sleepSchedule: "", personalityScale: 5, foodPreference: "",
   languages: "", remoteWorker: false, profilePhotoUrl: "",
   coverPhotoUrl: "", profileCompleteness: 0,
@@ -87,10 +91,37 @@ export default function ProfilePage() {
   const [avatarHover, setAvatarHover] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [genderChangesRemaining, setGenderChangesRemaining] = useState<number>(user?.genderChangesRemaining ?? 2);
+  const [usernameStatus, setUsernameStatus] = useState<"IDLE" | "CHECKING" | "AVAILABLE" | "TAKEN" | "ERROR">("IDLE");
 
   useEffect(() => {
     fetchProfile();
   }, []);
+
+  useEffect(() => {
+    if (editing) {
+      const username = form.username?.trim().toLowerCase();
+      if (!username || username === user?.username) {
+        setUsernameStatus("IDLE");
+        return;
+      }
+      
+      if (username.length < 3 || username.length > 30 || !/^[a-z0-9_.]+$/.test(username)) {
+        setUsernameStatus("ERROR");
+        return;
+      }
+
+      setUsernameStatus("CHECKING");
+      const timer = setTimeout(async () => {
+        try {
+          const res = await api.get(`/auth/check-username?username=${username}`);
+          setUsernameStatus(res.data.available ? "AVAILABLE" : "TAKEN");
+        } catch (err) {
+          setUsernameStatus("ERROR");
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [form.username, editing, user?.username]);
 
   useEffect(() => {
     if (user) {
@@ -100,6 +131,9 @@ export default function ProfilePage() {
   }, [user]);
 
   const sanitize = (data: Partial<ProfileData>): ProfileData => ({
+    username: data.username ?? "",
+    firstName: data.firstName ?? "",
+    lastName: data.lastName ?? "",
     bio: data.bio ?? "",
     travelStyles: Array.isArray(data.travelStyles) ? data.travelStyles : [],
     budgetMin: data.budgetMin ?? 0,
@@ -129,17 +163,33 @@ export default function ProfilePage() {
 
   const profileBudgetError = form.budgetMin > 0 && form.budgetMax > 0 && form.budgetMin > form.budgetMax;
 
+  const buildPayload = (overrides?: Partial<ProfileData>): Record<string, unknown> => {
+    const data = { ...form, ...overrides };
+    const payload: Record<string, unknown> = { ...data };
+
+    // Strip empty strings for enums to prevent backend Jackson parsing errors
+    if (payload.sleepSchedule === "") delete payload.sleepSchedule;
+    if (payload.foodPreference === "") delete payload.foodPreference;
+
+    // Only include gender in payload if it explicitly changed
+    const currentGenderOnServer = user?.gender || "";
+    if (selectedGender && selectedGender !== currentGenderOnServer) {
+      payload.gender = selectedGender;
+    } else {
+      delete payload.gender;
+    }
+
+    return payload;
+  };
+
   const handleSave = async () => {
+    if (usernameStatus === "TAKEN" || usernameStatus === "ERROR") {
+      alert("Please resolve the username error before saving.");
+      return;
+    }
     setSaving(true);
     try {
-      const payload: Record<string, unknown> = { ...form };
-      // Only include gender in payload if it changed
-      const currentGenderOnServer = user?.gender || "";
-      if (selectedGender && selectedGender !== currentGenderOnServer) {
-        payload.gender = selectedGender;
-      } else {
-        delete payload.gender;
-      }
+      const payload = buildPayload();
 
       const res = await api.put("/users/me/profile", payload);
       const safe = sanitize(res.data);
@@ -168,7 +218,8 @@ export default function ProfilePage() {
     setShowAvatarUpload(false);
     setUploadingPhoto(true);
     try {
-      const res = await api.put("/users/me/profile", { ...form, profilePhotoUrl: url });
+      const payload = buildPayload({ profilePhotoUrl: url });
+      const res = await api.put("/users/me/profile", payload);
       const safe = sanitize(res.data);
       setProfile(safe);
       setForm(safe);
@@ -186,7 +237,8 @@ export default function ProfilePage() {
     setShowCoverUpload(false);
     setUploadingPhoto(true);
     try {
-      const res = await api.put("/users/me/profile", { ...form, coverPhotoUrl: url });
+      const payload = buildPayload({ coverPhotoUrl: url });
+      const res = await api.put("/users/me/profile", payload);
       const safe = sanitize(res.data);
       setProfile(safe);
       setForm(safe);
@@ -372,9 +424,25 @@ export default function ProfilePage() {
         </div>
 
         <div className="pt-16 px-6 pb-6">
-          <h2 className="text-xl font-bold" style={{ color: "var(--color-txt-white)" }}>
-            {user?.firstName} {user?.lastName}
-          </h2>
+          <div className="flex items-center gap-3 mb-1">
+            <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: "var(--color-txt-white)" }}>
+              {profile.firstName || user?.firstName} {profile.lastName || user?.lastName}
+              {user?.status === "KYC_VERIFIED" && <VerifiedBadge size={18} />}
+            </h2>
+            {user?.age && (
+              <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-gray-800 text-gray-300">
+                {user.age} yrs
+              </span>
+            )}
+            {user?.dob && (
+              <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-gray-800/50 text-gray-400 border border-gray-700/50">
+                DOB: {user.dob}
+              </span>
+            )}
+          </div>
+          <p className="text-sm font-medium mb-1" style={{ color: "var(--color-primary-bright)" }}>
+            @{profile.username || user?.username}
+          </p>
           <p className="text-sm" style={{ color: "var(--color-txt-muted)" }}>{user?.email}</p>
 
           {/* Gender badge */}
@@ -441,6 +509,59 @@ export default function ProfilePage() {
       {/* Edit Form */}
       {editing && (
         <div className="space-y-6">
+          {/* Personal Info */}
+          <FormSection title="Personal Info" icon={User}>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-xs mb-1" style={{ color: "var(--color-txt-secondary)" }}>First Name</label>
+                {user?.status === "KYC_VERIFIED" ? (
+                  <div className="flex items-center justify-between p-3 rounded-xl border border-dashed" style={{ borderColor: "var(--color-line)", background: "rgba(255,255,255,0.02)" }}>
+                    <span className="font-medium text-sm" style={{ color: "var(--color-txt-white)" }}>{user.firstName}</span>
+                    <Shield size={16} className="text-emerald-400" title="Name locked by Aadhaar KYC" />
+                  </div>
+                ) : (
+                  <input 
+                    type="text" className="t-input w-full" value={form.firstName} 
+                    onChange={e => setForm({...form, firstName: e.target.value})} 
+                  />
+                )}
+              </div>
+              <div>
+                <label className="block text-xs mb-1" style={{ color: "var(--color-txt-secondary)" }}>Last Name</label>
+                {user?.status === "KYC_VERIFIED" ? (
+                  <div className="flex items-center justify-between p-3 rounded-xl border border-dashed" style={{ borderColor: "var(--color-line)", background: "rgba(255,255,255,0.02)" }}>
+                    <span className="font-medium text-sm" style={{ color: "var(--color-txt-white)" }}>{user.lastName}</span>
+                    <Shield size={16} className="text-emerald-400" title="Name locked by Aadhaar KYC" />
+                  </div>
+                ) : (
+                  <input 
+                    type="text" className="t-input w-full" value={form.lastName} 
+                    onChange={e => setForm({...form, lastName: e.target.value})} 
+                  />
+                )}
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-xs mb-1" style={{ color: "var(--color-txt-secondary)" }}>Username</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">@</span>
+                <input 
+                  type="text" className="t-input w-full pl-8" value={form.username || ""} 
+                  onChange={e => setForm({...form, username: e.target.value})} 
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {usernameStatus === "CHECKING" && <Loader2 size={16} className="animate-spin text-gray-400" />}
+                  {usernameStatus === "AVAILABLE" && <CheckCircle size={16} className="text-emerald-400" />}
+                  {usernameStatus === "TAKEN" && <X size={16} className="text-red-400" />}
+                  {usernameStatus === "ERROR" && <AlertCircle size={16} className="text-red-400" />}
+                </div>
+              </div>
+              {usernameStatus === "TAKEN" && <p className="text-xs text-red-400 mt-1">This username is already taken.</p>}
+              {usernameStatus === "ERROR" && form.username?.length > 0 && form.username !== user?.username && <p className="text-xs text-red-400 mt-1">Must be 3-30 chars, lowercase, numbers, _, .</p>}
+            </div>
+          </FormSection>
+
           {/* Bio */}
           <FormSection title="About You" icon={User}>
             <div className="relative">

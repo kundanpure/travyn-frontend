@@ -1,5 +1,5 @@
 import imageCompression from "browser-image-compression";
-import { supabaseAdmin, supabase } from "./supabase";
+import { supabase } from "./supabase";
 
 // ─── Types ───────────────────────────────────────────────────
 export interface UploadResult {
@@ -53,30 +53,32 @@ export function generateUploadPath(
   return `${userId}/${safeName}_${timestamp}.${ext}`;
 }
 
-// ─── Upload to Supabase ──────────────────────────────────────
+// ─── Upload via Secure Server Route ──────────────────────────
+// Uploads go through /api/upload (Next.js server route) so the
+// Supabase service key never touches the browser.
 export async function uploadToSupabase(
   bucket: string,
   path: string,
   blob: Blob,
   contentType?: string
 ): Promise<UploadResult> {
-  const { data, error } = await supabaseAdmin.storage
-    .from(bucket)
-    .upload(path, blob, {
-      cacheControl: "3600",
-      upsert: true,
-      contentType: contentType || "image/jpeg",
-    });
+  const formData = new FormData();
+  formData.append("file", blob, path.split("/").pop() || "upload.jpg");
+  formData.append("bucket", bucket);
+  formData.append("path", path);
 
-  if (error) {
-    throw new Error(`Upload failed: ${error.message}`);
+  const response = await fetch("/api/upload", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Upload failed: ${response.statusText}`);
   }
 
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from(bucket).getPublicUrl(data.path);
-
-  return { url: publicUrl, path: data.path };
+  const result = await response.json();
+  return { url: result.url, path: result.path };
 }
 
 // ─── Full Upload Pipeline ────────────────────────────────────

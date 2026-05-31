@@ -3,11 +3,12 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Compass, ShieldCheck, Mail, ArrowRight, Upload, X, Loader2, AlertCircle, CheckCircle } from "lucide-react";
+import { Compass, ShieldCheck, Mail, ArrowRight, Upload, X, Loader2, AlertCircle, CheckCircle, QrCode } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import api from "@/lib/api";
 import { useServerStatus } from "@/context/ServerStatusContext";
 import ServerWakeUp from "@/components/ServerWakeUp";
+import { QrScanner } from "@/components/ui/QrScanner";
 
 type RegisterMode = "SELECTION" | "EMAIL" | "AADHAAR_SCAN" | "AADHAAR_PREVIEW" | "AADHAAR_ACCOUNT";
 type Gender = "MALE" | "FEMALE" | "NON_BINARY" | "PREFER_NOT_TO_SAY";
@@ -46,6 +47,7 @@ export default function RegisterPage() {
 
   // Aadhaar State
   const [aadhaarData, setAadhaarData] = useState<AadhaarData | null>(null);
+  const [scanMethod, setScanMethod] = useState<"CAMERA" | "FILE">("CAMERA");
 
   // Form State
   const [form, setForm] = useState({
@@ -116,6 +118,28 @@ export default function RegisterPage() {
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error?: string } } };
       setError(axiosErr.response?.data?.error || "Failed to read Aadhaar QR. Please make sure the image is clear.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQrScanSuccess = async (decodedText: string) => {
+    // If server isn't ready
+    if (status !== "up") {
+      pendingActionRef.current = () => handleQrScanSuccess(decodedText);
+      setShowGame(true);
+      return;
+    }
+
+    setError("");
+    setLoading(true);
+    try {
+      const res = await api.post("/auth/aadhaar-preview/raw", { qrData: decodedText });
+      setAadhaarData(res.data);
+      setMode("AADHAAR_PREVIEW");
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error?: string } } };
+      setError(axiosErr.response?.data?.error || "Failed to process Aadhaar data.");
     } finally {
       setLoading(false);
     }
@@ -293,26 +317,53 @@ export default function RegisterPage() {
         {/* ==================== MODE: AADHAAR SCAN ==================== */}
         {mode === "AADHAAR_SCAN" && (
           <div className="rounded-2xl p-8 animate-in fade-in slide-in-from-right-4" style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}>
-            <h1 className="text-xl font-bold mb-2 text-center" style={{ color: "var(--color-txt-white)" }}>Upload Aadhaar QR</h1>
+            <h1 className="text-xl font-bold mb-2 text-center" style={{ color: "var(--color-txt-white)" }}>Scan Aadhaar QR</h1>
             <p className="text-center mb-8 text-sm" style={{ color: "var(--color-txt-secondary)" }}>
-              Upload a clear photo of your Aadhaar QR code. We do not store this image.
+              Point your camera at the QR code on the back of your Aadhaar card.
             </p>
 
-            <label className="block w-full cursor-pointer group">
-              <div className="border-2 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center transition-all"
-                   style={{ borderColor: "var(--color-primary-dim)", background: "rgba(45, 212, 168, 0.05)" }}>
-                {loading ? (
-                  <Loader2 size={40} className="animate-spin text-emerald-400 mb-4" />
-                ) : (
-                  <Upload size={40} className="text-emerald-400 mb-4 group-hover:-translate-y-1 transition-transform" />
-                )}
-                <span className="font-medium text-emerald-400">
-                  {loading ? "Analyzing QR code..." : "Tap to browse files"}
-                </span>
-                <span className="text-xs text-emerald-400/60 mt-2">JPEG, PNG, WEBP (Max 5MB)</span>
+            {scanMethod === "CAMERA" ? (
+              <div className="mb-6">
+                <QrScanner 
+                  onScanSuccess={handleQrScanSuccess} 
+                  onScanFailure={() => {}} 
+                />
+                <div className="mt-6 text-center">
+                  <button 
+                    onClick={() => setScanMethod("FILE")}
+                    className="text-sm text-emerald-400 hover:text-emerald-300 underline"
+                  >
+                    Or upload an image instead
+                  </button>
+                </div>
               </div>
-              <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} disabled={loading} />
-            </label>
+            ) : (
+              <div>
+                <label className="block w-full cursor-pointer group">
+                  <div className="border-2 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center transition-all"
+                       style={{ borderColor: "var(--color-primary-dim)", background: "rgba(45, 212, 168, 0.05)" }}>
+                    {loading ? (
+                      <Loader2 size={40} className="animate-spin text-emerald-400 mb-4" />
+                    ) : (
+                      <Upload size={40} className="text-emerald-400 mb-4 group-hover:-translate-y-1 transition-transform" />
+                    )}
+                    <span className="font-medium text-emerald-400">
+                      {loading ? "Analyzing QR code..." : "Tap to browse files"}
+                    </span>
+                    <span className="text-xs text-emerald-400/60 mt-2">JPEG, PNG, WEBP (Max 5MB)</span>
+                  </div>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} disabled={loading} />
+                </label>
+                <div className="mt-6 text-center">
+                  <button 
+                    onClick={() => setScanMethod("CAMERA")}
+                    className="text-sm text-emerald-400 hover:text-emerald-300 underline"
+                  >
+                    Switch to Camera Scan
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

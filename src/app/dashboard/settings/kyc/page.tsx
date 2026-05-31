@@ -3,8 +3,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import api from "@/lib/api";
-import { Upload, ShieldCheck, AlertTriangle, Loader2, ShieldAlert, ArrowLeft } from "lucide-react";
+import { Upload, ShieldCheck, AlertTriangle, Loader2, ShieldAlert, ArrowLeft, Camera } from "lucide-react";
 import Link from "next/link";
+import { QrScanner } from "@/components/ui/QrScanner";
 
 export default function KycVerificationPage() {
   const { user, fetchUser } = useAuthStore();
@@ -14,6 +15,7 @@ export default function KycVerificationPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [lockoutTimeLeft, setLockoutTimeLeft] = useState<string | null>(null);
+  const [scanMethod, setScanMethod] = useState<"CAMERA" | "FILE">("CAMERA");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -71,6 +73,24 @@ export default function KycVerificationPage() {
       const axiosErr = err as { response?: { data?: { error?: string } } };
       const errMsg = axiosErr.response?.data?.error || "Verification failed. Please ensure the QR code is clear and valid.";
       setError(errMsg);
+      await fetchUser(); // Refresh user state to catch potential lockout updates
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQrScanSuccess = async (decodedText: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await api.post("/kyc/aadhaar/qr/raw", { qrData: decodedText });
+      setSuccess(true);
+      await fetchUser(); // Refresh user state to show verified
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error?: string } } };
+      const errMsg = axiosErr.response?.data?.error || "Verification failed. Please ensure the QR code is clear and valid.";
+      setError(errMsg);
+      setScanMethod("FILE"); // switch to file to show error explicitly, or they can try again
       await fetchUser(); // Refresh user state to catch potential lockout updates
     } finally {
       setLoading(false);
@@ -144,7 +164,33 @@ export default function KycVerificationPage() {
 
       <div className="t-card" style={{ background: "var(--color-bg-deep)", padding: "32px" }}>
         
-        {!preview ? (
+        {scanMethod === "CAMERA" ? (
+          <div className="space-y-6">
+            <QrScanner 
+              onScanSuccess={handleQrScanSuccess} 
+              onScanFailure={() => {}} 
+            />
+            {error && (
+              <div className="bg-red-950/30 border border-red-900/50 p-4 rounded-xl flex items-start gap-3">
+                <AlertTriangle size={20} className="text-red-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-red-200">{error}</p>
+                  <p className="text-xs text-red-300/70 mt-1">
+                    Failed attempts: {user?.kycFailedAttempts || 0}/3
+                  </p>
+                </div>
+              </div>
+            )}
+            <div className="text-center">
+              <button 
+                onClick={() => setScanMethod("FILE")}
+                className="text-sm text-blue-400 hover:text-blue-300 underline"
+              >
+                Or upload an image instead
+              </button>
+            </div>
+          </div>
+        ) : !preview ? (
           <div 
             onClick={() => fileInputRef.current?.click()}
             className="border-2 border-dashed border-gray-700 hover:border-blue-500 rounded-2xl p-12 text-center cursor-pointer transition-colors group"
@@ -155,6 +201,14 @@ export default function KycVerificationPage() {
             <h3 className="text-lg font-semibold text-white mb-1">Upload Aadhaar QR</h3>
             <p className="text-sm text-gray-400">Click or drag an image of the back of your Aadhaar card</p>
             <p className="text-xs text-gray-500 mt-4">Make sure the QR code is clearly visible and well-lit.</p>
+            <div className="mt-6 text-center">
+              <button 
+                onClick={(e) => { e.stopPropagation(); setScanMethod("CAMERA"); }}
+                className="text-sm text-blue-400 hover:text-blue-300 underline"
+              >
+                Switch to Camera Scan
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-6">
@@ -187,6 +241,7 @@ export default function KycVerificationPage() {
                   setFile(null);
                   setPreview(null);
                   setError(null);
+                  setScanMethod("CAMERA");
                 }}
                 disabled={loading}
                 className="flex-1 py-3 px-4 rounded-xl font-medium text-sm border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors disabled:opacity-50"

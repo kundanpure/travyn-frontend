@@ -10,6 +10,7 @@ import {
 import { useAuthStore } from "@/stores/auth-store";
 import api from "@/lib/api";
 import { TrustScoreGauge } from "../components/TrustScoreGauge";
+import ImageUploadModal from "../components/ImageUploadModal";
 import { BUCKETS } from "@/lib/supabase";
 import { LocationSearch } from "@/components/ui/LocationSearch";
 

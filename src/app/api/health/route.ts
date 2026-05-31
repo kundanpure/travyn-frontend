@@ -7,9 +7,17 @@ import { NextResponse } from "next/server";
  * calls the backend from the server side where CORS doesn't apply.
  */
 export async function GET() {
-  const apiUrl =
-    process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
-  const healthUrl = apiUrl.replace("/api/v1", "/actuator/health");
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
+  
+  // Use URL parsing to get the base domain reliably
+  let healthUrl;
+  try {
+    const origin = new URL(apiUrl).origin;
+    healthUrl = `${origin}/actuator/health`;
+  } catch {
+    // Fallback if URL parsing fails
+    healthUrl = apiUrl.replace("/api/v1", "") + "/actuator/health";
+  }
 
   try {
     const res = await fetch(healthUrl, {

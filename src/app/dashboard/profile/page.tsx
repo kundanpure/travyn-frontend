@@ -103,34 +103,33 @@ export default function ProfilePage() {
     fetchTrustScore();
   }, []);
 
-  const fetchTrustScore = async () => {
+  async function fetchTrustScore() {
     try {
       // In a real app we might get the user ID from the auth store, 
-      // but for MVP we assume `/users/me` would work or we have user.id.
-      // Wait, `/users/{userId}/trust-score` requires userId.
-      if (useAuthStore.getState().user?.id) {
-        const res = await api.get(`/users/${useAuthStore.getState().user?.id}/trust-score`);
-        setTrustScore(res.data.totalScore);
+      // but assuming the backend gets it from the session/token:
+      const res = await api.get("/users/me"); 
+      if (res.data && res.data.trustScore !== undefined) {
+        setTrustScore(res.data.trustScore);
       }
-    } catch {
-      // Ignore
+    } catch (err) {
+      console.error("Failed to fetch trust score:", err);
     }
-  };
+  }
 
   useEffect(() => {
     if (editing) {
       const username = form.username?.trim().toLowerCase();
       if (!username || username === user?.username) {
-        setUsernameStatus("IDLE");
+        setTimeout(() => setUsernameStatus("IDLE"), 0);
         return;
       }
       
       if (username.length < 3 || username.length > 30 || !/^[a-z0-9_.]+$/.test(username)) {
-        setUsernameStatus("ERROR");
+        setTimeout(() => setUsernameStatus("ERROR"), 0);
         return;
       }
 
-      setUsernameStatus("CHECKING");
+      setTimeout(() => setUsernameStatus("CHECKING"), 0);
       const timer = setTimeout(async () => {
         try {
           const res = await api.get(`/auth/check-username?username=${username}`);
@@ -172,18 +171,21 @@ export default function ProfilePage() {
     profileCompleteness: data.profileCompleteness ?? 0,
   });
 
-  const fetchProfile = async () => {
+  async function fetchProfile() {
     try {
       const res = await api.get("/users/me/profile");
-      const safe = sanitize(res.data);
-      setProfile(safe);
-      setForm(safe);
-    } catch {
-      // Profile doesn't exist yet — keep empty
+      if (res.data) {
+        const safe = sanitize(res.data);
+        setProfile(safe);
+        setForm(safe);
+      }
+    } catch (err) {
+      console.error("Failed to fetch profile data:", err);
+      // Not treating as fatal, user might not have a profile yet
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   const profileBudgetError = form.budgetMin > 0 && form.budgetMax > 0 && form.budgetMin > form.budgetMax;
 

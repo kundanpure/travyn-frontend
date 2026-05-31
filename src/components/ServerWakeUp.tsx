@@ -43,23 +43,26 @@ export default function ServerWakeUp({
     "⚡ The server is stretching... almost ready!",
   ];
 
-  // Ping the backend health endpoint
+  // Ping via the Next.js server-side proxy to avoid CORS issues.
+  // The browser calls /api/health (same origin), which internally
+  // pings the Render backend from the server where CORS doesn't apply.
   const checkHealth = useCallback(async () => {
     try {
-      const apiUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
-      const healthUrl = apiUrl.replace("/api/v1", "/actuator/health");
-      const res = await fetch(healthUrl, {
+      const res = await fetch("/api/health", {
         method: "GET",
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(8000),
+        cache: "no-store",
       });
       if (res.ok) {
-        setIsWaking(false);
-        onServerReady();
-        return true;
+        const data = await res.json();
+        if (data.status === "UP") {
+          setIsWaking(false);
+          onServerReady();
+          return true;
+        }
       }
     } catch {
-      // Server still waking up
+      // Server still waking up — keep polling
     }
     return false;
   }, [onServerReady]);

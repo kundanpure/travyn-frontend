@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useNotificationStore } from "@/stores/notification-store";
+import { useWebPush } from "@/hooks/useWebPush";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 
@@ -57,6 +58,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  
+  // Register service worker and subscribe to web push notifications
+  useWebPush(user);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -116,6 +121,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         client.subscribe(`/topic/user.${user.id}.notifications`, (frame) => {
           try {
             const notification = JSON.parse(frame.body);
+            
+            // If the user is actively looking at this specific chat, silently mark the notification as read instead of showing it
+            if (notification.type === "DIRECT_MESSAGE" && typeof window !== "undefined") {
+              const urlParams = new URLSearchParams(window.location.search);
+              const isLookingAtChat = window.location.pathname === "/dashboard/messages" && urlParams.get("partnerId") === notification.referenceId;
+              
+              if (isLookingAtChat && document.visibilityState === "visible") {
+                 markAsRead(notification.id);
+                 return;
+              }
+            }
+            
             addNotification(notification);
           } catch {
             // ignore parse errors
@@ -150,6 +167,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (notif.referenceId) {
       if (notif.type === "JOIN_APPROVED" || notif.type === "JOIN_REJECTED" || notif.type === "JOIN_REQUEST") {
         router.push(`/dashboard/trips/${notif.referenceId}`);
+      } else if (notif.type === "DIRECT_MESSAGE") {
+        router.push(`/dashboard/messages?partnerId=${notif.referenceId}`);
       } else {
         router.push(`/dashboard/trips/${notif.referenceId}/chat`);
       }

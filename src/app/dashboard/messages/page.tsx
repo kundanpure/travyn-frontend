@@ -38,6 +38,18 @@ export default function MessagesPage() {
     fetchInbox();
   }, [fetchInbox]);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const pid = urlParams.get("partnerId");
+      if (pid) {
+        setSelectedPartnerId(pid);
+        // Clean URL to prevent re-opening on refresh
+        window.history.replaceState({}, '', '/dashboard/messages');
+      }
+    }
+  }, []);
+
   const handleMessageRead = useCallback(() => {
     setInbox(prev => prev.map(i => i.partnerId === selectedPartnerId ? { ...i, unreadCount: 0 } : i));
   }, [selectedPartnerId]);

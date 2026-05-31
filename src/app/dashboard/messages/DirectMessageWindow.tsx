@@ -101,9 +101,19 @@ export default function DirectMessageWindow({ partnerId, partnerName, onBack, on
   }, [loadMessages]);
 
   useEffect(() => {
+    const stored = localStorage.getItem("travyn-auth");
+    let token = "";
+    if (stored) {
+      try {
+        const { state } = JSON.parse(stored);
+        token = state?.accessToken || "";
+      } catch {}
+    }
+
     const socketUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "/ws") || "http://localhost:8080/ws";
     const client = new Client({
       webSocketFactory: () => new SockJS(socketUrl),
+      connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
@@ -112,7 +122,7 @@ export default function DirectMessageWindow({ partnerId, partnerName, onBack, on
         setStompConnected(true);
         
         // Subscribe to incoming messages for this user
-        client.subscribe("/user/queue/messages", (msg) => {
+        client.subscribe(`/topic/user.${user?.id}.dm.messages`, (msg) => {
           const newMsg: DirectMessage = JSON.parse(msg.body);
           
           // Only append if it belongs to this conversation
@@ -127,21 +137,13 @@ export default function DirectMessageWindow({ partnerId, partnerName, onBack, on
             if (newMsg.senderId === partnerId) {
                if (document.visibilityState === "visible") {
                   markAsRead();
-               } else {
-                  // Trigger HTML5 Push Notification if in background
-                  if ("Notification" in window && Notification.permission === "granted") {
-                     new Notification(`New message from ${newMsg.senderName}`, {
-                       body: newMsg.messageType === "IMAGE" ? "📷 Photo" : newMsg.content,
-                       icon: "/favicon.ico"
-                     });
-                  }
                }
             }
           }
         });
 
         // Subscribe to read receipts
-        client.subscribe("/user/queue/read-receipts", (msg) => {
+        client.subscribe(`/topic/user.${user?.id}.dm.read-receipts`, (msg) => {
           const readerId = msg.body;
           if (readerId === partnerId) {
             // Partner read our messages, update local state to show double ticks
@@ -159,11 +161,6 @@ export default function DirectMessageWindow({ partnerId, partnerName, onBack, on
 
     client.activate();
     stompClientRef.current = client;
-
-    // Request Notification Permissions for background push
-    if ("Notification" in window && Notification.permission !== "denied" && Notification.permission !== "granted") {
-       Notification.requestPermission();
-    }
 
     // Mark as read when tab becomes visible
     const handleVisibilityChange = () => {

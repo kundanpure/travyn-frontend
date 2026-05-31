@@ -1,15 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Compass, Eye, EyeOff, ArrowRight, Loader2, Mail } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import api from "@/lib/api";
+import { useServerStatus } from "@/context/ServerStatusContext";
+import ServerWakeUp from "@/components/ServerWakeUp";
 
 export default function LoginPage() {
   const router = useRouter();
   const { setAuth } = useAuthStore();
+  const { status } = useServerStatus();
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -17,14 +20,27 @@ export default function LoginPage() {
   const [emailNotVerified, setEmailNotVerified] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
+  // Game overlay: shown when user tries to submit while server is waking up
+  const [showGame, setShowGame] = useState(false);
+  // Store pending submit so we can retry once server is ready
+  const pendingSubmitRef = useRef(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // When server becomes ready AND user was waiting → hide game and retry login
+  useEffect(() => {
+    if (status === "up" && showGame && pendingSubmitRef.current) {
+      pendingSubmitRef.current = false;
+      setShowGame(false);
+      // Small delay so the overlay fade-out feels smooth
+      setTimeout(() => doLogin(), 300);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
+
+  const doLogin = async () => {
     setError("");
     setEmailNotVerified(false);
     setResendSuccess(false);
     setLoading(true);
-
     try {
       const res = await api.post("/auth/login", form);
       const data = res.data;
@@ -33,10 +49,8 @@ export default function LoginPage() {
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string }; status?: number } };
       const msg = axiosErr.response?.data?.message || "";
-      const status = axiosErr.response?.status;
-
-      // Detect "email not verified" error
-      if (status === 403 && msg.toLowerCase().includes("verify")) {
+      const httpStatus = axiosErr.response?.status;
+      if (httpStatus === 403 && msg.toLowerCase().includes("verify")) {
         setEmailNotVerified(true);
         setError(msg);
       } else {
@@ -45,6 +59,17 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // If server isn't ready → show game and wait
+    if (status !== "up") {
+      pendingSubmitRef.current = true;
+      setShowGame(true);
+      return;
+    }
+    doLogin();
   };
 
   const handleResendVerification = async () => {
@@ -61,6 +86,10 @@ export default function LoginPage() {
   };
 
   return (
+    <>
+      {/* Mini-game overlay: shown only when server is waking up */}
+      {showGame && <ServerWakeUp />}
+
     <div
       className="min-h-screen flex items-center justify-center px-4 py-12"
       style={{ background: "var(--color-bg-deep)" }}
@@ -229,5 +258,6 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

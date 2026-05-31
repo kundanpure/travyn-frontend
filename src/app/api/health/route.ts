@@ -14,15 +14,34 @@ export async function GET() {
   try {
     const res = await fetch(healthUrl, {
       method: "GET",
-      next: { revalidate: 0 }, // never cache — always fresh
+      cache: "no-store", // never cache on the server side
       signal: AbortSignal.timeout(6000),
     });
 
     if (res.ok) {
-      return NextResponse.json({ status: "UP" }, { status: 200 });
+      return NextResponse.json(
+        { status: "UP" },
+        {
+          status: 200,
+          headers: {
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            Pragma: "no-cache",
+          },
+        }
+      );
     }
-    return NextResponse.json({ status: "DOWN" }, { status: 503 });
   } catch {
-    return NextResponse.json({ status: "DOWN" }, { status: 503 });
+    // timeout or connection refused — backend still waking up
   }
+
+  return NextResponse.json(
+    { status: "DOWN" },
+    {
+      status: 503,
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+        Pragma: "no-cache",
+      },
+    }
+  );
 }

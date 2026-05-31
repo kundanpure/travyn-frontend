@@ -3,14 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
 /**
- * ServerWakeUp — A fun, interactive loading overlay shown when the
- * backend is cold-starting on Render's free tier (~30 seconds).
- *
- * Features:
- * - Detects cold start by pinging /actuator/health
- * - Shows a fun "Catch the Backpack" mini-game while waiting
- * - Auto-dismisses when the server responds
- * - Includes a playful "developer runs on free tier" message
+ * ServerWakeUp — Pure display component.
+ * No internal polling. The parent mounts/unmounts this based on server status.
+ * Shows the "Catch the Backpack" mini-game while Render cold-starts.
  */
 
 interface BackpackPosition {
@@ -18,13 +13,7 @@ interface BackpackPosition {
   y: number;
 }
 
-export default function ServerWakeUp({
-  onServerReady,
-}: {
-  onServerReady: () => void;
-}) {
-  const [isWaking, setIsWaking] = useState(true);
-  const [showOverlay, setShowOverlay] = useState(false); // only show after 2s delay
+export default function ServerWakeUp() {
   const [score, setScore] = useState(0);
   const [backpack, setBackpack] = useState<BackpackPosition>({ x: 50, y: 50 });
   const [dots, setDots] = useState("");
@@ -43,62 +32,12 @@ export default function ServerWakeUp({
     "⚡ The server is stretching... almost ready!",
   ];
 
-  // Ping via the Next.js server-side proxy to avoid CORS issues.
-  // The browser calls /api/health (same origin), which internally
-  // pings the Render backend from the server where CORS doesn't apply.
-  const checkHealth = useCallback(async () => {
-    try {
-      const res = await fetch("/api/health", {
-        method: "GET",
-        signal: AbortSignal.timeout(8000),
-        cache: "no-store",
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.status === "UP") {
-          setIsWaking(false);
-          onServerReady();
-          return true;
-        }
-      }
-    } catch {
-      // Server still waking up — keep polling
-    }
-    return false;
-  }, [onServerReady]);
-
-  // Start polling on mount
-  useEffect(() => {
-    let cancelled = false;
-
-    // Show the overlay only if the first response takes more than 2 seconds
-    const overlayTimer = setTimeout(() => {
-      if (!cancelled) setShowOverlay(true);
-    }, 2000);
-
-    const poll = async () => {
-      const ready = await checkHealth();
-      if (!ready && !cancelled) {
-        setTimeout(poll, 3000);
-      } else if (ready) {
-        clearTimeout(overlayTimer);
-      }
-    };
-    poll();
-
-    return () => {
-      cancelled = true;
-      clearTimeout(overlayTimer);
-    };
-  }, [checkHealth]);
-
-  // Animated dots
+  // Animated dots + elapsed timer
   useEffect(() => {
     intervalRef.current = setInterval(() => {
       setDots((d) => (d.length >= 3 ? "" : d + "."));
       setElapsedSeconds((s) => s + 1);
     }, 1000);
-
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
@@ -106,10 +45,10 @@ export default function ServerWakeUp({
 
   // Rotate fun facts every 4 seconds
   useEffect(() => {
-    const factInterval = setInterval(() => {
+    const id = setInterval(() => {
       setFunFact((f) => (f + 1) % funFacts.length);
     }, 4000);
-    return () => clearInterval(factInterval);
+    return () => clearInterval(id);
   }, [funFacts.length]);
 
   // Move backpack to random position
@@ -122,16 +61,14 @@ export default function ServerWakeUp({
 
   // Auto-move backpack every 1.5 seconds
   useEffect(() => {
-    const moveInterval = setInterval(moveBackpack, 1500);
-    return () => clearInterval(moveInterval);
+    const id = setInterval(moveBackpack, 1500);
+    return () => clearInterval(id);
   }, [moveBackpack]);
 
   const catchBackpack = () => {
     setScore((s) => s + 1);
     moveBackpack();
   };
-
-  if (!isWaking || !showOverlay) return null;
 
   return (
     <div
@@ -143,14 +80,17 @@ export default function ServerWakeUp({
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(135deg, #06080c 0%, #0a1628 50%, #0f1f3d 100%)",
+        background:
+          "linear-gradient(135deg, #06080c 0%, #0a1628 50%, #0f1f3d 100%)",
         color: "#e2e8f0",
         fontFamily: "'Inter', sans-serif",
         overflow: "hidden",
       }}
     >
       {/* Animated background particles */}
-      <div style={{ position: "absolute", inset: 0, overflow: "hidden", opacity: 0.15 }}>
+      <div
+        style={{ position: "absolute", inset: 0, overflow: "hidden", opacity: 0.15 }}
+      >
         {[...Array(20)].map((_, i) => (
           <div
             key={i}
@@ -170,8 +110,9 @@ export default function ServerWakeUp({
       </div>
 
       {/* Main content */}
-      <div style={{ textAlign: "center", zIndex: 1, maxWidth: 500, padding: "0 24px" }}>
-        {/* Logo / Title */}
+      <div
+        style={{ textAlign: "center", zIndex: 1, maxWidth: 500, padding: "0 24px" }}
+      >
         <div style={{ fontSize: 48, marginBottom: 8 }}>🌏</div>
         <h1
           style={{
@@ -186,7 +127,6 @@ export default function ServerWakeUp({
           Travyn
         </h1>
 
-        {/* Status message */}
         <p style={{ fontSize: 16, color: "#94a3b8", marginBottom: 4 }}>
           Waking up the server{dots}
         </p>
@@ -208,7 +148,7 @@ export default function ServerWakeUp({
           <div
             style={{
               height: "100%",
-              width: `${Math.min((elapsedSeconds / 35) * 100, 95)}%`,
+              width: `${Math.min((elapsedSeconds / 90) * 100, 95)}%`,
               background: "linear-gradient(90deg, #2dd4a8, #34eabd)",
               borderRadius: 4,
               transition: "width 1s linear",
@@ -238,10 +178,10 @@ export default function ServerWakeUp({
               color: "#64748b",
             }}
           >
-            🎮 Tap the backpack! Score: <span style={{ color: "#2dd4a8", fontWeight: 700 }}>{score}</span>
+            🎮 Tap the backpack! Score:{" "}
+            <span style={{ color: "#2dd4a8", fontWeight: 700 }}>{score}</span>
           </div>
 
-          {/* The backpack to catch */}
           <button
             onClick={catchBackpack}
             style={{
@@ -263,20 +203,17 @@ export default function ServerWakeUp({
           </button>
         </div>
 
-        {/* Rotating fun facts */}
         <p
           style={{
             fontSize: 13,
             color: "#94a3b8",
             minHeight: 20,
-            transition: "opacity 0.5s",
             marginBottom: 24,
           }}
         >
           {funFacts[funFact]}
         </p>
 
-        {/* Developer message */}
         <div
           style={{
             display: "inline-flex",
@@ -290,11 +227,10 @@ export default function ServerWakeUp({
             color: "#64748b",
           }}
         >
-          <span>🍜 Developer runs on instant noodles & free tier</span>
+          <span>🍜 Developer runs on instant noodles &amp; free tier</span>
         </div>
       </div>
 
-      {/* CSS Animation */}
       <style>{`
         @keyframes float {
           0%, 100% { transform: translateY(0px) scale(1); opacity: 0.3; }

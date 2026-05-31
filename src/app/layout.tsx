@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import ServerWakeUpWrapper from "@/components/ServerWakeUpWrapper";
+import { ServerStatusProvider } from "@/context/ServerStatusContext";
 
 export const metadata: Metadata = {
   title: "Travyn — Trusted Solo Travel Network",
@@ -30,8 +30,11 @@ export default function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body>
-        <ServerWakeUpWrapper />
-        {children}
+        {/* ServerStatusProvider silently pings the backend on app load
+            so Render wakes up before the user even clicks anything.
+            Login + Register pages read from this context to show
+            the mini-game if the user tries to submit before server is ready. */}
+        <ServerStatusProvider>{children}</ServerStatusProvider>
       </body>
     </html>
   );

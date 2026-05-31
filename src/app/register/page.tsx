@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Compass, ShieldCheck, Mail, ArrowRight, Upload, X, Loader2, AlertCircle, CheckCircle } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import api from "@/lib/api";
+import { useServerStatus } from "@/context/ServerStatusContext";
+import ServerWakeUp from "@/components/ServerWakeUp";
 
 type RegisterMode = "SELECTION" | "EMAIL" | "AADHAAR_SCAN" | "AADHAAR_PREVIEW" | "AADHAAR_ACCOUNT";
 type Gender = "MALE" | "FEMALE" | "NON_BINARY" | "PREFER_NOT_TO_SAY";
@@ -23,9 +25,24 @@ interface AadhaarData {
 export default function RegisterPage() {
   const router = useRouter();
   const { setAuth } = useAuthStore();
+  const { status } = useServerStatus();
   const [mode, setMode] = useState<RegisterMode>("SELECTION");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Game overlay state
+  const [showGame, setShowGame] = useState(false);
+  const pendingActionRef = useRef<(() => void) | null>(null);
+
+  // When server becomes ready AND user was waiting → hide game and retry action
+  useEffect(() => {
+    if (status === "up" && showGame && pendingActionRef.current) {
+      const action = pendingActionRef.current;
+      pendingActionRef.current = null;
+      setShowGame(false);
+      setTimeout(() => action(), 300);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
 
   // Aadhaar State
   const [aadhaarFile, setAadhaarFile] = useState<File | null>(null);
@@ -74,19 +91,24 @@ export default function RegisterPage() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setError("Image size must be less than 5MB"); return; }
 
-    if (file.size > 5 * 1024 * 1024) {
-      setError("Image size must be less than 5MB");
+    // If server isn't ready → show game and wait
+    if (status !== "up") {
+      pendingActionRef.current = () => {
+        // Re-trigger the file upload after server wakes up
+        const fakeEvent = { target: { files: [file] } } as unknown as React.ChangeEvent<HTMLInputElement>;
+        handleFileUpload(fakeEvent);
+      };
+      setShowGame(true);
       return;
     }
 
     setAadhaarFile(file);
     setError("");
     setLoading(true);
-
     const formData = new FormData();
     formData.append("image", file);
-
     try {
       const res = await api.post("/auth/aadhaar-preview", formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -105,36 +127,25 @@ export default function RegisterPage() {
     e.preventDefault();
     if (!aadhaarData) return;
     setError("");
+    if (form.password !== form.confirmPassword) { setError("Passwords do not match"); return; }
+    if (form.password.length < 10) { setError("Password must be at least 10 characters"); return; }
+    if (!form.agreeTerms) { setError("You must agree to the Terms of Service"); return; }
+    if (usernameStatus === "TAKEN" || usernameStatus === "ERROR") { setError("Please choose a valid and available username"); return; }
 
-    if (form.password !== form.confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
-    if (form.password.length < 10) {
-      setError("Password must be at least 10 characters");
-      return;
-    }
-    if (!form.agreeTerms) {
-      setError("You must agree to the Terms of Service");
-      return;
-    }
-    if (usernameStatus === "TAKEN" || usernameStatus === "ERROR") {
-      setError("Please choose a valid and available username");
+    if (status !== "up") {
+      pendingActionRef.current = () => handleAadhaarRegister(e);
+      setShowGame(true);
       return;
     }
 
     setLoading(true);
     try {
       const res = await api.post("/auth/register", {
-        email: form.email,
-        username: form.username,
-        password: form.password,
-        previewToken: aadhaarData.previewToken,
+        email: form.email, username: form.username,
+        password: form.password, previewToken: aadhaarData.previewToken,
       });
       const data = res.data;
       setAuth(data.user, data.access_token, data.refresh_token);
-      
-      // Aadhaar users are instantly verified, go straight to onboarding
       router.push("/onboarding");
     } catch (err: any) {
       setError(err.response?.data?.message || "Registration failed. Please try again.");
@@ -146,37 +157,24 @@ export default function RegisterPage() {
   const handleEmailRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (form.password !== form.confirmPassword) { setError("Passwords do not match"); return; }
+    if (form.password.length < 10) { setError("Password must be at least 10 characters"); return; }
+    if (!form.gender) { setError("Please select your gender"); return; }
+    if (!form.agreeTerms) { setError("You must agree to the Terms of Service"); return; }
+    if (usernameStatus === "TAKEN" || usernameStatus === "ERROR") { setError("Please choose a valid and available username"); return; }
 
-    if (form.password !== form.confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
-    if (form.password.length < 10) {
-      setError("Password must be at least 10 characters");
-      return;
-    }
-    if (!form.gender) {
-      setError("Please select your gender");
-      return;
-    }
-    if (!form.agreeTerms) {
-      setError("You must agree to the Terms of Service");
-      return;
-    }
-    if (usernameStatus === "TAKEN" || usernameStatus === "ERROR") {
-      setError("Please choose a valid and available username");
+    if (status !== "up") {
+      pendingActionRef.current = () => handleEmailRegister(e);
+      setShowGame(true);
       return;
     }
 
     setLoading(true);
     try {
       const res = await api.post("/auth/register", {
-        firstName: form.firstName,
-        lastName: form.lastName,
-        username: form.username,
-        email: form.email,
-        password: form.password,
-        gender: form.gender,
+        firstName: form.firstName, lastName: form.lastName,
+        username: form.username, email: form.email,
+        password: form.password, gender: form.gender,
       });
       const data = res.data;
       setAuth(data.user, data.access_token, data.refresh_token);
@@ -201,6 +199,8 @@ export default function RegisterPage() {
   const strengthColors = ["#f87171", "#f0a030", "#f0a030", "#2dd4a8", "#2dd4a8"];
 
   return (
+    <>
+      {showGame && <ServerWakeUp />}
     <div className="min-h-screen flex items-center justify-center px-4 py-12" style={{ background: "var(--color-bg-deep)" }}>
       <div className="w-full max-w-md">
         
@@ -528,5 +528,6 @@ export default function RegisterPage() {
         </p>
       </div>
     </div>
+    </>
   );
 }

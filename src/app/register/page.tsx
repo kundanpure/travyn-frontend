@@ -103,7 +103,6 @@ export default function RegisterPage() {
       return;
     }
 
-    setAadhaarFile(file);
     setError("");
     setLoading(true);
     const formData = new FormData();

@@ -84,6 +84,11 @@
     from { opacity: 0; transform: translateY(30px); }
     to { opacity: 1; transform: translateY(0); }
   }
+  @keyframes scan {
+    0%, 100% { transform: translateY(0); opacity: 0; }
+    10%, 90% { opacity: 1; }
+    50% { transform: translateY(300px); opacity: 1; }
+  }
 }
 
 /* ───────────────────────── BASE ───────────────────────── */

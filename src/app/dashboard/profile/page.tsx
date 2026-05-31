@@ -17,7 +17,7 @@ import { LocationSearch } from "@/components/ui/LocationSearch";
 type Gender = "MALE" | "FEMALE" | "NON_BINARY" | "PREFER_NOT_TO_SAY";
 
 // ... Skipping ahead ... I will need a more targeted replace call. 
-// I'll do two separate replacements.
+// I'll do two separate replacements. //fixed na?
 
 const genderOptions: { value: Gender; label: string; emoji: string }[] = [
   { value: "MALE", label: "Male", emoji: "♂️" },

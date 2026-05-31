@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plane, Users, CheckCircle, Ticket, X, MessageSquare, Compass, Loader2 } from "lucide-react";
+import { Plane, Users, User, CheckCircle, Ticket, X, MessageSquare, Compass, Loader2 } from "lucide-react";
 import api from "@/lib/api";
 
 type MatchTab = "DISCOVER" | "MUTUAL";

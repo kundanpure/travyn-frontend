@@ -24,6 +24,7 @@ export default function ServerWakeUp({
   onServerReady: () => void;
 }) {
   const [isWaking, setIsWaking] = useState(true);
+  const [showOverlay, setShowOverlay] = useState(false); // only show after 2s delay
   const [score, setScore] = useState(0);
   const [backpack, setBackpack] = useState<BackpackPosition>({ x: 50, y: 50 });
   const [dots, setDots] = useState("");
@@ -67,16 +68,24 @@ export default function ServerWakeUp({
   useEffect(() => {
     let cancelled = false;
 
+    // Show the overlay only if the first response takes more than 2 seconds
+    const overlayTimer = setTimeout(() => {
+      if (!cancelled) setShowOverlay(true);
+    }, 2000);
+
     const poll = async () => {
       const ready = await checkHealth();
       if (!ready && !cancelled) {
         setTimeout(poll, 3000);
+      } else if (ready) {
+        clearTimeout(overlayTimer);
       }
     };
     poll();
 
     return () => {
       cancelled = true;
+      clearTimeout(overlayTimer);
     };
   }, [checkHealth]);
 
@@ -119,7 +128,7 @@ export default function ServerWakeUp({
     moveBackpack();
   };
 
-  if (!isWaking) return null;
+  if (!isWaking || !showOverlay) return null;
 
   return (
     <div

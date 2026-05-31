@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import ServerWakeUpWrapper from "@/components/ServerWakeUpWrapper";
 
 export const metadata: Metadata = {
   title: "Travyn — Trusted Solo Travel Network",
@@ -28,7 +29,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
-      <body>{children}</body>
+      <body>
+        <ServerWakeUpWrapper />
+        {children}
+      </body>
     </html>
   );
 }

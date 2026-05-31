@@ -107,8 +107,7 @@ export async function uploadImage(
     const result = await uploadToSupabase(
       bucket,
       path,
-      compressed,
-      compressed.type
+      compressed
     );
 
     onProgress?.({

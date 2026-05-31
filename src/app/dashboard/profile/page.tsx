@@ -105,11 +105,12 @@ export default function ProfilePage() {
 
   async function fetchTrustScore() {
     try {
-      // In a real app we might get the user ID from the auth store, 
-      // but assuming the backend gets it from the session/token:
-      const res = await api.get("/users/me"); 
-      if (res.data && res.data.trustScore !== undefined) {
-        setTrustScore(res.data.trustScore);
+      const userId = useAuthStore.getState().user?.id;
+      if (userId) {
+        const res = await api.get(`/users/${userId}/trust-score`);
+        if (res.data && res.data.totalScore !== undefined) {
+          setTrustScore(res.data.totalScore);
+        }
       }
     } catch (err) {
       console.error("Failed to fetch trust score:", err);

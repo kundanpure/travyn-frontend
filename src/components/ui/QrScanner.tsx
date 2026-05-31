@@ -14,10 +14,20 @@ export function QrScanner({ onScanSuccess, onScanFailure }: QrScannerProps) {
   useEffect(() => {
     if (!scannerRef.current) return;
 
-    // Create instance
+    // Create instance optimized for high-density QR codes like Aadhaar
     const html5QrcodeScanner = new Html5QrcodeScanner(
       "qr-reader",
-      { fps: 10, qrbox: { width: 250, height: 250 }, rememberLastUsedCamera: true },
+      { 
+        fps: 10,
+        // Removing qrbox completely lets it scan the full video frame, which helps immensely with dense/large QR codes.
+        rememberLastUsedCamera: true,
+        supportedScanTypes: [0], // 0 is Camera
+        videoConstraints: {
+          facingMode: "environment",
+          width: { min: 1280, ideal: 1920, max: 2560 }, // Request higher resolution
+          height: { min: 720, ideal: 1080, max: 1440 },
+        }
+      },
       /* verbose= */ false
     );
 

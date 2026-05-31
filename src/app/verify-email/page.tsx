@@ -32,6 +32,11 @@ function VerifyEmailContent() {
     verify();
   }, [token]);
 
+  // Hook declarations moved up to avoid conditional hook errors
+  const [resendEmail, setResendEmail] = useState("");
+  const [resending, setResending] = useState(false);
+  const [resendDone, setResendDone] = useState(false);
+
   /* ── Verifying ── */
   if (status === "verifying") {
     return (
@@ -99,11 +104,6 @@ function VerifyEmailContent() {
     );
   }
 
-  /* ── Idle (no token — just registered, check inbox) ── */
-  const [resendEmail, setResendEmail] = useState("");
-  const [resending, setResending] = useState(false);
-  const [resendDone, setResendDone] = useState(false);
-
   const handleResend = async () => {
     if (!resendEmail) return;
     setResending(true);
@@ -114,6 +114,7 @@ function VerifyEmailContent() {
     setResending(false);
   };
 
+  /* ── Idle (no token — just registered, check inbox) ── */
   return (
     <div className="text-center">
       <div

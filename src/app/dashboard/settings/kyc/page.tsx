@@ -67,8 +67,9 @@ export default function KycVerificationPage() {
       });
       setSuccess(true);
       await fetchUser(); // Refresh user state to show verified
-    } catch (err: any) {
-      const errMsg = err.response?.data?.error || "Verification failed. Please ensure the QR code is clear and valid.";
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error?: string } } };
+      const errMsg = axiosErr.response?.data?.error || "Verification failed. Please ensure the QR code is clear and valid.";
       setError(errMsg);
       await fetchUser(); // Refresh user state to catch potential lockout updates
     } finally {

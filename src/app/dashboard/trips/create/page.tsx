@@ -61,8 +61,6 @@ export default function CreateTripPage() {
     return true;
   };
 
-  const getFieldError = (field: string) => fieldErrors.find(e => e.field === field)?.message;
-
   const handleSubmit = async () => {
     setSaving(true);
     setError("");

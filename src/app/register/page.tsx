@@ -45,7 +45,6 @@ export default function RegisterPage() {
   }, [status]);
 
   // Aadhaar State
-  const [aadhaarFile, setAadhaarFile] = useState<File | null>(null);
   const [aadhaarData, setAadhaarData] = useState<AadhaarData | null>(null);
 
   // Form State
@@ -63,24 +62,24 @@ export default function RegisterPage() {
   const [usernameStatus, setUsernameStatus] = useState<"IDLE" | "CHECKING" | "AVAILABLE" | "TAKEN" | "ERROR">("IDLE");
 
   useEffect(() => {
-    const username = form.username.trim().toLowerCase();
-    if (!username) {
-      setUsernameStatus("IDLE");
-      return;
-    }
-    
-    // Client-side regex check before hitting API
-    if (username.length < 3 || username.length > 30 || !/^[a-z0-9_.]+$/.test(username)) {
-      setUsernameStatus("ERROR");
-      return;
-    }
-
-    setUsernameStatus("CHECKING");
     const timer = setTimeout(async () => {
+      const username = form.username.trim().toLowerCase();
+      if (!username) {
+        setUsernameStatus("IDLE");
+        return;
+      }
+      
+      // Client-side regex check before hitting API
+      if (username.length < 3 || username.length > 30 || !/^[a-z0-9_.]+$/.test(username)) {
+        setUsernameStatus("ERROR");
+        return;
+      }
+
+      setUsernameStatus("CHECKING");
       try {
         const res = await api.get(`/auth/check-username?username=${username}`);
         setUsernameStatus(res.data.available ? "AVAILABLE" : "TAKEN");
-      } catch (err) {
+      } catch {
         setUsernameStatus("ERROR");
       }
     }, 500);
@@ -115,9 +114,9 @@ export default function RegisterPage() {
       });
       setAadhaarData(res.data);
       setMode("AADHAAR_PREVIEW");
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to read Aadhaar QR. Please make sure the image is clear.");
-      setAadhaarFile(null);
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error?: string } } };
+      setError(axiosErr.response?.data?.error || "Failed to read Aadhaar QR. Please make sure the image is clear.");
     } finally {
       setLoading(false);
     }
@@ -147,8 +146,9 @@ export default function RegisterPage() {
       const data = res.data;
       setAuth(data.user, data.access_token, data.refresh_token);
       router.push("/onboarding");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Registration failed. Please try again.");
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setError(axiosErr.response?.data?.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -179,8 +179,9 @@ export default function RegisterPage() {
       const data = res.data;
       setAuth(data.user, data.access_token, data.refresh_token);
       router.push("/verify-email");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Registration failed. Please try again.");
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setError(axiosErr.response?.data?.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -211,7 +212,6 @@ export default function RegisterPage() {
               onClick={() => {
                 setMode("SELECTION");
                 setError("");
-                setAadhaarFile(null);
                 setAadhaarData(null);
               }}
               className="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-white/5 transition-colors"
@@ -246,7 +246,7 @@ export default function RegisterPage() {
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
             <h1 className="text-2xl font-bold text-center mb-2" style={{ color: "var(--color-txt-white)" }}>Create your account</h1>
             <p className="text-center mb-8 text-sm" style={{ color: "var(--color-txt-secondary)" }}>
-              Choose how you'd like to join the community
+              Choose how you&apos;d like to join the community
             </p>
 
             <button 

@@ -36,7 +36,7 @@ export default function LoginPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
-  const doLogin = async () => {
+  async function doLogin() {
     setError("");
     setEmailNotVerified(false);
     setResendSuccess(false);

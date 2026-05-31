@@ -34,6 +34,13 @@ export function ServerStatusProvider({
     const ping = async (): Promise<void> => {
       if (cancelled) return;
 
+      // In development, assume server is always up to prevent annoying game popups during reloads
+      if (process.env.NODE_ENV === "development") {
+        statusRef.current = "up";
+        setStatus("up");
+        return;
+      }
+
       try {
         const res = await fetch("/api/health", {
           method: "GET",

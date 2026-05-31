@@ -19,6 +19,14 @@ export default function ServerWakeUp() {
   const [dots, setDots] = useState("");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [funFact, setFunFact] = useState(0);
+  const [particles] = useState(() =>
+    [...Array(20)].map(() => ({
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+      duration: 3 + Math.random() * 4,
+      delay: Math.random() * 2,
+    }))
+  );
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const funFacts = [
@@ -91,7 +99,7 @@ export default function ServerWakeUp() {
       <div
         style={{ position: "absolute", inset: 0, overflow: "hidden", opacity: 0.15 }}
       >
-        {[...Array(20)].map((_, i) => (
+        {particles.map((p, i) => (
           <div
             key={i}
             style={{
@@ -100,10 +108,10 @@ export default function ServerWakeUp() {
               height: 4,
               borderRadius: "50%",
               background: "#2dd4a8",
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animation: `float ${3 + Math.random() * 4}s ease-in-out infinite`,
-              animationDelay: `${Math.random() * 2}s`,
+              left: `${p.left}%`,
+              top: `${p.top}%`,
+              animation: `float ${p.duration}s ease-in-out infinite`,
+              animationDelay: `${p.delay}s`,
             }}
           />
         ))}

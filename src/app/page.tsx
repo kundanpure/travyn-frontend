@@ -21,7 +21,6 @@ import {
   Eye,
   MessageCircle,
   TrendingUp,
-  Award,
   Map,
 } from "lucide-react";
 
@@ -62,8 +61,8 @@ function Reveal({
         observer.disconnect();
         clearTimeout(fallbackTimer);
       };
-    } catch (e) {
-      setVisible(true);
+    } catch {
+      setTimeout(() => setVisible(true), 0);
     }
   }, []);
 
@@ -138,8 +137,8 @@ function AnimatedCounter({
         observer.disconnect();
         clearTimeout(fallbackTimer);
       };
-    } catch (e) {
-      setCount(target);
+    } catch {
+      setTimeout(() => setCount(target), 0);
     }
   }, [target]);
 

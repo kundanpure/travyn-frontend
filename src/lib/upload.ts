@@ -1,5 +1,4 @@
 import imageCompression from "browser-image-compression";
-import { supabase } from "./supabase";
 
 // ─── Types ───────────────────────────────────────────────────
 export interface UploadResult {
@@ -59,8 +58,7 @@ export function generateUploadPath(
 export async function uploadToSupabase(
   bucket: string,
   path: string,
-  blob: Blob,
-  contentType?: string
+  blob: Blob
 ): Promise<UploadResult> {
   const formData = new FormData();
   formData.append("file", blob, path.split("/").pop() || "upload.jpg");

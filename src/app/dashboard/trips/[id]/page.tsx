@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, MapPin, Calendar, Users, Hash, Shield, Heart, Clock,
-  Loader2, CheckCircle2, XCircle, UserPlus, Crown, User, Copy, Check,
+  Loader2, CheckCircle2, XCircle, UserPlus, Crown, Copy, Check,
   Map, DollarSign, MessageCircle, Pencil, X, Save, IndianRupee,
   Mountain, Car, Landmark, Compass, Monitor, PartyPopper, ImagePlus, Star
 } from "lucide-react";
@@ -126,6 +126,7 @@ export default function TripDetailPage() {
 
   useEffect(() => {
     fetchTrip();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tripId]);
 
   // Refetch trip if a relevant notification arrives
@@ -140,9 +141,10 @@ export default function TripDetailPage() {
         fetchTrip();
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifications, tripId]);
 
-  const fetchTrip = async () => {
+  async function fetchTrip() {
     setLoading(true);
     try {
       const [tripRes, membersRes, reviewsRes] = await Promise.all([
@@ -166,7 +168,7 @@ export default function TripDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   const handleJoin = async () => {
     setJoining(true);
@@ -241,8 +243,9 @@ export default function TripDetailPage() {
       await api.put(`/trips/${tripId}`, payload);
       setEditing(false);
       await fetchTrip();
-    } catch (err: any) {
-      setEditError(err?.response?.data?.message || "Failed to update trip");
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setEditError(axiosErr?.response?.data?.message || "Failed to update trip");
     } finally {
       setEditSaving(false);
     }
@@ -647,7 +650,7 @@ export default function TripDetailPage() {
                   </div>
                 </div>
                 {review.textReview && (
-                  <p className="text-sm text-gray-300 leading-relaxed italic border-l-2 border-gray-700 pl-3">"{review.textReview}"</p>
+                  <p className="text-sm text-gray-300 leading-relaxed italic border-l-2 border-gray-700 pl-3">&quot;{review.textReview}&quot;</p>
                 )}
                 <div className="text-xs text-gray-500 mt-4 text-right">
                   {new Date(review.createdAt).toLocaleDateString()}

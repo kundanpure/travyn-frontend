@@ -145,10 +145,13 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (user) {
-      setSelectedGender(user.gender || "");
-      setGenderChangesRemaining(user.genderChangesRemaining ?? 2);
+      setTimeout(() => {
+        setSelectedGender(user.gender || "");
+        setGenderChangesRemaining(user.genderChangesRemaining ?? 2);
+      }, 0);
       if (trustScore === null) fetchTrustScore();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const sanitize = (data: Partial<ProfileData>): ProfileData => ({

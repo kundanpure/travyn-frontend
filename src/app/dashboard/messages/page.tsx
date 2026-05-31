@@ -38,6 +38,10 @@ export default function MessagesPage() {
     fetchInbox();
   }, [fetchInbox]);
 
+  const handleMessageRead = useCallback(() => {
+    setInbox(prev => prev.map(i => i.partnerId === selectedPartnerId ? { ...i, unreadCount: 0 } : i));
+  }, [selectedPartnerId]);
+
   const filteredInbox = inbox.filter((item) =>
     item.partnerName.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -123,10 +127,7 @@ export default function MessagesPage() {
             partnerId={selectedPartnerId}
             partnerName={inbox.find((i) => i.partnerId === selectedPartnerId)?.partnerName || "Chat"}
             onBack={() => setSelectedPartnerId(null)}
-            onMessageRead={() => {
-              // Mark as read in inbox state locally to remove badge
-              setInbox(prev => prev.map(i => i.partnerId === selectedPartnerId ? { ...i, unreadCount: 0 } : i));
-            }}
+            onMessageRead={handleMessageRead}
           />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-white/40">

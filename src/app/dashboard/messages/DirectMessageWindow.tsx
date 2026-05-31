@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ArrowLeft, Send, Loader2, Wifi, WifiOff } from "lucide-react";
+import { ArrowLeft, Send, Loader2, Wifi, WifiOff, MessageCircle } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
 import { Client } from "@stomp/stompjs";

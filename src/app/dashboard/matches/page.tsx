@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plane, Users, User, CheckCircle, Ticket, X, MessageSquare, Compass, Loader2 } from "lucide-react";
+import { Plane, Users, User, CheckCircle, Ticket, X, MessageSquare, Compass, Loader2, MapPin } from "lucide-react";
 import api from "@/lib/api";
 
 type MatchTab = "DISCOVER" | "MUTUAL";
@@ -138,6 +138,13 @@ export default function MatchesPage() {
                         <div className="flex items-center gap-1.5 text-xs text-white/60">
                           <CheckCircle size={14} className="text-emerald-500" /> Trust Score: {m.trustScore}
                         </div>
+                        {m.locationName && (
+                          <div className="flex items-center gap-1.5 text-xs text-emerald-400 mt-1">
+                            <MapPin size={14} /> 
+                            {m.locationName} 
+                            {m.distanceInKm !== undefined && m.distanceInKm !== null && ` • ${Math.round(m.distanceInKm)} km away`}
+                          </div>
+                        )}
                       </div>
                     </div>
 

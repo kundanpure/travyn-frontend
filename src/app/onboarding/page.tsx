@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Compass, User, Wallet, Moon, ChevronRight, Check, Loader2, Sparkles, Beer, Zap, Home, ClipboardList, Heart, Globe, Map } from "lucide-react";
 import api from "@/lib/api";
+import { LocationSearch } from "@/components/ui/LocationSearch";
 
 type Step = "BIO" | "TRAVEL_STYLE" | "BUDGET" | "SLEEP" | "HABITS" | "PACE" | "ACCOMMODATION" | "PLANNING" | "MOTIVATION" | "MEANING" | "EXPERIENCE";
 
@@ -49,6 +50,9 @@ export default function OnboardingPage() {
     budgetMin: 500,
     budgetMax: 5000,
     sleepSchedule: "NIGHT_OWL",
+    latitude: undefined as number | undefined,
+    longitude: undefined as number | undefined,
+    locationName: undefined as string | undefined,
   });
 
   const [prefs, setPrefs] = useState({
@@ -138,11 +142,17 @@ export default function OnboardingPage() {
                   <User size={24} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold" style={{ color: "var(--color-txt-white)" }}>Write a short bio</h2>
+                  <h2 className="text-xl font-bold" style={{ color: "var(--color-txt-white)" }}>Basic Info</h2>
                   <p className="text-sm" style={{ color: "var(--color-txt-secondary)" }}>Introduce yourself to the community</p>
                 </div>
               </div>
               
+              <div className="mb-6">
+                <LocationSearch 
+                  onLocationSelect={(loc) => setForm(prev => ({ ...prev, latitude: loc.latitude, longitude: loc.longitude, locationName: loc.name }))}
+                />
+              </div>
+
               <textarea 
                 className="t-input w-full h-32 resize-none"
                 placeholder="Hi, I'm passionate about exploring hidden gems and trying local street food..."

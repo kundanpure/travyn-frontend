@@ -10,8 +10,8 @@ import {
 import { useAuthStore } from "@/stores/auth-store";
 import api from "@/lib/api";
 import { TrustScoreGauge } from "../components/TrustScoreGauge";
-import ImageUploadModal from "../components/ImageUploadModal";
 import { BUCKETS } from "@/lib/supabase";
+import { LocationSearch } from "@/components/ui/LocationSearch";
 
 type Gender = "MALE" | "FEMALE" | "NON_BINARY" | "PREFER_NOT_TO_SAY";
 
@@ -70,6 +70,9 @@ interface ProfileData {
   remoteWorker: boolean;
   profilePhotoUrl: string;
   coverPhotoUrl: string;
+  latitude?: number;
+  longitude?: number;
+  locationName?: string;
   profileCompleteness: number;
 }
 
@@ -169,6 +172,9 @@ export default function ProfilePage() {
     remoteWorker: data.remoteWorker ?? false,
     profilePhotoUrl: data.profilePhotoUrl ?? "",
     coverPhotoUrl: data.coverPhotoUrl ?? "",
+    latitude: data.latitude,
+    longitude: data.longitude,
+    locationName: data.locationName,
     profileCompleteness: data.profileCompleteness ?? 0,
   });
 
@@ -507,6 +513,9 @@ export default function ProfilePage() {
           {/* View Mode Badges */}
           {!editing && (
             <div className="mt-4 flex flex-wrap gap-2">
+              {profile.locationName && (
+                <Badge label={`📍 ${profile.locationName}`} color="var(--color-primary)" />
+              )}
               {(profile.travelStyles || []).map(style => (
                 <Badge key={style} label={style.replace(/_/g, " ")} color="var(--color-primary)" />
               ))}
@@ -582,6 +591,14 @@ export default function ProfilePage() {
                   />
                 )}
               </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-xs mb-1" style={{ color: "var(--color-txt-secondary)" }}>Location</label>
+              <LocationSearch 
+                defaultLocationName={form.locationName || ""}
+                onLocationSelect={(loc) => setForm(prev => ({ ...prev, latitude: loc.latitude, longitude: loc.longitude, locationName: loc.name }))}
+              />
             </div>
 
             <div className="mb-4">

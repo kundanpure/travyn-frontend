@@ -102,7 +102,7 @@ export default function ImageUploadModal({
 
       setProgress({ stage: "uploading", percent: 60, message: "Uploading to cloud..." });
       const path = generateUploadPath(userId, bucket, file.name);
-      const result = await uploadToSupabase(bucket, path, compressed, compressed.type);
+      const result = await uploadToSupabase(bucket, path, compressed);
 
       setProgress({ stage: "done", percent: 100, message: "Upload complete!" });
       setTimeout(() => onUploadComplete(result.url), 600);
@@ -133,7 +133,7 @@ export default function ImageUploadModal({
 
       setProgress({ stage: "uploading", percent: 70, message: "Uploading to cloud..." });
       const path = generateUploadPath(userId, bucket, selectedFile.name);
-      const result = await uploadToSupabase(bucket, path, compressed, "image/jpeg");
+      const result = await uploadToSupabase(bucket, path, compressed);
 
       setProgress({ stage: "done", percent: 100, message: "Upload complete!" });
       setTimeout(() => onUploadComplete(result.url), 600);

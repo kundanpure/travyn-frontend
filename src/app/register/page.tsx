@@ -274,40 +274,36 @@ export default function RegisterPage() {
             </p>
 
             <button 
-              onClick={() => setMode("AADHAAR_SCAN")}
-              className="w-full text-left p-5 rounded-2xl transition-all relative overflow-hidden group"
-              style={{ background: "rgba(45, 212, 168, 0.08)", border: "2px solid var(--color-primary-dim)" }}
+              onClick={() => setMode("EMAIL")}
+              className="w-full text-left p-5 rounded-2xl transition-all hover:bg-white/5 group"
+              style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative z-10 flex items-start gap-4">
-                <div className="p-3 rounded-xl bg-emerald-500/20 text-emerald-400">
-                  <ShieldCheck size={24} />
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-xl group-hover:bg-white/10 transition-colors" style={{ background: "rgba(255,255,255,0.05)", color: "var(--color-txt-white)" }}>
+                  <Mail size={24} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-emerald-400 mb-1 flex items-center gap-2">
-                    Verified Aadhaar Registration
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold tracking-wider uppercase">Recommended</span>
-                  </h3>
-                  <p className="text-sm text-emerald-400/80 leading-relaxed">
-                    Scan your Aadhaar QR to instantly verify your identity. Get maximum trust score and unlock all features immediately.
+                  <h3 className="font-bold mb-1" style={{ color: "var(--color-txt-white)" }}>Standard Email Registration</h3>
+                  <p className="text-sm" style={{ color: "var(--color-txt-secondary)" }}>
+                    Quickly create an account with your email and password.
                   </p>
                 </div>
               </div>
             </button>
 
             <button 
-              onClick={() => setMode("EMAIL")}
-              className="w-full text-left p-5 rounded-2xl transition-all hover:bg-white/5"
+              onClick={() => setMode("AADHAAR_SCAN")}
+              className="w-full text-left p-5 rounded-2xl transition-all hover:bg-white/5 group"
               style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}
             >
               <div className="flex items-start gap-4">
-                <div className="p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.05)", color: "var(--color-txt-muted)" }}>
-                  <Mail size={24} />
+                <div className="p-3 rounded-xl group-hover:bg-emerald-500/20 transition-colors" style={{ background: "rgba(255,255,255,0.05)", color: "var(--color-txt-white)" }}>
+                  <ShieldCheck size={24} />
                 </div>
                 <div>
-                  <h3 className="font-bold mb-1" style={{ color: "var(--color-txt-white)" }}>Standard Email Registration</h3>
+                  <h3 className="font-bold mb-1" style={{ color: "var(--color-txt-white)" }}>Instant Aadhaar Verification</h3>
                   <p className="text-sm" style={{ color: "var(--color-txt-secondary)" }}>
-                    Register with email and password. You will need to complete Aadhaar KYC later to book trips.
+                    Scan your Aadhaar QR to instantly verify your identity and unlock all features.
                   </p>
                 </div>
               </div>
@@ -485,7 +481,7 @@ export default function RegisterPage() {
           <div className="rounded-2xl p-8 animate-in fade-in slide-in-from-right-4" style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}>
             <h1 className="text-2xl font-bold mb-2 text-center" style={{ color: "var(--color-txt-white)" }}>Email Registration</h1>
             <p className="text-center mb-6 text-sm" style={{ color: "var(--color-txt-secondary)" }}>
-              You will need to complete Aadhaar KYC later to use core features.
+              Create an account with your email and password.
             </p>
 
             <form onSubmit={handleEmailRegister} className="space-y-4">

@@ -65,6 +65,7 @@ export default function DirectMessageWindow({ partnerId, partnerName, onBack, on
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [stompConnected, setStompConnected] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<string>("NONE");
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const stompClientRef = useRef<Client | null>(null);
@@ -84,12 +85,19 @@ export default function DirectMessageWindow({ partnerId, partnerName, onBack, on
 
   const loadMessages = useCallback(async () => {
     try {
+      // Load connection status
+      const statusRes = await api.get(`/dm/${partnerId}/status`);
+      setConnectionStatus(statusRes.data.status);
+
+      // Load messages
       const res = await api.get(`/dm/${partnerId}/messages?page=0&size=50`);
       setMessages(res.data);
       scrollToBottom();
       markAsRead();
-    } catch (err) {
-      console.error("Failed to load DMs", err);
+    } catch (err: any) {
+      if (err.response?.status !== 403) {
+        console.error("Failed to load DMs", err);
+      }
     } finally {
       setLoading(false);
     }
@@ -196,8 +204,32 @@ export default function DirectMessageWindow({ partnerId, partnerName, onBack, on
       setTimeout(scrollToBottom, 100);
     } catch (err) {
       console.error("Failed to send message", err);
+      scrollToBottom();
+      
+      // If this was our first message, update status to PENDING_SENT
+      if (connectionStatus === "CO_TRAVELER") {
+        setConnectionStatus("PENDING_SENT");
+      }
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleAccept = async () => {
+    try {
+      await api.post(`/matches/${partnerId}/connect`);
+      setConnectionStatus("MUTUAL");
+    } catch (err) {
+      console.error("Failed to accept", err);
+    }
+  };
+
+  const handleReject = async () => {
+    try {
+      await api.post(`/matches/${partnerId}/pass`);
+      onBack(); // close chat on reject
+    } catch (err) {
+      console.error("Failed to reject", err);
     }
   };
 
@@ -315,39 +347,73 @@ export default function DirectMessageWindow({ partnerId, partnerName, onBack, on
         <div ref={messagesEndRef} className="h-1" />
       </div>
 
-      {/* Input Area */}
+      {/* Input Area / Status Banners */}
       <div className="p-4 bg-zinc-900 border-t border-white/10 shrink-0">
-        <form onSubmit={handleSendText} className="flex gap-2 items-end max-w-4xl mx-auto">
-          {/* Chat Attachment Menu (Photos/Media) */}
-          <ChatAttachmentMenu userId={user?.id || ""} onImageUploaded={handleImageUploaded} />
-          
-          <div className="flex-1 bg-zinc-800 rounded-2xl border border-white/10 overflow-hidden focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/50 transition-all">
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendText(e);
-                }
-              }}
-              placeholder="Message..."
-              className="w-full bg-transparent text-white px-4 py-3 max-h-32 min-h-[44px] resize-none outline-none text-[15px]"
-              rows={1}
-              style={{
-                height: "auto",
-                minHeight: "44px",
-              }}
-            />
+        {connectionStatus === "PENDING_RECEIVED" ? (
+          <div className="bg-zinc-800 rounded-2xl p-4 text-center border border-white/10 shadow-lg">
+            <p className="text-zinc-300 text-sm mb-4">
+              <strong className="text-white">{partnerName}</strong> wants to connect and chat with you.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button 
+                onClick={handleReject}
+                className="px-6 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-xl text-sm font-medium transition-colors"
+              >
+                Reject
+              </button>
+              <button 
+                onClick={handleAccept}
+                className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-emerald-500/20"
+              >
+                Accept
+              </button>
+            </div>
           </div>
-          <button
-            type="submit"
-            disabled={!message.trim() || sending}
-            className="p-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-emerald-500/20 flex-shrink-0"
-          >
-            {sending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} className="ml-0.5" />}
-          </button>
-        </form>
+        ) : connectionStatus === "PENDING_SENT" ? (
+          <div className="bg-zinc-800/50 rounded-2xl p-4 text-center border border-white/5">
+            <p className="text-zinc-400 text-sm">
+              Request sent. You can send more messages once they accept.
+            </p>
+          </div>
+        ) : connectionStatus === "REJECTED" ? (
+          <div className="bg-zinc-800/50 rounded-2xl p-4 text-center border border-white/5">
+            <p className="text-zinc-400 text-sm">
+              You can no longer message this user.
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleSendText} className="flex gap-2 items-end max-w-4xl mx-auto">
+            {/* Chat Attachment Menu (Photos/Media) */}
+            <ChatAttachmentMenu userId={user?.id || ""} onImageUploaded={handleImageUploaded} />
+            
+            <div className="flex-1 bg-zinc-800 rounded-2xl border border-white/10 overflow-hidden focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/50 transition-all">
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendText(e);
+                  }
+                }}
+                placeholder="Message..."
+                className="w-full bg-transparent text-white px-4 py-3 max-h-32 min-h-[44px] resize-none outline-none text-[15px]"
+                rows={1}
+                style={{
+                  height: "auto",
+                  minHeight: "44px",
+                }}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={!message.trim() || sending}
+              className="p-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-emerald-500/20 flex-shrink-0"
+            >
+              {sending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} className="ml-0.5" />}
+            </button>
+          </form>
+        )}
         <div className="text-center mt-2">
            <span className="text-[10px] text-white/30 font-medium">Press Enter to send, Shift+Enter for new line</span>
         </div>

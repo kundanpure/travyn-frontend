@@ -246,7 +246,7 @@ export default function MatchesPage() {
                     <CheckCircle size={12} /> Mutual Match
                   </div>
                 </div>
-                <a href={`/dashboard/messages?user=${m.userId}`} className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-white">
+                <a href={`/dashboard/messages?partnerId=${m.userId}`} className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-white">
                   <MessageSquare size={20} />
                 </a>
               </div>

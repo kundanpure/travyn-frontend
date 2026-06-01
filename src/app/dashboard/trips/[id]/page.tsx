@@ -545,7 +545,20 @@ export default function TripDetailPage() {
                 </div>
               </div>
               
-              {/* Review Button — only visible after trip is COMPLETED */}
+              <div className="flex items-center gap-2">
+                {/* Message Button - Only if it's an active trip and not myself */}
+                {m.userId !== user?.id && myMembership?.status === "APPROVED" && (
+                  <a
+                    href={`/dashboard/messages?partnerId=${m.userId}`}
+                    className="p-2 rounded-lg transition-colors flex items-center justify-center hover:scale-105"
+                    style={{ background: "rgba(45, 212, 168, 0.1)", border: "1px solid rgba(45, 212, 168, 0.3)", color: "#2dd4a8" }}
+                    title="Send Message"
+                  >
+                    <MessageCircle size={16} />
+                  </a>
+                )}
+                
+                {/* Review Button — only visible after trip is COMPLETED */}
               {m.userId !== user?.id && trip.status === "COMPLETED" && (isCreator || myMembership?.status === "APPROVED") && (
                 <button
                   onClick={() => setReviewMember({ id: m.userId, name: `${m.firstName} ${m.lastName}` })}
@@ -556,6 +569,7 @@ export default function TripDetailPage() {
                   <Star size={16} />
                 </button>
               )}
+              </div>
             </div>
           ))}
         </div>

@@ -211,24 +211,24 @@ const STEPS = [
 
 const TESTIMONIALS = [
   {
-    name: "Sarah Chen",
-    location: "Bali, Indonesia",
-    text: "I was nervous about solo travel until Travyn matched me with two amazing companions. We explored Ubud together and I felt safe the entire time.",
-    initials: "SC",
+    name: "Become a Founding Member",
+    location: "Your next destination",
+    text: "We are currently in private beta! Join today, verify your profile with Aadhaar, and be the first to share your solo travel story right here.",
+    initials: "T1",
     gradient: "linear-gradient(135deg, #2dd4a8, #1fae8a)",
   },
   {
-    name: "Marcus Johnson",
-    location: "Patagonia, Chile",
-    text: "The verification system gave me confidence in my travel partners. We shared an incredible 10-day trek through Torres del Paine.",
-    initials: "MJ",
+    name: "Share Your Journey",
+    location: "Anywhere in the world",
+    text: "The best travel stories haven't been written yet. Match with verified companions and tell us how your trip went. Your review could be here.",
+    initials: "T2",
     gradient: "linear-gradient(135deg, #f0a030, #d08c28)",
   },
   {
-    name: "Priya Sharma",
-    location: "Kyoto, Japan",
-    text: "As a woman traveling alone, the women-safe spaces feature was a game changer. Found the most wonderful group for my Japan trip.",
-    initials: "PS",
+    name: "Help Us Build",
+    location: "Community Driven",
+    text: "Travyn is built by travelers, for travelers. Give us feedback on the matchmaking experience and help shape the future of safe solo travel.",
+    initials: "T3",
     gradient: "linear-gradient(135deg, #818cf8, #6366f1)",
   },
 ];
@@ -477,14 +477,14 @@ export default function LandingPage() {
                     </div>
                   ))}
                 </div>
-                <span>10,000+ verified travelers</span>
+                <span>Join our early beta testers</span>
               </div>
               <span style={{ color: "var(--color-line-hover)" }} className="hidden sm:inline">|</span>
               <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 {[...Array(5)].map((_, i) => (
                   <Star key={i} size={14} fill="#f0a030" color="#f0a030" />
                 ))}
-                <span style={{ marginLeft: 4 }}>4.9/5 from 2,500+ trips</span>
+                <span style={{ marginLeft: 4 }}>100% Aadhaar Verified</span>
               </div>
             </div>
           </Reveal>
@@ -499,10 +499,10 @@ export default function LandingPage() {
         <div className="t-container">
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 }} className="md:!grid-cols-4">
             {[
-              { target: 10000, suffix: "+", label: "Verified Travelers", Icon: Users },
-              { target: 2500, suffix: "+", label: "Safe Trips", Icon: MapPin },
-              { target: 50, suffix: "+", label: "Countries", Icon: Globe },
-              { target: 99, suffix: ".9%", label: "Safety Record", Icon: Shield },
+              { target: 100, suffix: "", label: "Founding Member Spots", Icon: Users },
+              { target: 1, suffix: "", label: "Mission: Safe Travel", Icon: MapPin },
+              { target: 100, suffix: "%", label: "Verified Users Only", Icon: Shield },
+              { target: 0, suffix: " Bots", label: "Fake Profiles", Icon: Sparkles },
             ].map(({ target, suffix, label, Icon }, i) => (
               <Reveal key={label} delay={i * 100}>
                 <div className="t-stat-card">

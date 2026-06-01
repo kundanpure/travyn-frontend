@@ -94,56 +94,7 @@ export function QrScanner({ onScanSuccess, onScanFailure }: QrScannerProps) {
       )}
 
       {/* Help Guide Overlay */}
-      {showHelp && (
-        <div className="absolute inset-0 z-30 bg-zinc-950/95 backdrop-blur-md flex flex-col p-6 rounded-3xl animate-in fade-in zoom-in-95">
-          <button 
-            onClick={() => setShowHelp(false)}
-            className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-white transition-colors"
-          >
-            <X size={20} />
-          </button>
-          
-          <h3 className="text-lg font-bold text-white mb-4 pr-8">Having trouble scanning?</h3>
-          
-          <div className="flex-1 overflow-y-auto space-y-4 text-sm text-zinc-300">
-            <p>
-              Physical PVC cards often have low print quality and glare, making their dense QR codes hard to read.
-            </p>
-            
-            <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl space-y-3">
-              <h4 className="font-semibold text-emerald-400">Recommended Solutions:</h4>
-              <div className="space-y-4">
-                <div className="flex flex-col gap-2">
-                  <div className="flex gap-3">
-                    <div className="font-bold text-emerald-400">1.</div>
-                    <p className="text-sm">
-                      <strong>Scan from a screen:</strong> Download your e-Aadhaar PDF from the official UIDAI website. Open it on a large computer screen, zoom in on the QR code, and scan it from the screen.
-                    </p>
-                  </div>
-                  <img src="/images/scan_from_screen.png" alt="Scan from computer screen" className="w-full h-32 object-cover rounded-lg border border-emerald-500/30 opacity-90" />
-                </div>
-                
-                <div className="w-full h-px bg-emerald-500/20"></div>
-                
-                <div className="flex flex-col gap-2">
-                  <div className="flex gap-3">
-                    <div className="font-bold text-emerald-400">2.</div>
-                    <p className="text-sm">
-                      <strong>Upload a cropped image:</strong> Take a high-quality, glare-free, well-lit photo of the QR code. Crop it perfectly so only the QR code is visible (without blur), and use the <strong>"Upload Image"</strong> option.
-                    </p>
-                  </div>
-                  <img src="/images/crop_qr_code.png" alt="Crop QR code" className="w-full h-32 object-cover rounded-lg border border-emerald-500/30 opacity-90" />
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2 text-xs text-zinc-400 bg-zinc-900 p-3 rounded-lg">
-              <Monitor size={16} className="shrink-0" />
-              <span>Scanning from a backlit screen is 10x more reliable than scanning paper or plastic.</span>
-            </div>
-          </div>
-        </div>
-      )}
+      {showHelp && <QrHelpGuide onClose={() => setShowHelp(false)} />}
 
       {/* Help Button */}
       {!showHelp && isScanning && (
@@ -155,6 +106,59 @@ export function QrScanner({ onScanSuccess, onScanFailure }: QrScannerProps) {
           <span>QR not scanning?</span>
         </button>
       )}
+    </div>
+  );
+}
+
+export function QrHelpGuide({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="absolute inset-0 z-30 bg-zinc-950/95 backdrop-blur-md flex flex-col p-6 rounded-3xl animate-in fade-in zoom-in-95">
+      <button 
+        onClick={onClose}
+        className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-white transition-colors"
+      >
+        <X size={20} />
+      </button>
+      
+      <h3 className="text-lg font-bold text-white mb-4 pr-8">Having trouble scanning?</h3>
+      
+      <div className="flex-1 overflow-y-auto space-y-4 text-sm text-zinc-300">
+        <p>
+          Physical PVC cards often have low print quality and glare, making their dense QR codes hard to read.
+        </p>
+        
+        <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-xl space-y-3">
+          <h4 className="font-semibold text-emerald-400">Recommended Solutions:</h4>
+          <div className="space-y-4">
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-3">
+                <div className="font-bold text-emerald-400">1.</div>
+                <p className="text-sm">
+                  <strong>Scan from a screen:</strong> Download your e-Aadhaar PDF from the official UIDAI website. Open it on a large computer screen, zoom in on the QR code, and scan it from the screen.
+                </p>
+              </div>
+              <img src="/images/scan_from_screen.png" alt="Scan from computer screen" className="w-full h-32 object-cover rounded-lg border border-emerald-500/30 opacity-90" />
+            </div>
+            
+            <div className="w-full h-px bg-emerald-500/20"></div>
+            
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-3">
+                <div className="font-bold text-emerald-400">2.</div>
+                <p className="text-sm">
+                  <strong>Upload a cropped image:</strong> Take a high-quality, glare-free, well-lit photo of the QR code. Crop it perfectly so only the QR code is visible (without blur), and use the <strong>"Upload Image"</strong> option.
+                </p>
+              </div>
+              <img src="/images/crop_qr_code.png" alt="Crop QR code" className="w-full h-32 object-cover rounded-lg border border-emerald-500/30 opacity-90" />
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2 text-xs text-zinc-400 bg-zinc-900 p-3 rounded-lg">
+          <Monitor size={16} className="shrink-0" />
+          <span>Scanning from a backlit screen is 10x more reliable than scanning paper or plastic.</span>
+        </div>
+      </div>
     </div>
   );
 }

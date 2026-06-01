@@ -8,7 +8,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import api from "@/lib/api";
 import { useServerStatus } from "@/context/ServerStatusContext";
 import ServerWakeUp from "@/components/ServerWakeUp";
-import { QrScanner } from "@/components/ui/QrScanner";
+import { QrScanner, QrHelpGuide } from "@/components/ui/QrScanner";
 
 type RegisterMode = "SELECTION" | "EMAIL" | "AADHAAR_SCAN" | "AADHAAR_PREVIEW" | "AADHAAR_ACCOUNT";
 type Gender = "MALE" | "FEMALE" | "NON_BINARY" | "PREFER_NOT_TO_SAY";
@@ -29,6 +29,7 @@ export default function RegisterPage() {
   const { status } = useServerStatus();
   const [mode, setMode] = useState<RegisterMode>("SELECTION");
   const [loading, setLoading] = useState(false);
+  const [showUploadHelp, setShowUploadHelp] = useState(false);
   const [error, setError] = useState("");
   // Game overlay state
   const [showGame, setShowGame] = useState(false);
@@ -338,7 +339,12 @@ export default function RegisterPage() {
                 </div>
               </div>
             ) : (
-              <div>
+              <div className="relative">
+                {showUploadHelp && (
+                  <div className="absolute inset-0 z-30">
+                    <QrHelpGuide onClose={() => setShowUploadHelp(false)} />
+                  </div>
+                )}
                 <label className="block w-full cursor-pointer group">
                   <div className="border-2 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center transition-all"
                        style={{ borderColor: "var(--color-primary-dim)", background: "rgba(45, 212, 168, 0.05)" }}>
@@ -360,6 +366,13 @@ export default function RegisterPage() {
                     className="text-sm text-emerald-400 hover:text-emerald-300 underline"
                   >
                     Switch to Camera Scan
+                  </button>
+                  <span className="text-zinc-500 mx-3">|</span>
+                  <button 
+                    onClick={() => setShowUploadHelp(true)}
+                    className="text-sm text-emerald-400 hover:text-emerald-300 underline"
+                  >
+                    View Scanning Tips
                   </button>
                 </div>
               </div>

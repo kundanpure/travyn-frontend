@@ -5,7 +5,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import api from "@/lib/api";
 import { Upload, ShieldCheck, AlertTriangle, Loader2, ShieldAlert, ArrowLeft, Camera } from "lucide-react";
 import Link from "next/link";
-import { QrScanner } from "@/components/ui/QrScanner";
+import { QrScanner, QrHelpGuide } from "@/components/ui/QrScanner";
 
 export default function KycVerificationPage() {
   const { user, fetchUser } = useAuthStore();
@@ -13,6 +13,7 @@ export default function KycVerificationPage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showUploadHelp, setShowUploadHelp] = useState(false);
   const [success, setSuccess] = useState(false);
   const [lockoutTimeLeft, setLockoutTimeLeft] = useState<string | null>(null);
   const [scanMethod, setScanMethod] = useState<"CAMERA" | "FILE">("CAMERA");
@@ -191,10 +192,16 @@ export default function KycVerificationPage() {
             </div>
           </div>
         ) : !preview ? (
-          <div 
-            onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-gray-700 hover:border-blue-500 rounded-2xl p-12 text-center cursor-pointer transition-colors group"
-          >
+          <div className="relative">
+            {showUploadHelp && (
+              <div className="absolute inset-0 z-30">
+                <QrHelpGuide onClose={() => setShowUploadHelp(false)} />
+              </div>
+            )}
+            <div 
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-gray-700 hover:border-blue-500 rounded-2xl p-12 text-center cursor-pointer transition-colors group"
+            >
             <div className="w-16 h-16 bg-gray-800 group-hover:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors">
               <Upload size={28} className="text-gray-400 group-hover:text-blue-400" />
             </div>
@@ -208,8 +215,16 @@ export default function KycVerificationPage() {
               >
                 Switch to Camera Scan
               </button>
+              <span className="text-zinc-500 mx-3">|</span>
+              <button 
+                onClick={(e) => { e.stopPropagation(); setShowUploadHelp(true); }}
+                className="text-sm text-blue-400 hover:text-blue-300 underline"
+              >
+                View Scanning Tips
+              </button>
             </div>
           </div>
+        </div>
         ) : (
           <div className="space-y-6">
             <div className="relative rounded-2xl overflow-hidden border border-gray-700 bg-gray-900 h-64 flex items-center justify-center">

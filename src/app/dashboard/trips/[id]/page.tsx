@@ -149,24 +149,36 @@ export default function TripDetailPage() {
   async function fetchTrip() {
     setLoading(true);
     try {
-      const [tripRes, membersRes, reviewsRes] = await Promise.all([
-        api.get(`/trips/${tripId}`),
-        api.get(`/trips/${tripId}/members`),
-        api.get(`/trips/${tripId}/reviews`),
-      ]);
+      const tripRes = await api.get(`/trips/${tripId}`);
       setTrip(tripRes.data);
-      setMembers(membersRes.data || []);
-      setTripReviews(reviewsRes.data || []);
+
+      try {
+        const membersRes = await api.get(`/trips/${tripId}/members`);
+        setMembers(membersRes.data || []);
+      } catch (err) {
+        console.error("Failed to load members", err);
+      }
+
+      try {
+        const reviewsRes = await api.get(`/trips/${tripId}/reviews`);
+        setTripReviews(reviewsRes.data || []);
+      } catch (err) {
+        console.error("Failed to load reviews", err);
+      }
 
       // Fetch pending requests if creator
       if (tripRes.data.creatorId === user?.id) {
         try {
           const reqRes = await api.get(`/trips/${tripId}/requests`);
           setRequests(reqRes.data || []);
-        } catch {}
+        } catch (err) {
+          console.error("Failed to load requests", err);
+        }
       }
-    } catch {
+    } catch (err) {
+      console.error("Failed to fetch trip", err);
       // Trip not found
+      setTrip(null);
     } finally {
       setLoading(false);
     }

@@ -47,28 +47,40 @@ export default function DashboardPage() {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   useEffect(() => {
+    // If user isn't loaded yet from the store, we can still fetch discovery trips,
+    // but re-fetch once the user ID is available to ensure we get their personal trips.
     fetchData();
-  }, []);
+  }, [user?.id]);
 
   const fetchData = async () => {
     try {
-      const [discoveryRes, myTripsRes] = await Promise.all([
-        api.get("/trips?status=OPEN&page=0&size=20"),
-        api.get("/trips/my-trips")
-      ]);
+      // Fetch individually so one failure (like a 401 on my-trips before token is ready) doesn't break the other
+      let availableTrips: TripCard[] = [];
+      let myTripsData: MyTrip[] = [];
+
+      try {
+        const discoveryRes = await api.get("/trips?status=OPEN&page=0&size=20");
+        availableTrips = discoveryRes.data?.content || [];
+      } catch (e) {
+        console.error("Failed to fetch discovery trips", e);
+      }
+
+      try {
+        const myTripsRes = await api.get("/trips/my-trips");
+        myTripsData = myTripsRes.data || [];
+      } catch (e) {
+        console.error("Failed to fetch my trips", e);
+      }
       
-      const availableTrips = discoveryRes.data?.content || [];
       // Filter out trips the user created or is already a member of
       const filtered = availableTrips.filter((t: TripCard) => 
         t.creatorId !== user?.id && 
-        !myTripsRes.data?.some((myT: MyTrip) => myT.id === t.id)
+        !myTripsData?.some((myT: MyTrip) => myT.id === t.id)
       );
       
       // Shuffle for discovery feed
       setDiscoveryTrips(filtered.sort(() => 0.5 - Math.random()));
-      setMyTrips(myTripsRes.data || []);
-    } catch (e) {
-      console.error("Failed to fetch data", e);
+      setMyTrips(myTripsData);
     } finally {
       setLoading(false);
     }

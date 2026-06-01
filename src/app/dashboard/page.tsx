@@ -4,7 +4,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import {
-  MapPin, Plus, Users, User, Calendar, Loader2, Crown, Mountain, Heart, X, Check, Coffee, Landmark, ChevronRight
+  MapPin, Plus, Users, User, Calendar, Loader2, Crown, Mountain, Heart, X, Check, Coffee, Landmark, ChevronRight, Compass
 } from "lucide-react";
 import Link from "next/link";
 import { VibeCheckModal } from "@/app/dashboard/components/VibeCheckModal";

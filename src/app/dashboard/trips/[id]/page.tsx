@@ -14,6 +14,7 @@ import { useNotificationStore } from "@/stores/notification-store";
 import ImageUploadModal from "@/app/dashboard/components/ImageUploadModal";
 import { ReviewModal } from "@/app/dashboard/components/ReviewModal";
 import { TripReviewModal } from "@/app/dashboard/components/TripReviewModal";
+import LocationAutocomplete from "@/app/dashboard/components/LocationAutocomplete";
 
 const typeColors: Record<string, string> = {
   BACKPACKING: "#2dd4a8", LUXURY: "#f0a030", ROAD_TRIP: "#60a5fa",
@@ -741,16 +742,10 @@ export default function TripDetailPage() {
               {/* Destination */}
               <div>
                 <label className="text-xs font-semibold block mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>Destination *</label>
-                <div className="relative">
-                  <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-txt-muted)" }} />
-                  <input
-                    type="text"
-                    className="t-input w-full"
-                    style={{ paddingLeft: 32 }}
-                    value={editForm.destination}
-                    onChange={(e) => setEditForm({ ...editForm, destination: e.target.value })}
-                  />
-                </div>
+                <LocationAutocomplete
+                  value={editForm.destination}
+                  onChange={(val) => setEditForm({ ...editForm, destination: val })}
+                />
               </div>
 
               {/* Dates */}

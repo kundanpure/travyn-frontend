@@ -10,6 +10,7 @@ import {
 import api from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
 import ImageUploadModal from "@/app/dashboard/components/ImageUploadModal";
+import LocationAutocomplete from "@/app/dashboard/components/LocationAutocomplete";
 
 interface ValidationError {
   field: string;
@@ -162,16 +163,10 @@ export default function CreateTripPage() {
               <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--color-txt-secondary)" }}>
                 Destination *
               </label>
-              <div className="relative">
-                <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-txt-muted)" }} />
-                <input
-                  className="t-input w-full"
-                  style={{ paddingLeft: 36 }}
-                  placeholder="e.g., Goa, India"
-                  value={form.destination}
-                  onChange={(e) => setForm({ ...form, destination: e.target.value })}
-                />
-              </div>
+              <LocationAutocomplete
+                value={form.destination}
+                onChange={(val) => setForm({ ...form, destination: val })}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

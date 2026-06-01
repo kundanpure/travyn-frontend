@@ -54,23 +54,21 @@ export default function DashboardPage() {
 
   const fetchData = async () => {
     try {
-      // Fetch individually so one failure (like a 401 on my-trips before token is ready) doesn't break the other
-      let availableTrips: TripCard[] = [];
-      let myTripsData: MyTrip[] = [];
-
-      try {
-        const discoveryRes = await api.get("/trips?status=OPEN&page=0&size=20");
-        availableTrips = discoveryRes.data?.content || [];
-      } catch (e) {
+      // Fetch concurrently for speed, but handle errors individually
+      const discoveryPromise = api.get("/trips?status=OPEN&page=0&size=20").catch(e => {
         console.error("Failed to fetch discovery trips", e);
-      }
-
-      try {
-        const myTripsRes = await api.get("/trips/my-trips");
-        myTripsData = myTripsRes.data || [];
-      } catch (e) {
+        return { data: { content: [] } };
+      });
+      
+      const myTripsPromise = api.get("/trips/my-trips").catch(e => {
         console.error("Failed to fetch my trips", e);
-      }
+        return { data: [] };
+      });
+
+      const [discoveryRes, myTripsRes] = await Promise.all([discoveryPromise, myTripsPromise]);
+      
+      const availableTrips = discoveryRes.data?.content || [];
+      const myTripsData = myTripsRes.data || [];
       
       // Filter out trips the user created or is already a member of
       const filtered = availableTrips.filter((t: TripCard) => 

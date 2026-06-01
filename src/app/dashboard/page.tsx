@@ -4,98 +4,55 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import {
-  MapPin, Plus, Users, User, Shield, TrendingUp,
-  Compass, ArrowRight, Star, Calendar, Loader2, Info, Lock
+  MapPin, Plus, Users, User, Calendar, Loader2, Crown, Mountain, Heart, X, Check, Coffee, Landmark, ChevronRight
 } from "lucide-react";
 import Link from "next/link";
+import { VibeCheckModal } from "@/app/dashboard/components/VibeCheckModal";
 
-interface MyTrip {
+interface TripCard {
   id: string;
   title: string;
   destination: string;
   startDate: string;
   endDate: string;
-  status: string;
+  tripType: string;
   coverImageUrl?: string;
-  memberRole: string;
-  memberStatus: string;
-}
-
-function QuickActionCard({
-  icon: Icon,
-  title,
-  description,
-  href,
-  accent = false,
-}: {
-  icon: React.ElementType;
-  title: string;
-  description: string;
-  href: string;
-  accent?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className="group flex flex-col p-5 rounded-2xl transition-all hover:-translate-y-1 relative overflow-hidden"
-      style={{
-        background: "var(--color-bg-deep)",
-        border: "1px solid var(--color-line)",
-        boxShadow: "0 4px 20px rgba(0,0,0,0.2)"
-      }}
-    >
-      <div className="absolute -right-6 -top-6 opacity-5 transition-transform group-hover:scale-150 group-hover:opacity-10 duration-500">
-        <Icon size={100} style={{ color: accent ? "var(--color-accent)" : "var(--color-primary)" }} />
-      </div>
-      <div
-        className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 relative z-10"
-        style={{
-          background: accent
-            ? "linear-gradient(135deg, rgba(240, 160, 48, 0.2), rgba(240, 160, 48, 0.05))"
-            : "linear-gradient(135deg, rgba(45, 212, 168, 0.2), rgba(45, 212, 168, 0.05))",
-          color: accent ? "var(--color-accent)" : "var(--color-primary)",
-          border: `1px solid ${accent ? 'rgba(240, 160, 48, 0.3)' : 'rgba(45, 212, 168, 0.3)'}`
-        }}
-      >
-        <Icon size={24} />
-      </div>
-      <h3 className="font-semibold text-sm mb-1 relative z-10 transition-colors group-hover:text-white" style={{ color: "var(--color-txt-primary)" }}>
-        {title}
-      </h3>
-      <p className="text-xs relative z-10" style={{ color: "var(--color-txt-muted)" }}>
-        {description}
-      </p>
-    </Link>
-  );
+  creatorName: string;
+  availableSpots: number;
+  womenOnly: boolean;
+  minBudget: number | null;
+  maxBudget: number | null;
 }
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
-  const [trips, setTrips] = useState<MyTrip[]>([]);
+  const [trips, setTrips] = useState<TripCard[]>([]);
   const [loading, setLoading] = useState(true);
-  const [trustScore, setTrustScore] = useState<number | null>(null);
+  const [vibeChecked, setVibeChecked] = useState(true); // Default true to prevent flash
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    fetchTrips();
-    fetchTrustScore();
+    // Check if they've done the vibe check this session
+    const hasChecked = sessionStorage.getItem("travyn_vibe_check");
+    if (!hasChecked) {
+      setVibeChecked(false);
+    }
+    fetchDiscoveryTrips();
   }, []);
 
-  const fetchTrustScore = async () => {
+  const fetchDiscoveryTrips = async () => {
     try {
-      const userId = useAuthStore.getState().user?.id;
-      if (userId) {
-        const res = await api.get(`/users/${userId}/trust-score`);
-        setTrustScore(res.data.totalScore);
-      }
-    } catch {
-      // TrustScore not available yet
-    }
-  };
-
-  const fetchTrips = async () => {
-    try {
-      const res = await api.get("/trips/my-trips");
-      setTrips(res.data || []);
+      // Fetch open, upcoming trips that the user hasn't created
+      // For the demo, we fetch page 0 of open trips
+      const res = await api.get("/trips?status=OPEN&page=0&size=20");
+      
+      // Filter out trips the user created (if not already handled by backend)
+      const availableTrips = res.data.content.filter((t: any) => t.creatorId !== user?.id);
+      
+      // Shuffle them for a more random discovery feel
+      const shuffled = availableTrips.sort(() => 0.5 - Math.random());
+      setTrips(shuffled);
     } catch (e) {
       console.error("Failed to fetch trips", e);
     } finally {
@@ -103,282 +60,196 @@ export default function DashboardPage() {
     }
   };
 
-  const completedTrips = trips.filter(t => t.status === "COMPLETED").length;
-  const activeTripsCount = trips.filter(t => t.memberStatus === "APPROVED").length;
-
-  const upcomingTrips = trips
-    .filter(t => t.memberStatus === "APPROVED" && new Date(t.startDate) > new Date())
-    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
-    .slice(0, 3);
-
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
+  const handleVibeSelect = (vibe: string) => {
+    sessionStorage.setItem("travyn_vibe_check", vibe);
+    setVibeChecked(true);
+    // Optional: We could re-fetch trips filtered by the vibe here
   };
 
+  const currentTrip = trips[currentIndex];
+
+  const handlePass = () => {
+    // Just move to the next card
+    setCurrentIndex(prev => prev + 1);
+  };
+
+  const handleJoin = async () => {
+    if (!currentTrip) return;
+    setActionLoading(true);
+    try {
+      await api.post(`/trips/${currentTrip.id}/join`);
+      alert(`Request sent to join ${currentTrip.title}!`);
+      setCurrentIndex(prev => prev + 1);
+    } catch (error: any) {
+      alert(error.response?.data?.message || "Failed to send request. You might have already requested.");
+      setCurrentIndex(prev => prev + 1); // Skip it anyway if it fails
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  if (!vibeChecked) {
+    return <VibeCheckModal onSelect={handleVibeSelect} />;
+  }
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Glassmorphic Welcome Header */}
-      <div
-        className="rounded-3xl p-8 relative overflow-hidden group"
-        style={{
-          background: "linear-gradient(135deg, rgba(45, 212, 168, 0.1), rgba(240, 160, 48, 0.05))",
-          backdropFilter: "blur(10px)",
-          border: "1px solid rgba(45, 212, 168, 0.2)",
-          boxShadow: "inset 0 0 40px rgba(45, 212, 168, 0.05)"
-        }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out" />
+    <div className="h-[calc(100vh-120px)] flex flex-col md:flex-row gap-6 animate-in fade-in duration-500">
+      
+      {/* Left Column: The Discovery Stack */}
+      <div className="flex-1 flex flex-col h-full">
+        <div className="flex items-center justify-between mb-4 px-2">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <Compass className="text-emerald-400" /> Discover Adventures
+          </h2>
+          <span className="text-sm font-medium text-gray-500">
+            {currentIndex + 1} / {trips.length || 1}
+          </span>
+        </div>
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-bold tracking-wider uppercase px-2 py-1 rounded-full" style={{ background: "rgba(240,160,48,0.2)", color: "var(--color-accent)" }}>
-                Level 1 Explorer
-              </span>
+        {loading ? (
+          <div className="flex-1 rounded-3xl flex flex-col items-center justify-center bg-gray-900/30 border border-gray-800">
+            <Loader2 size={40} className="animate-spin text-emerald-500 mb-4" />
+            <p className="text-gray-400">Finding perfect matches...</p>
+          </div>
+        ) : !currentTrip ? (
+          <div className="flex-1 rounded-3xl flex flex-col items-center justify-center bg-gradient-to-b from-gray-900/50 to-transparent border border-gray-800/50 p-8 text-center">
+            <div className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center mb-6">
+              <Check size={32} className="text-emerald-400" />
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold mb-3 tracking-tight text-white drop-shadow-md">
-              {getGreeting()}, {user?.firstName || "Traveler"} 👋
-            </h1>
-            <p className="text-sm md:text-base max-w-lg" style={{ color: "var(--color-txt-secondary)" }}>
-              Ready for your next adventure? Complete your profile to boost your TrustScore and unlock better matches.
+            <h3 className="text-2xl font-bold text-white mb-2">You're all caught up!</h3>
+            <p className="text-gray-400 max-w-sm mb-8">
+              You've seen all the upcoming trips. Why not create your own adventure and let others join you?
             </p>
-          </div>
-          <div className="flex-shrink-0">
-            <Link href="/dashboard/profile" className="t-btn-primary group relative overflow-hidden" style={{ padding: "12px 24px" }}>
-              <span className="relative z-10 flex items-center gap-2">
-                <User size={18} /> Edit Profile
-              </span>
+            <Link href="/dashboard/trips/create" className="t-btn-primary px-8 py-3 rounded-full font-bold shadow-lg shadow-emerald-500/20">
+              <Plus size={20} className="inline mr-2" /> Create a Trip
             </Link>
           </div>
-        </div>
-
-        <Compass
-          size={180}
-          className="absolute -right-10 -bottom-10 opacity-10 transition-transform duration-[10s] group-hover:rotate-45 ease-linear"
-          style={{ color: "var(--color-primary)" }}
-        />
-      </div>
-
-      {/* Premium Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        {/* TrustScore */}
-        <div className="t-card relative overflow-hidden group" style={{ padding: 24, background: "var(--color-bg-deep)" }}>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg" style={{ background: "rgba(45,212,168,0.1)" }}>
-              <Shield size={18} style={{ color: "var(--color-primary)" }} />
-            </div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-white">
-              TrustScore
-            </span>
-          </div>
-          <div className="flex items-end gap-1">
-            {trustScore !== null ? (
-              <>
-                <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-200">
-                  {trustScore}
+        ) : (
+          <div className="flex-1 relative rounded-3xl overflow-hidden group bg-gray-900 border border-gray-800 shadow-2xl flex flex-col">
+            {/* Image Section */}
+            <div className="relative flex-1 bg-gray-950 min-h-[50%]">
+              {currentTrip.coverImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={currentTrip.coverImageUrl} alt={currentTrip.title} className="absolute inset-0 w-full h-full object-cover opacity-80" />
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/40 to-slate-900 flex items-center justify-center">
+                  <Mountain size={64} className="text-white/10" />
+                </div>
+              )}
+              
+              <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/40 to-transparent" />
+              
+              {/* Badges */}
+              <div className="absolute top-4 left-4 flex gap-2">
+                <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-black/50 backdrop-blur-md text-emerald-400 border border-white/10 shadow-sm">
+                  {currentTrip.tripType.replace("_", " ")}
                 </span>
-                <span className="text-sm pb-1 font-medium" style={{ color: "var(--color-txt-muted)" }}>/100</span>
-              </>
-            ) : (
-              <span className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-200">
-                —
-              </span>
-            )}
-          </div>
-          <p className="text-xs mt-2" style={{ color: "var(--color-txt-dim)" }}>Verify ID to boost your score</p>
-        </div>
-
-        {/* Dynamic Trips Count */}
-        <div className="t-card" style={{ padding: 24, background: "var(--color-bg-deep)" }}>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg" style={{ background: "rgba(240,160,48,0.1)" }}>
-              <MapPin size={18} style={{ color: "var(--color-accent)" }} />
-            </div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-white">
-              Active Trips
-            </span>
-          </div>
-          <div className="flex items-end gap-2">
-            {loading ? (
-              <Loader2 size={24} className="animate-spin text-gray-500" />
-            ) : (
-              <>
-                <span className="text-3xl font-bold text-white">{activeTripsCount}</span>
-                <span className="text-sm pb-1 font-medium" style={{ color: "var(--color-txt-muted)" }}>joined</span>
-              </>
-            )}
-          </div>
-          <p className="text-xs mt-2" style={{ color: "var(--color-txt-dim)" }}>{completedTrips} completed total</p>
-        </div>
-
-        {/* Matches (Placeholder) */}
-        <div className="t-card relative" style={{ padding: 24, background: "var(--color-bg-deep)", opacity: 0.8 }}>
-          <div className="absolute top-0 right-0 p-3">
-            <Lock size={14} style={{ color: "var(--color-txt-muted)" }} />
-          </div>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg" style={{ background: "rgba(244,114,182,0.1)" }}>
-              <Users size={18} style={{ color: "#f472b6" }} />
-            </div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-white">
-              Matches
-            </span>
-          </div>
-          <div className="flex items-end gap-2">
-            <span className="text-3xl font-bold text-white">0</span>
-            <span className="text-sm pb-1 font-medium" style={{ color: "var(--color-txt-muted)" }}>pending</span>
-          </div>
-          <p className="text-xs mt-2" style={{ color: "var(--color-txt-dim)" }}>AI Engine unlocking soon</p>
-        </div>
-
-        {/* Rating (Placeholder) */}
-        <div className="t-card relative" style={{ padding: 24, background: "var(--color-bg-deep)", opacity: 0.8 }}>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg" style={{ background: "rgba(251,191,36,0.1)" }}>
-              <Star size={18} style={{ color: "#fbbf24" }} />
-            </div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-white">
-              Rating
-            </span>
-          </div>
-          <div className="flex items-end gap-2">
-            <span className="text-3xl font-bold text-white">—</span>
-          </div>
-          <p className="text-xs mt-2" style={{ color: "var(--color-txt-dim)" }}>Complete a trip to unlock reviews</p>
-        </div>
-      </div>
-
-      {/* Main Two Column Layout */}
-      <div className="grid lg:grid-cols-12 gap-8">
-
-        {/* Upcoming Trips Feed (Spans 7 cols) */}
-        <div className="lg:col-span-7 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Calendar size={20} style={{ color: "var(--color-primary)" }} /> Upcoming Adventures
-            </h2>
-            <Link
-              href="/dashboard/my-trips"
-              className="text-xs font-medium hover:underline"
-              style={{ color: "var(--color-accent)" }}
-            >
-              View All
-            </Link>
-          </div>
-
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-12 rounded-2xl" style={{ background: "var(--color-bg-deep)", border: "1px dashed var(--color-line)" }}>
-              <Loader2 size={32} className="animate-spin mb-4" style={{ color: "var(--color-primary)" }} />
-              <p className="text-sm" style={{ color: "var(--color-txt-muted)" }}>Loading your itinerary...</p>
-            </div>
-          ) : upcomingTrips.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 rounded-3xl text-center px-4"
-              style={{ background: "linear-gradient(180deg, var(--color-bg-deep) 0%, rgba(10,12,16,0) 100%)", border: "1px solid var(--color-line)" }}>
-              <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6" style={{ background: "rgba(45,212,168,0.1)" }}>
-                <MapPin size={32} style={{ color: "var(--color-primary)" }} />
+                {currentTrip.womenOnly && (
+                  <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-pink-500/20 backdrop-blur-md text-pink-400 border border-pink-500/20">
+                    <Heart size={12} className="inline mr-1" /> Women Only
+                  </span>
+                )}
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">No upcoming trips</h3>
-              <p className="text-sm max-w-sm mb-8" style={{ color: "var(--color-txt-secondary)" }}>
-                The world is waiting! Join a curated group trip or start planning your own solo adventure today.
-              </p>
-              <div className="flex gap-4">
-                <Link href="/dashboard/trips/create" className="t-btn-primary" style={{ padding: "10px 24px" }}>
-                  <Plus size={16} className="mr-2" /> Create Trip
-                </Link>
-                <Link href="/dashboard/discover" className="t-btn-outline" style={{ padding: "10px 24px", color: "white", borderColor: "var(--color-line)" }}>
-                  Discover
-                </Link>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {upcomingTrips.map(trip => (
-                <Link
-                  key={trip.id}
-                  href={`/dashboard/trips/${trip.id}`}
-                  className="group block relative overflow-hidden rounded-2xl transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-900/20"
-                  style={{ border: "1px solid var(--color-line)", background: "var(--color-bg-deep)" }}
-                >
-                  {/* Banner Image or Gradient Fallback */}
-                  <div className="h-24 w-full relative">
-                    {trip.coverImageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={trip.coverImageUrl} alt={trip.title} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-r from-emerald-900/40 to-slate-900" />
-                    )}
-                    <div className="absolute top-4 right-4">
-                      <span className="px-3 py-1 rounded-full text-xs font-bold shadow-sm backdrop-blur-md"
-                        style={{ background: "rgba(0,0,0,0.6)", color: "white", border: "1px solid rgba(255,255,255,0.1)" }}>
-                        {new Date(trip.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                      </span>
+
+              {/* Content Overlay */}
+              <div className="absolute bottom-0 left-0 right-0 p-6 pt-20">
+                <div className="flex items-center gap-2 mb-2 text-gray-300 font-medium text-sm">
+                  <MapPin size={16} className="text-emerald-400" />
+                  {currentTrip.destination}
+                </div>
+                <h3 className="text-3xl font-extrabold text-white mb-4 drop-shadow-md leading-tight">
+                  {currentTrip.title}
+                </h3>
+                
+                <div className="grid grid-cols-2 gap-3 mb-2">
+                  <div className="flex items-center gap-2 bg-white/5 backdrop-blur-md rounded-xl p-3 border border-white/5">
+                    <Calendar size={18} className="text-blue-400" />
+                    <div className="text-sm">
+                      <div className="text-gray-400 text-xs">Dates</div>
+                      <div className="text-white font-medium">{new Date(currentTrip.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</div>
                     </div>
                   </div>
-                  <div className="p-5 relative z-10 bg-gradient-to-t from-gray-950 via-gray-900 to-transparent -mt-10 pt-12">
-                    <h3 className="text-lg font-bold text-white mb-1 group-hover:text-emerald-400 transition-colors">{trip.title}</h3>
-                    <p className="text-sm font-medium flex items-center gap-1.5" style={{ color: "var(--color-txt-secondary)" }}>
-                      <MapPin size={14} /> {trip.destination}
-                    </p>
+                  <div className="flex items-center gap-2 bg-white/5 backdrop-blur-md rounded-xl p-3 border border-white/5">
+                    <Users size={18} className="text-orange-400" />
+                    <div className="text-sm">
+                      <div className="text-gray-400 text-xs">Available</div>
+                      <div className="text-white font-medium">{currentTrip.availableSpots} Spots Left</div>
+                    </div>
                   </div>
-                </Link>
-              ))}
+                </div>
+              </div>
             </div>
-          )}
-        </div>
 
-        {/* Quick Actions Grid (Spans 5 cols) */}
-        <div className="lg:col-span-5 space-y-4">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <TrendingUp size={20} style={{ color: "var(--color-accent)" }} /> Quick Actions
-          </h2>
-          <div className="grid grid-cols-2 gap-4">
-            <QuickActionCard
-              icon={Plus}
-              title="Plan Trip"
-              description="Start a new adventure"
-              href="/dashboard/trips/create"
-            />
-            <QuickActionCard
-              icon={Compass}
-              title="Discover"
-              description="Browse curated trips"
-              href="/dashboard/discover"
-              accent
-            />
-            <QuickActionCard
-              icon={User}
-              title="Profile"
-              description="Add your travel style"
-              href="/dashboard/profile"
-            />
-            <QuickActionCard
-              icon={Shield}
-              title="Safety Hub"
-              description="Manage emergency contacts"
-              href="/dashboard/safety"
-              accent
-            />
-          </div>
-
-          {/* Trust Banner */}
-          <div className="mt-6 p-5 rounded-2xl flex items-start gap-4" style={{ background: "rgba(96,165,250,0.05)", border: "1px solid rgba(96,165,250,0.1)" }}>
-            <Info size={24} className="text-blue-400 flex-shrink-0 mt-0.5" />
-            <div>
-              <h4 className="text-sm font-bold text-white mb-1">Verify Your Identity</h4>
-              <p className="text-xs text-blue-200/70 mb-3">
-                Travyn requires identity verification to unlock matching features and increase trust across the network.
-              </p>
-              <Link href="/dashboard/settings/kyc" className="text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors inline-block mt-1">
-                Start Verification →
+            {/* Action Buttons */}
+            <div className="p-6 bg-gray-950 border-t border-gray-800 flex justify-center gap-6">
+              <button
+                onClick={handlePass}
+                disabled={actionLoading}
+                className="w-16 h-16 rounded-full flex items-center justify-center bg-gray-900 border border-gray-800 text-gray-400 hover:text-red-400 hover:border-red-900/50 hover:bg-red-950/30 transition-all shadow-lg active:scale-95"
+              >
+                <X size={28} />
+              </button>
+              
+              <Link
+                href={`/dashboard/trips/${currentTrip.id}`}
+                className="w-16 h-16 rounded-full flex items-center justify-center bg-gray-900 border border-gray-800 text-gray-400 hover:text-blue-400 hover:border-blue-900/50 hover:bg-blue-950/30 transition-all shadow-lg active:scale-95"
+              >
+                <ChevronRight size={28} />
               </Link>
+
+              <button
+                onClick={handleJoin}
+                disabled={actionLoading}
+                className="w-16 h-16 rounded-full flex items-center justify-center bg-emerald-500 text-black hover:bg-emerald-400 transition-all shadow-xl shadow-emerald-900/30 active:scale-95 disabled:opacity-50"
+              >
+                {actionLoading ? <Loader2 size={28} className="animate-spin" /> : <Heart size={28} className="fill-black" />}
+              </button>
             </div>
           </div>
+        )}
+      </div>
+
+      {/* Right Column: Mini Profile & Links (Hidden on small screens) */}
+      <div className="hidden md:flex flex-col w-80 shrink-0 gap-4">
+        {/* User Mini Profile */}
+        <Link href="/dashboard/profile" className="block p-5 rounded-3xl bg-gray-900 border border-gray-800 hover:border-gray-700 transition-colors group">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-black font-bold text-xl shadow-inner">
+              {user?.firstName?.[0]}{user?.lastName?.[0]}
+            </div>
+            <div>
+              <h3 className="font-bold text-white group-hover:text-emerald-400 transition-colors">{user?.firstName} {user?.lastName}</h3>
+              <p className="text-xs text-gray-500">View Profile</p>
+            </div>
+          </div>
+        </Link>
+
+        {/* Quick Links */}
+        <div className="p-5 rounded-3xl bg-gray-900 border border-gray-800 space-y-2">
+          <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 px-2">Navigation</h4>
+          <Link href="/dashboard/my-trips" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-300 hover:bg-white/5 hover:text-white transition-colors">
+            <MapPin size={18} className="text-blue-400" /> My Trips
+          </Link>
+          <Link href="/dashboard/matches" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-300 hover:bg-white/5 hover:text-white transition-colors">
+            <Users size={18} className="text-pink-400" /> Matches
+          </Link>
+          <Link href="/dashboard/trips/create" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-300 hover:bg-white/5 hover:text-white transition-colors">
+            <Plus size={18} className="text-emerald-400" /> Create Trip
+          </Link>
         </div>
 
+        {/* Tip Box */}
+        <div className="p-5 rounded-3xl bg-gradient-to-br from-emerald-900/20 to-transparent border border-emerald-900/30 mt-auto">
+          <div className="flex items-center gap-2 mb-2">
+            <Crown size={16} className="text-emerald-400" />
+            <h4 className="font-bold text-white text-sm">Pro Tip</h4>
+          </div>
+          <p className="text-xs text-emerald-200/70 leading-relaxed">
+            Swipe right (Heart) to request to join a trip. Swipe left (X) to pass. Click the arrow to view full details!
+          </p>
+        </div>
       </div>
+
     </div>
   );
 }

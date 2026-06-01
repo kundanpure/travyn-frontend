@@ -57,9 +57,10 @@ interface TripMember {
   userId: string;
   firstName: string;
   lastName: string;
-  role: string;
-  status: string;
+  role: "CREATOR" | "MEMBER";
+  status: "APPROVED" | "PENDING" | "REJECTED";
   joinedAt: string;
+  profilePhotoUrl?: string;
 }
 
 interface JoinRequest {

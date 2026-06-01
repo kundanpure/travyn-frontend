@@ -71,6 +71,7 @@ interface TripMember {
   lastName: string;
   role: string;
   status: string;
+  profilePhotoUrl?: string;
 }
 
 export default function ExpensesPage() {

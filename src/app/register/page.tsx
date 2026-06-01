@@ -423,7 +423,7 @@ export default function RegisterPage() {
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">@</span>
                   <input type="text" className="t-input pl-8" placeholder="your_username" required
-                    value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} />
+                    value={form.username} onChange={e => setForm({ ...form, username: e.target.value.toLowerCase() })} />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
                     {usernameStatus === "CHECKING" && <Loader2 size={16} className="animate-spin text-gray-400" />}
                     {usernameStatus === "AVAILABLE" && <CheckCircle size={16} className="text-emerald-400" />}
@@ -494,7 +494,7 @@ export default function RegisterPage() {
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">@</span>
                   <input type="text" className="t-input pl-8" placeholder="your_username" required
-                    value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} />
+                    value={form.username} onChange={e => setForm({ ...form, username: e.target.value.toLowerCase() })} />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
                     {usernameStatus === "CHECKING" && <Loader2 size={16} className="animate-spin text-gray-400" />}
                     {usernameStatus === "AVAILABLE" && <CheckCircle size={16} className="text-emerald-400" />}

@@ -608,7 +608,7 @@ export default function ProfilePage() {
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">@</span>
                 <input 
                   type="text" className="t-input w-full pl-8" value={form.username || ""} 
-                  onChange={e => setForm({...form, username: e.target.value})} 
+                  onChange={e => setForm({...form, username: e.target.value.toLowerCase()})} 
                 />
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
                   {usernameStatus === "CHECKING" && <Loader2 size={16} className="animate-spin text-gray-400" />}

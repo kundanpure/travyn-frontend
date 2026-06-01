@@ -525,15 +525,19 @@ export default function TripDetailPage() {
               style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)" }}
             >
               <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
+                className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden"
                 style={{
-                  background: m.role === "CREATOR"
+                  background: m.profilePhotoUrl ? "transparent" : (m.role === "CREATOR"
                     ? "linear-gradient(135deg, var(--color-primary), var(--color-accent))"
-                    : "var(--color-bg-surface)",
+                    : "var(--color-bg-surface)"),
                   color: m.role === "CREATOR" ? "#06080c" : "var(--color-txt-secondary)",
                 }}
               >
-                {m.firstName[0]}{m.lastName[0]}
+                {m.profilePhotoUrl ? (
+                  <img src={m.profilePhotoUrl} alt={m.firstName} className="w-full h-full object-cover" />
+                ) : (
+                  <>{m.firstName[0]}{m.lastName[0]}</>
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium truncate" style={{ color: "var(--color-txt-white)" }}>

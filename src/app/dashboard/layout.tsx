@@ -475,13 +475,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   style={{ background: "none", border: "none", cursor: "pointer" }}
                 >
                   <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold overflow-hidden"
                     style={{
-                      background: "linear-gradient(135deg, var(--color-primary), var(--color-accent))",
+                      background: user?.profilePhotoUrl ? "transparent" : "linear-gradient(135deg, var(--color-primary), var(--color-accent))",
                       color: "#06080c",
                     }}
                   >
-                    {user?.firstName?.[0] || "U"}
+                    {user?.profilePhotoUrl ? (
+                      <img src={user.profilePhotoUrl} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      user?.firstName?.[0] || "U"
+                    )}
                   </div>
                   <span className="hidden sm:block text-sm font-medium" style={{ color: "var(--color-txt-primary)" }}>
                     {user?.firstName || "User"}

@@ -17,6 +17,7 @@ export interface User {
   kycLockoutUntil?: string;
   kycFailedAttempts?: number;
   createdAt: string;
+  profilePhotoUrl?: string;
 }
 
 

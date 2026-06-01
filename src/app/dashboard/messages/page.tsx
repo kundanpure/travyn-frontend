@@ -14,6 +14,7 @@ export interface DMInboxItem {
   latestMessageType: "TEXT" | "SYSTEM" | "IMAGE";
   latestMessageAt: string | null;
   unreadCount: number;
+  partnerProfilePhotoUrl?: string;
 }
 
 export default function MessagesPage() {
@@ -100,8 +101,12 @@ export default function MessagesPage() {
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold flex-shrink-0 relative">
-                    {item.partnerInitials}
+                  <div className={`w-12 h-12 rounded-full ${item.partnerProfilePhotoUrl ? 'bg-transparent' : 'bg-emerald-500/20 text-emerald-400'} flex items-center justify-center font-bold flex-shrink-0 relative overflow-hidden`}>
+                    {item.partnerProfilePhotoUrl ? (
+                      <img src={item.partnerProfilePhotoUrl} alt={item.partnerName} className="w-full h-full object-cover" />
+                    ) : (
+                      item.partnerInitials
+                    )}
                     {item.unreadCount > 0 && (
                       <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold">
                         {item.unreadCount}
@@ -138,6 +143,7 @@ export default function MessagesPage() {
           <DirectMessageWindow
             partnerId={selectedPartnerId}
             partnerName={inbox.find((i) => i.partnerId === selectedPartnerId)?.partnerName || "Chat"}
+            partnerProfilePhotoUrl={inbox.find((i) => i.partnerId === selectedPartnerId)?.partnerProfilePhotoUrl}
             onBack={() => setSelectedPartnerId(null)}
             onMessageRead={handleMessageRead}
           />

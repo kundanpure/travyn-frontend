@@ -54,11 +54,12 @@ function formatTime(d: string | number | null | undefined): string {
 interface DirectMessageWindowProps {
   partnerId: string;
   partnerName: string;
+  partnerProfilePhotoUrl?: string;
   onBack: () => void;
   onMessageRead: () => void;
 }
 
-export default function DirectMessageWindow({ partnerId, partnerName, onBack, onMessageRead }: DirectMessageWindowProps) {
+export default function DirectMessageWindow({ partnerId, partnerName, partnerProfilePhotoUrl, onBack, onMessageRead }: DirectMessageWindowProps) {
   const { user } = useAuthStore();
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -256,7 +257,6 @@ export default function DirectMessageWindow({ partnerId, partnerName, onBack, on
 
   return (
     <div className="flex-1 flex flex-col h-full bg-zinc-950">
-      {/* Chat Header */}
       <div className="p-4 border-b border-white/10 bg-zinc-900/50 flex flex-col backdrop-blur-md sticky top-0 z-10 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -266,6 +266,13 @@ export default function DirectMessageWindow({ partnerId, partnerName, onBack, on
             >
               <ArrowLeft size={20} />
             </button>
+            <div className={`w-10 h-10 rounded-full ${partnerProfilePhotoUrl ? 'bg-transparent' : 'bg-emerald-500/20 text-emerald-400'} flex items-center justify-center font-bold flex-shrink-0 overflow-hidden`}>
+              {partnerProfilePhotoUrl ? (
+                <img src={partnerProfilePhotoUrl} alt={partnerName} className="w-full h-full object-cover" />
+              ) : (
+                partnerName.substring(0, 2).toUpperCase()
+              )}
+            </div>
             <div>
               <h2 className="font-bold text-white text-lg">{partnerName}</h2>
             </div>

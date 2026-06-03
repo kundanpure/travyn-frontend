@@ -45,7 +45,7 @@ export default function DiscoverPage() {
   const [loading, setLoading] = useState(true);
   const [destination, setDestination] = useState("");
   const [tripType, setTripType] = useState("");
-  const [statusFilter, setStatusFilter] = useState("OPEN");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -140,9 +140,11 @@ export default function DiscoverPage() {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
+            <option value="ALL">All Trips</option>
             <option value="OPEN">Open Trips</option>
             <option value="UPCOMING">Upcoming Trips</option>
             <option value="COMPLETED">Completed Trips</option>
+            <option value="CLOSED">Closed Trips</option>
           </select>
           <button
             onClick={handleSearch}

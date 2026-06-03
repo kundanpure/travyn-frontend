@@ -6,7 +6,8 @@ import {
   ArrowLeft, MapPin, Calendar, Users, Hash, Shield, Heart, Clock,
   Loader2, CheckCircle2, XCircle, UserPlus, Crown, Copy, Check,
   Map, DollarSign, MessageCircle, Pencil, X, Save, IndianRupee,
-  Mountain, Car, Landmark, Compass, Monitor, PartyPopper, ImagePlus, Star
+  Mountain, Car, Landmark, Compass, Monitor, PartyPopper, ImagePlus, Star,
+  Hourglass, Eye
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
@@ -83,6 +84,22 @@ interface TripReview {
   createdAt: string;
 }
 
+interface PeerReviewStatus {
+  peerId: string;
+  peerName: string;
+  profilePhotoUrl: string | null;
+  iReviewedThem: boolean;
+  theyReviewedMe: boolean;
+  published: boolean;
+}
+
+interface ReviewWindow {
+  windowOpens: string;
+  windowCloses: string;
+  windowOpen: boolean;
+  peers: PeerReviewStatus[];
+}
+
 export default function TripDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -101,6 +118,7 @@ export default function TripDetailPage() {
   const [reviewMember, setReviewMember] = useState<{ id: string, name: string } | null>(null);
   const [reviewingTrip, setReviewingTrip] = useState(false);
   const [tripReviews, setTripReviews] = useState<TripReview[]>([]);
+  const [reviewWindow, setReviewWindow] = useState<ReviewWindow | null>(null);
 
   // Edit state
   const [editing, setEditing] = useState(false);
@@ -142,6 +160,14 @@ export default function TripDetailPage() {
       ) {
         fetchTrip();
       }
+      // Auto-refresh review window when a review notification arrives
+      if (
+        !latest.read &&
+        latest.referenceId === tripId &&
+        (latest.type === "REVIEW_RECEIVED" || latest.type === "REVIEWS_PUBLISHED" || latest.type === "REVIEW_AUTO_PUBLISHED")
+      ) {
+        fetchReviewWindow();
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifications, tripId]);
@@ -166,6 +192,11 @@ export default function TripDetailPage() {
         console.error("Failed to load reviews", err);
       }
 
+      // Fetch review window if completed
+      if (tripRes.data.status === "COMPLETED") {
+        fetchReviewWindow();
+      }
+
       // Fetch pending requests if creator
       if (tripRes.data.creatorId === user?.id) {
         try {
@@ -181,6 +212,15 @@ export default function TripDetailPage() {
       setTrip(null);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchReviewWindow() {
+    try {
+      const res = await api.get(`/trips/${tripId}/review-window`);
+      setReviewWindow(res.data);
+    } catch (err) {
+      console.error("Failed to load review window", err);
     }
   }
 
@@ -575,23 +615,138 @@ export default function TripDetailPage() {
                     <MessageCircle size={16} />
                   </a>
                 )}
-                
-                {/* Review Button — only visible after trip is COMPLETED */}
-              {m.userId !== user?.id && trip.status === "COMPLETED" && (isCreator || myMembership?.status === "APPROVED") && (
-                <button
-                  onClick={() => setReviewMember({ id: m.userId, name: `${m.firstName} ${m.lastName}` })}
-                  className="p-2 rounded-lg transition-colors flex items-center justify-center hover:scale-105"
-                  style={{ background: "rgba(240, 160, 48, 0.1)", border: "1px solid rgba(240, 160, 48, 0.3)", color: "#f0a030" }}
-                  title="Leave a Review"
-                >
-                  <Star size={16} />
-                </button>
-              )}
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* ─────────── REVIEW WINDOW SECTION ─────────── */}
+      {trip.status === "COMPLETED" && (isCreator || myMembership?.status === "APPROVED") && reviewWindow && (() => {
+        const now = new Date();
+        const opens = new Date(reviewWindow.windowOpens);
+        const closes = new Date(reviewWindow.windowCloses);
+        const isBeforeWindow = now < opens;
+        const isWindowOpen = reviewWindow.windowOpen;
+        const isWindowClosed = now > closes;
+
+        // Format remaining time
+        const formatTimeLeft = (target: Date) => {
+          const diff = target.getTime() - now.getTime();
+          if (diff <= 0) return "now";
+          const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+          const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          if (days > 0) return `${days}d ${hours}h`;
+          const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+        };
+
+        return (
+          <div
+            className="rounded-xl p-5"
+            style={{ background: "var(--color-bg-surface)", border: `1px solid ${isWindowOpen ? "rgba(240, 160, 48, 0.3)" : "var(--color-line)"}` }}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-xl" style={{ background: "rgba(240, 160, 48, 0.1)" }}>
+                <Star size={20} style={{ color: "#f0a030" }} />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold" style={{ color: "var(--color-txt-white)" }}>
+                  Review Your Trip Mates
+                </h3>
+                {isBeforeWindow && (
+                  <p className="text-xs" style={{ color: "var(--color-txt-muted)" }}>
+                    <Hourglass size={10} className="inline mr-1" />
+                    Review window opens in {formatTimeLeft(opens)}
+                  </p>
+                )}
+                {isWindowOpen && (
+                  <p className="text-xs" style={{ color: "#f0a030" }}>
+                    <Clock size={10} className="inline mr-1" />
+                    Window closes in {formatTimeLeft(closes)} — reviews auto-publish after that
+                  </p>
+                )}
+                {isWindowClosed && (
+                  <p className="text-xs" style={{ color: "var(--color-txt-muted)" }}>
+                    Review window closed on {closes.toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {reviewWindow.peers.map((peer) => (
+                <div
+                  key={peer.peerId}
+                  className="flex items-center gap-3 p-3 rounded-xl"
+                  style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)" }}
+                >
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden"
+                    style={{ background: peer.profilePhotoUrl ? "transparent" : "var(--color-bg-surface)", color: "var(--color-txt-secondary)" }}
+                  >
+                    {peer.profilePhotoUrl ? (
+                      <img src={peer.profilePhotoUrl} alt={peer.peerName} className="w-full h-full object-cover" />
+                    ) : (
+                      peer.peerName.split(" ").map(n => n[0]).join("")
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate" style={{ color: "var(--color-txt-white)" }}>
+                      {peer.peerName}
+                    </div>
+                    <div className="text-xs" style={{ color: "var(--color-txt-muted)" }}>
+                      {peer.published ? (
+                        <span style={{ color: "#2dd4a8" }}><CheckCircle2 size={10} className="inline mr-1" />Reviews published</span>
+                      ) : peer.iReviewedThem && !peer.theyReviewedMe ? (
+                        <span style={{ color: "#fbbf24" }}><Hourglass size={10} className="inline mr-1" />Waiting for their review</span>
+                      ) : !peer.iReviewedThem && peer.theyReviewedMe ? (
+                        <span style={{ color: "#f0a030" }}><Star size={10} className="inline mr-1" />They reviewed you — review them back!</span>
+                      ) : peer.iReviewedThem && peer.theyReviewedMe ? (
+                        <span style={{ color: "#2dd4a8" }}><CheckCircle2 size={10} className="inline mr-1" />Both reviewed</span>
+                      ) : (
+                        <span><Eye size={10} className="inline mr-1" />Waiting for your review</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isWindowOpen && !peer.iReviewedThem && !peer.published && (
+                      <button
+                        onClick={() => setReviewMember({ id: peer.peerId, name: peer.peerName })}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
+                        style={{
+                          background: "rgba(240, 160, 48, 0.15)",
+                          color: "#f0a030",
+                          border: "1px solid rgba(240, 160, 48, 0.3)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <Star size={12} className="inline mr-1" />Review
+                      </button>
+                    )}
+                    {peer.iReviewedThem && !peer.published && (
+                      <span
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                        style={{ background: "rgba(251, 191, 36, 0.1)", color: "#fbbf24", border: "1px solid rgba(251, 191, 36, 0.2)" }}
+                      >
+                        ✓ Submitted
+                      </span>
+                    )}
+                    {peer.published && (
+                      <span
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                        style={{ background: "rgba(45, 212, 168, 0.1)", color: "#2dd4a8", border: "1px solid rgba(45, 212, 168, 0.2)" }}
+                      >
+                        ✓ Published
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Creator Admin Panel */}
       {isCreator && requests.length > 0 && (
@@ -1025,6 +1180,7 @@ export default function TripDetailPage() {
           onClose={() => setReviewMember(null)}
           onSuccess={() => {
             setReviewMember(null);
+            fetchReviewWindow();
             alert("Review submitted successfully! It will be published once they review you too.");
           }}
         />

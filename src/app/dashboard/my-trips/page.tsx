@@ -17,6 +17,7 @@ const tabs = [
 
 const statusColors: Record<string, { bg: string; text: string }> = {
   OPEN: { bg: "rgba(45,212,168,0.1)", text: "#2dd4a8" },
+  UPCOMING: { bg: "rgba(56,189,248,0.1)", text: "#38bdf8" },
   FULL: { bg: "rgba(251,191,36,0.1)", text: "#fbbf24" },
   IN_PROGRESS: { bg: "rgba(96,165,250,0.1)", text: "#60a5fa" },
   COMPLETED: { bg: "rgba(167,139,250,0.1)", text: "#a78bfa" },
@@ -155,7 +156,9 @@ export default function MyTripsPage() {
       ) : (
         <div className="space-y-3">
           {filtered.map((trip) => {
-            const sc = statusColors[trip.status] || statusColors.DRAFT;
+            const isFuture = new Date(trip.startDate) > new Date(new Date().setHours(0,0,0,0));
+            const displayStatus = (trip.status === "OPEN" || trip.status === "FULL") && isFuture ? "UPCOMING" : trip.status;
+            const sc = statusColors[displayStatus] || statusColors.DRAFT;
             return (
               <Link
                 key={trip.id}
@@ -186,7 +189,7 @@ export default function MyTripsPage() {
                       className="px-2 py-0.5 rounded text-xs font-medium flex-shrink-0"
                       style={{ background: sc.bg, color: sc.text }}
                     >
-                      {trip.status?.replace("_", " ")}
+                      {displayStatus?.replace("_", " ")}
                     </span>
                   </div>
                   <div className="flex items-center gap-4 text-xs" style={{ color: "var(--color-txt-muted)" }}>

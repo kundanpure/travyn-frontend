@@ -144,6 +144,7 @@ export default function DiscoverPage() {
             <option value="ALL">All Trips</option>
             <option value="OPEN">Open Trips</option>
             <option value="UPCOMING">Upcoming Trips</option>
+            <option value="ONGOING">Ongoing Trips</option>
             <option value="COMPLETED">Completed Trips</option>
             <option value="CLOSED">Closed Trips</option>
           </select>

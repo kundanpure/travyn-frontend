@@ -47,8 +47,10 @@ export default function SafetyPage() {
       ]);
       setContacts(contactsRes.data || []);
       
+      const today = new Date().toISOString().split("T")[0];
       const activeTrips = (tripsRes.data || []).filter((t: any) => 
-        (t.status === "OPEN" || t.status === "IN_PROGRESS") && 
+        t.startDate <= today && t.endDate >= today &&
+        (t.status === "OPEN" || t.status === "IN_PROGRESS" || t.status === "FULL") && 
         (t.memberRole === "CREATOR" || t.memberStatus === "APPROVED")
       );
       setTrips(activeTrips);

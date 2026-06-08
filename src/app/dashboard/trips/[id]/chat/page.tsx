@@ -292,7 +292,7 @@ export default function ChatPage() {
       >
         <div className="flex items-center gap-3">
           <button
-            onClick={() => router.push(`/dashboard/trips/${tripId}`)}
+            onClick={() => router.back()}
             style={{ background: "none", border: "none", cursor: "pointer" }}
           >
             <ArrowLeft size={18} style={{ color: "var(--color-txt-muted)" }} />

@@ -164,7 +164,7 @@ export default function ExpensesPage() {
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <button
-        onClick={() => router.push(`/dashboard/trips/${tripId}`)}
+        onClick={() => router.back()}
         className="flex items-center gap-1 text-sm"
         style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-txt-muted)" }}
       >

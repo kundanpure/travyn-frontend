@@ -198,7 +198,7 @@ export default function ItineraryPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <button
-          onClick={() => router.push(`/dashboard/trips/${tripId}`)}
+          onClick={() => router.back()}
           className="flex items-center gap-1 text-sm"
           style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-txt-muted)" }}
         >

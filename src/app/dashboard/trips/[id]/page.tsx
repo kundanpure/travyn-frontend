@@ -7,7 +7,7 @@ import {
   Loader2, CheckCircle2, XCircle, UserPlus, Crown, Copy, Check,
   Map, DollarSign, MessageCircle, Pencil, X, Save, IndianRupee,
   Mountain, Car, Landmark, Compass, Monitor, PartyPopper, ImagePlus, Star,
-  Hourglass, Eye
+  Hourglass, Eye, Navigation
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
@@ -114,6 +114,7 @@ export default function TripDetailPage() {
   const [joining, setJoining] = useState(false);
   const [copied, setCopied] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [locationSharingActive, setLocationSharingActive] = useState(false);
 
   const [reviewMember, setReviewMember] = useState<{ id: string, name: string } | null>(null);
   const [reviewingTrip, setReviewingTrip] = useState(false);
@@ -177,6 +178,14 @@ export default function TripDetailPage() {
     try {
       const tripRes = await api.get(`/trips/${tripId}`);
       setTrip(tripRes.data);
+
+      try {
+        const locRes = await api.get(`/trips/${tripId}/location/status`);
+        setLocationSharingActive(locRes.data.isActive);
+      } catch (err) {
+        // Location sharing not configured
+        setLocationSharingActive(false);
+      }
 
       try {
         const membersRes = await api.get(`/trips/${tripId}/members`);
@@ -381,7 +390,14 @@ export default function TripDetailPage() {
               )}
             </div>
             <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold" style={{ color: "white" }}>{trip.title}</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold" style={{ color: "white" }}>{trip.title}</h1>
+                {locationSharingActive && (
+                  <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold animate-pulse" style={{ background: "rgba(45,212,168,0.2)", color: "#2dd4a8", border: "1px solid rgba(45,212,168,0.3)" }}>
+                    <Navigation size={12} /> Live Location Shared
+                  </span>
+                )}
+              </div>
               {isCreator && trip.status !== "COMPLETED" && trip.status !== "CANCELLED" && (
                 <button
                   onClick={openEditModal}

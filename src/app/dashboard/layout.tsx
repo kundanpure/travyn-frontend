@@ -169,9 +169,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         router.push(`/dashboard/trips/${notif.referenceId}`);
       } else if (notif.type === "DIRECT_MESSAGE") {
         router.push(`/dashboard/messages?partnerId=${notif.referenceId}`);
+      } else if (notif.type === "SAFETY_CHECK" || notif.type === "LOCATION_SHARED") {
+        router.push("/dashboard/safety");
       } else {
         router.push(`/dashboard/trips/${notif.referenceId}/chat`);
       }
+    } else if (notif.type === "SAFETY_CHECK" || notif.type === "LOCATION_SHARED") {
+      router.push("/dashboard/safety");
     }
   };
 

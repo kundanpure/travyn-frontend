@@ -6,15 +6,18 @@ import { MapPin, Loader2 } from "lucide-react";
 interface LocationResult {
   place_id: number;
   display_name: string;
+  lat: string;
+  lon: string;
 }
 
 interface LocationAutocompleteProps {
-  value: string;
-  onChange: (value: string) => void;
+  value?: string;
+  onChange?: (value: string) => void;
+  onSelect?: (name: string, lat: number, lng: number) => void;
   placeholder?: string;
 }
 
-export default function LocationAutocomplete({ value, onChange, placeholder = "e.g., Goa, India" }: LocationAutocompleteProps) {
+export default function LocationAutocomplete({ value = "", onChange, onSelect, placeholder = "e.g., Goa, India" }: LocationAutocompleteProps) {
   const [query, setQuery] = useState(value);
   const [results, setResults] = useState<LocationResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -65,10 +68,11 @@ export default function LocationAutocomplete({ value, onChange, placeholder = "e
     return () => clearTimeout(timer);
   }, [query, isTyping]);
 
-  const handleSelect = (placeName: string) => {
+  const handleSelect = (result: LocationResult) => {
     setIsTyping(false);
-    setQuery(placeName);
-    onChange(placeName);
+    setQuery(result.display_name);
+    if (onChange) onChange(result.display_name);
+    if (onSelect) onSelect(result.display_name, parseFloat(result.lat), parseFloat(result.lon));
     setIsOpen(false);
   };
 
@@ -84,7 +88,7 @@ export default function LocationAutocomplete({ value, onChange, placeholder = "e
           setIsTyping(true);
           setQuery(e.target.value);
           // If they clear the input, clear the actual value too
-          if (e.target.value === "") onChange("");
+          if (e.target.value === "" && onChange) onChange("");
         }}
         onFocus={() => {
           if (results.length > 0) setIsOpen(true);
@@ -102,7 +106,7 @@ export default function LocationAutocomplete({ value, onChange, placeholder = "e
           {results.map((result) => (
             <button
               key={result.place_id}
-              onClick={() => handleSelect(result.display_name)}
+              onClick={() => handleSelect(result)}
               className="w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-white/5 flex items-start gap-3"
               style={{ color: "var(--color-txt-primary)" }}
             >

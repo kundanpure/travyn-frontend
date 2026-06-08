@@ -157,8 +157,7 @@ export default function MyTripsPage() {
         <div className="space-y-3">
           {filtered.map((trip) => {
             const isFuture = new Date(trip.startDate) > new Date(new Date().setHours(0,0,0,0));
-            const displayStatus = (trip.status === "OPEN" || trip.status === "FULL") && isFuture ? "UPCOMING" : trip.status;
-            const sc = statusColors[displayStatus] || statusColors.DRAFT;
+            const sc = statusColors[trip.status] || statusColors.DRAFT;
             return (
               <Link
                 key={trip.id}
@@ -173,7 +172,7 @@ export default function MyTripsPage() {
                 {/* Left Color Bar */}
                 <div
                   className="w-1 h-14 rounded-full flex-shrink-0"
-                  style={{ background: sc.text }}
+                  style={{ background: isFuture && (trip.status === "OPEN" || trip.status === "FULL") ? statusColors["UPCOMING"].text : sc.text }}
                 />
 
                 {/* Info */}
@@ -185,11 +184,19 @@ export default function MyTripsPage() {
                     >
                       {trip.title}
                     </h3>
+                    {isFuture && (trip.status === "OPEN" || trip.status === "FULL") && (
+                      <span
+                        className="px-2 py-0.5 rounded text-xs font-medium flex-shrink-0"
+                        style={{ background: statusColors["UPCOMING"].bg, color: statusColors["UPCOMING"].text }}
+                      >
+                        UPCOMING
+                      </span>
+                    )}
                     <span
                       className="px-2 py-0.5 rounded text-xs font-medium flex-shrink-0"
                       style={{ background: sc.bg, color: sc.text }}
                     >
-                      {displayStatus?.replace("_", " ")}
+                      {trip.status?.replace("_", " ")}
                     </span>
                   </div>
                   <div className="flex items-center gap-4 text-xs" style={{ color: "var(--color-txt-muted)" }}>

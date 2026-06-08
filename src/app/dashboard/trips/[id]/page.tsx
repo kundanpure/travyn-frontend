@@ -487,7 +487,15 @@ export default function TripDetailPage() {
 
       {/* Experience Features (Members Only) */}
       {(isCreator || myMembership?.status === "APPROVED") && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <button
+            onClick={() => router.push(`/dashboard/trips/${tripId}/map`)}
+            className="flex flex-col items-center justify-center p-4 rounded-xl transition-all hover:-translate-y-1 hover:shadow-lg"
+            style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}
+          >
+            <Navigation size={24} className="mb-2" style={{ color: "#a78bfa" }} />
+            <span className="text-sm font-medium" style={{ color: "var(--color-txt-white)" }}>Live Map</span>
+          </button>
           <button
             onClick={() => router.push(`/dashboard/trips/${tripId}/itinerary`)}
             className="flex flex-col items-center justify-center p-4 rounded-xl transition-all hover:-translate-y-1 hover:shadow-lg"

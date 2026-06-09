@@ -3,15 +3,16 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Compass, ShieldCheck, Mail, ArrowRight, Upload, X, Loader2, AlertCircle, CheckCircle, QrCode } from "lucide-react";
+import { Compass, ShieldCheck, ArrowRight, Upload, X, Loader2, AlertCircle, CheckCircle } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import api from "@/lib/api";
 import { useServerStatus } from "@/context/ServerStatusContext";
 import ServerWakeUp from "@/components/ServerWakeUp";
 import { QrScanner, QrHelpGuide } from "@/components/ui/QrScanner";
+import { GoogleLogin } from "@react-oauth/google";
+import GoogleCompleteProfileModal from "@/components/GoogleCompleteProfileModal";
 
-type RegisterMode = "SELECTION" | "EMAIL" | "AADHAAR_SCAN" | "AADHAAR_PREVIEW" | "AADHAAR_ACCOUNT";
-type Gender = "MALE" | "FEMALE" | "NON_BINARY" | "PREFER_NOT_TO_SAY";
+type RegisterMode = "SELECTION" | "AADHAAR_SCAN" | "AADHAAR_PREVIEW" | "AADHAAR_ACCOUNT";
 
 interface AadhaarData {
   extractedName: string;
@@ -52,15 +53,13 @@ export default function RegisterPage() {
 
   // Form State
   const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
     username: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    gender: "" as Gender | "",
     agreeTerms: false,
   });
+
+  // Google Auth states
+  const [googleProfileData, setGoogleProfileData] = useState<any>(null);
+  const [googleCredential, setGoogleCredential] = useState("");
 
   const [usernameStatus, setUsernameStatus] = useState<"IDLE" | "CHECKING" | "AVAILABLE" | "TAKEN" | "ERROR">("IDLE");
 
@@ -146,26 +145,15 @@ export default function RegisterPage() {
     }
   };
 
-  const handleAadhaarRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAadhaarGoogleSuccess = async (credentialResponse: any) => {
     if (!aadhaarData) return;
     setError("");
-    if (form.password !== form.confirmPassword) { setError("Passwords do not match"); return; }
-    if (form.password.length < 10) { setError("Password must be at least 10 characters"); return; }
-    if (!form.agreeTerms) { setError("You must agree to the Terms of Service"); return; }
-    if (usernameStatus === "TAKEN" || usernameStatus === "ERROR") { setError("Please choose a valid and available username"); return; }
-
-    if (status !== "up") {
-      pendingActionRef.current = () => handleAadhaarRegister(e);
-      setShowGame(true);
-      return;
-    }
-
     setLoading(true);
     try {
-      const res = await api.post("/auth/register", {
-        email: form.email, username: form.username,
-        password: form.password, previewToken: aadhaarData.previewToken,
+      const res = await api.post("/auth/aadhaar/google-register", {
+        username: form.username,
+        previewToken: aadhaarData.previewToken,
+        credential: credentialResponse.credential
       });
       const data = res.data;
       setAuth(data.user, data.access_token, data.refresh_token);
@@ -178,50 +166,28 @@ export default function RegisterPage() {
     }
   };
 
-  const handleEmailRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGoogleSuccess = async (credentialResponse: any) => {
     setError("");
-    if (form.password !== form.confirmPassword) { setError("Passwords do not match"); return; }
-    if (form.password.length < 10) { setError("Password must be at least 10 characters"); return; }
-    if (!form.gender) { setError("Please select your gender"); return; }
-    if (!form.agreeTerms) { setError("You must agree to the Terms of Service"); return; }
-    if (usernameStatus === "TAKEN" || usernameStatus === "ERROR") { setError("Please choose a valid and available username"); return; }
-
-    if (status !== "up") {
-      pendingActionRef.current = () => handleEmailRegister(e);
-      setShowGame(true);
-      return;
-    }
-
     setLoading(true);
     try {
-      const res = await api.post("/auth/register", {
-        firstName: form.firstName, lastName: form.lastName,
-        username: form.username, email: form.email,
-        password: form.password, gender: form.gender,
+      const res = await api.post("/auth/google/login", {
+        credential: credentialResponse.credential,
       });
-      const data = res.data;
-      setAuth(data.user, data.access_token, data.refresh_token);
-      router.push("/verify-email");
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr.response?.data?.message || "Registration failed. Please try again.");
+
+      if (res.status === 202 && res.data.error === "PROFILE_COMPLETION_REQUIRED") {
+        setGoogleProfileData(res.data);
+        setGoogleCredential(credentialResponse.credential);
+      } else {
+        const data = res.data;
+        setAuth(data.user, data.access_token, data.refresh_token);
+        router.push("/dashboard");
+      }
+    } catch (err: any) {
+      setError("Google Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
-
-  const passwordStrength = (() => {
-    const p = form.password;
-    if (!p) return 0;
-    let s = 0;
-    if (p.length >= 10) s++;
-    if (/[A-Z]/.test(p)) s++;
-    if (/[0-9]/.test(p)) s++;
-    if (/[^A-Za-z0-9]/.test(p)) s++;
-    return s;
-  })();
-  const strengthColors = ["#f87171", "#f0a030", "#f0a030", "#2dd4a8", "#2dd4a8"];
 
   return (
     <>
@@ -273,23 +239,26 @@ export default function RegisterPage() {
               Choose how you&apos;d like to join the community
             </p>
 
-            <button 
-              onClick={() => setMode("EMAIL")}
-              className="w-full text-left p-5 rounded-2xl transition-all hover:bg-white/5 group"
-              style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}
-            >
-              <div className="flex items-start gap-4">
-                <div className="p-3 rounded-xl group-hover:bg-white/10 transition-colors" style={{ background: "rgba(255,255,255,0.05)", color: "var(--color-txt-white)" }}>
-                  <Mail size={24} />
-                </div>
-                <div>
-                  <h3 className="font-bold mb-1" style={{ color: "var(--color-txt-white)" }}>Standard Email Registration</h3>
-                  <p className="text-sm" style={{ color: "var(--color-txt-secondary)" }}>
-                    Quickly create an account with your email and password.
-                  </p>
-                </div>
+            <div className="flex justify-center mb-6">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => setError("Google Login failed.")}
+                theme="filled_black"
+                shape="rectangular"
+                text="continue_with"
+              />
+            </div>
+
+            <div className="relative mb-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t" style={{ borderColor: "var(--color-line)" }}></div>
               </div>
-            </button>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2" style={{ background: "var(--color-bg-deep)", color: "var(--color-txt-muted)" }}>
+                  Or use another method
+                </span>
+              </div>
+            </div>
 
             <button 
               onClick={() => setMode("AADHAAR_SCAN")}
@@ -423,10 +392,10 @@ export default function RegisterPage() {
           <div className="rounded-2xl p-8 animate-in fade-in slide-in-from-right-4" style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}>
             <h1 className="text-xl font-bold mb-2 text-center" style={{ color: "var(--color-txt-white)" }}>Setup Login</h1>
             <p className="text-center mb-6 text-sm" style={{ color: "var(--color-txt-secondary)" }}>
-              Hey {aadhaarData.firstName}, just set up an email and password to secure your account.
+              Hey {aadhaarData.firstName}, just pick a username and link your Google account to secure your profile.
             </p>
 
-            <form onSubmit={handleAadhaarRegister} className="space-y-4">
+            <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>Username</label>
                 <div className="relative">
@@ -444,141 +413,34 @@ export default function RegisterPage() {
                 {usernameStatus === "ERROR" && form.username.length > 0 && <p className="text-xs text-red-400 mt-1">Must be 3-30 chars, lowercase, numbers, _, .</p>}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>Email</label>
-                <input type="email" className="t-input" placeholder="you@example.com" required
-                  value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>Password</label>
-                <input type="password" className="t-input" placeholder="Min. 10 characters" required
-                  value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>Confirm Password</label>
-                <input type="password" className="t-input" placeholder="Re-enter your password" required
-                  value={form.confirmPassword} onChange={e => setForm({ ...form, confirmPassword: e.target.value })} />
-              </div>
-
-              <label className="flex items-start gap-2 cursor-pointer mt-6">
+              <label className="flex items-start gap-2 cursor-pointer mt-6 mb-6">
                 <input type="checkbox" className="mt-1" checked={form.agreeTerms} onChange={e => setForm({ ...form, agreeTerms: e.target.checked })} />
                 <span className="text-sm" style={{ color: "var(--color-txt-secondary)" }}>
                   I agree to the <a href="#" className="text-emerald-400">Terms of Service</a> and <a href="#" className="text-emerald-400">Privacy Policy</a>
                 </span>
               </label>
 
-              <button type="submit" className="t-btn-primary w-full p-4 mt-6" disabled={loading}>
-                {loading ? <Loader2 size={20} className="animate-spin" /> : <>Create Verified Account <ShieldCheck size={18} /></>}
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* ==================== MODE: EMAIL ==================== */}
-        {mode === "EMAIL" && (
-          <div className="rounded-2xl p-8 animate-in fade-in slide-in-from-right-4" style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}>
-            <h1 className="text-2xl font-bold mb-2 text-center" style={{ color: "var(--color-txt-white)" }}>Email Registration</h1>
-            <p className="text-center mb-6 text-sm" style={{ color: "var(--color-txt-secondary)" }}>
-              Create an account with your email and password.
-            </p>
-
-            <form onSubmit={handleEmailRegister} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>First Name</label>
-                  <input type="text" className="t-input" placeholder="John" required
-                    value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} />
+              {/* Show Google button only if username is available and terms agreed */}
+              {usernameStatus === "AVAILABLE" && form.agreeTerms ? (
+                <div className="flex justify-center mt-6">
+                  {loading ? (
+                    <Loader2 size={24} className="animate-spin text-emerald-500" />
+                  ) : (
+                    <GoogleLogin
+                      onSuccess={handleAadhaarGoogleSuccess}
+                      onError={() => setError("Google Login failed.")}
+                      theme="filled_black"
+                      shape="rectangular"
+                      text="continue_with"
+                    />
+                  )}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>Last Name</label>
-                  <input type="text" className="t-input" placeholder="Doe" required
-                    value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>Username</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">@</span>
-                  <input type="text" className="t-input pl-8" placeholder="your_username" required
-                    value={form.username} onChange={e => setForm({ ...form, username: e.target.value.toLowerCase() })} />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    {usernameStatus === "CHECKING" && <Loader2 size={16} className="animate-spin text-gray-400" />}
-                    {usernameStatus === "AVAILABLE" && <CheckCircle size={16} className="text-emerald-400" />}
-                    {usernameStatus === "TAKEN" && <X size={16} className="text-red-400" />}
-                    {usernameStatus === "ERROR" && <AlertCircle size={16} className="text-red-400" />}
-                  </div>
-                </div>
-                {usernameStatus === "TAKEN" && <p className="text-xs text-red-400 mt-1">This username is already taken.</p>}
-                {usernameStatus === "ERROR" && form.username.length > 0 && <p className="text-xs text-red-400 mt-1">Must be 3-30 chars, lowercase, numbers, _, .</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>Email</label>
-                <input type="email" className="t-input" placeholder="you@example.com" required
-                  value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: "var(--color-txt-secondary)" }}>Gender *</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { value: "MALE", label: "Male", emoji: "♂️" },
-                    { value: "FEMALE", label: "Female", emoji: "♀️" },
-                    { value: "NON_BINARY", label: "Non-binary", emoji: "⚧️" },
-                    { value: "PREFER_NOT_TO_SAY", label: "Prefer not to say", emoji: "🔒" },
-                  ].map(({ value, label, emoji }) => (
-                    <button
-                      key={value} type="button"
-                      onClick={() => setForm({ ...form, gender: value as Gender })}
-                      className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all"
-                      style={{
-                        background: form.gender === value ? "rgba(45,212,168,0.12)" : "var(--color-bg-deep)",
-                        border: `2px solid ${form.gender === value ? "var(--color-primary)" : "var(--color-line)"}`,
-                        color: form.gender === value ? "var(--color-primary-bright)" : "var(--color-txt-secondary)",
-                      }}
-                    >
-                      <span>{emoji}</span><span>{label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>Password</label>
-                <input type="password" className="t-input" placeholder="Min. 10 characters" required
-                  value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} />
-                
-                {form.password && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <div className="flex-1 flex gap-1">
-                      {[1, 2, 3, 4].map((i) => (
-                        <div key={i} className="h-1 flex-1 rounded-full transition-all" style={{ background: i <= passwordStrength ? strengthColors[passwordStrength] : "var(--color-line)" }} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-txt-secondary)" }}>Confirm Password</label>
-                <input type="password" className="t-input" placeholder="Re-enter your password" required
-                  value={form.confirmPassword} onChange={e => setForm({ ...form, confirmPassword: e.target.value })} />
-              </div>
-
-              <label className="flex items-start gap-2 cursor-pointer mt-4">
-                <input type="checkbox" className="mt-1" checked={form.agreeTerms} onChange={e => setForm({ ...form, agreeTerms: e.target.checked })} />
-                <span className="text-sm" style={{ color: "var(--color-txt-secondary)" }}>
-                  I agree to the <a href="#" style={{ color: "var(--color-primary-bright)" }}>Terms of Service</a> and <a href="#" style={{ color: "var(--color-primary-bright)" }}>Privacy Policy</a>
-                </span>
-              </label>
-
-              <button type="submit" className="t-btn-primary w-full mt-4" style={{ padding: "14px" }} disabled={loading}>
-                {loading ? <Loader2 size={20} className="animate-spin" /> : <>Create Account <ArrowRight size={18} /></>}
-              </button>
-            </form>
+              ) : (
+                <button className="t-btn-primary w-full p-4 mt-6 opacity-50 cursor-not-allowed" disabled>
+                  Complete Setup
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -587,6 +449,17 @@ export default function RegisterPage() {
         </p>
       </div>
     </div>
+
+    {googleProfileData && (
+      <GoogleCompleteProfileModal
+        email={googleProfileData.email}
+        firstName={googleProfileData.firstName}
+        lastName={googleProfileData.lastName}
+        profilePictureUrl={googleProfileData.profilePictureUrl}
+        credential={googleCredential}
+        onClose={() => setGoogleProfileData(null)}
+      />
+    )}
     </>
   );
 }

@@ -21,6 +21,7 @@ export default function SafetyPage() {
 
   // Location Sharing State per Trip
   const [sharingStatus, setSharingStatus] = useState<Record<string, any>>({});
+  const [generatedLinks, setGeneratedLinks] = useState<Record<string, any[]>>({});
   const sharingStatusRef = useRef<Record<string, any>>({});
   
   // Keep ref in sync with state
@@ -198,7 +199,7 @@ export default function SafetyPage() {
       return;
     }
     try {
-      await api.post(`/trips/${tripId}/location/share`);
+      const res = await api.post(`/trips/${tripId}/location/share`);
       
       // Update local state to active since the backend activates it
       setSharingStatus(prev => {
@@ -209,10 +210,16 @@ export default function SafetyPage() {
         return next;
       });
 
-      alert("Secure tracking links have been emailed to your emergency contacts!");
+      setGeneratedLinks(prev => ({ ...prev, [tripId]: res.data }));
+      
     } catch (e) {
-      alert("Failed to share links.");
+      alert("Failed to generate links.");
     }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    alert("Link copied to clipboard!");
   };
 
   if (loading) {
@@ -323,7 +330,7 @@ export default function SafetyPage() {
                       onClick={() => handleShareLinks(trip.id)}
                       className="t-btn-primary flex items-center gap-2 text-sm flex-1 sm:flex-none justify-center"
                     >
-                      <LinkIcon size={14}/> Share via Email
+                      <LinkIcon size={14}/> Generate Tracker Links
                     </button>
                     
                     <button 
@@ -363,6 +370,28 @@ export default function SafetyPage() {
                         </div>
                       )}
                     </div>
+
+                    {generatedLinks[trip.id] && (
+                      <div className="mt-6">
+                        <h4 className="text-sm font-semibold text-white mb-2">Generated Tracker Links</h4>
+                        <div className="space-y-3">
+                          {generatedLinks[trip.id].map((link: any, idx: number) => (
+                            <div key={idx} className="bg-surface p-3 rounded-lg border border-line flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
+                              <div>
+                                <p className="text-sm font-medium text-white">{link.contactName}</p>
+                                <p className="text-xs text-gray-400">Expires: {new Date(link.expiresAt).toLocaleString()}</p>
+                              </div>
+                              <div className="flex items-center gap-2 w-full sm:w-auto">
+                                <input type="text" readOnly value={link.shareUrl} className="t-input text-xs w-full sm:w-64" />
+                                <button onClick={() => copyToClipboard(link.shareUrl)} className="p-2 rounded bg-primary/20 text-primary hover:bg-primary/30">
+                                  Copy
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

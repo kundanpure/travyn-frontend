@@ -64,8 +64,17 @@ api.interceptors.response.use(
         localStorage.removeItem("travyn-auth");
         if (typeof window !== "undefined") {
           window.location.href = "/login";
+          return new Promise(() => {}); // Halt execution while browser redirects
         }
       }
+    }
+
+    // If we get a 401 and there's no retry/refresh (e.g. no token to begin with or not a refresh attempt)
+    // we also want to redirect and halt if we are on the client.
+    if (error.response?.status === 401 && typeof window !== "undefined") {
+      localStorage.removeItem("travyn-auth");
+      window.location.href = "/login";
+      return new Promise(() => {}); // Halt execution
     }
 
     return Promise.reject(error);

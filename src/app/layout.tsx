@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ServerStatusProvider } from "@/context/ServerStatusContext";
+import GoogleProvider from "@/context/GoogleProvider";
 
 export const metadata: Metadata = {
   title: "Travyn — Trusted Solo Travel Network",
@@ -34,7 +35,9 @@ export default function RootLayout({
             so Render wakes up before the user even clicks anything.
             Login + Register pages read from this context to show
             the mini-game if the user tries to submit before server is ready. */}
-        <ServerStatusProvider>{children}</ServerStatusProvider>
+        <GoogleProvider>
+          <ServerStatusProvider>{children}</ServerStatusProvider>
+        </GoogleProvider>
       </body>
     </html>
   );

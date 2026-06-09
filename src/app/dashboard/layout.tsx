@@ -29,6 +29,7 @@ import { useNotificationStore } from "@/stores/notification-store";
 import { useWebPush } from "@/hooks/useWebPush";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
+import SafetyCheckModal from "./components/SafetyCheckModal";
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -310,6 +311,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Main Content */}
       <div className="flex-1 lg:ml-64 flex flex-col min-h-screen">
+        <SafetyCheckModal />
+
         {/* Top Bar */}
         <header
           className="sticky top-0 z-30 t-glass-strong"

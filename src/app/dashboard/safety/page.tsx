@@ -161,6 +161,50 @@ export default function SafetyPage() {
     }
   };
 
+  // Panic Button State
+  const [panicProgress, setPanicProgress] = useState(0);
+  const panicTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const panicIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [sosTriggered, setSosTriggered] = useState(false);
+
+  const startPanic = () => {
+    if (sosTriggered) return;
+    setPanicProgress(0);
+    
+    // Update progress bar every 30ms for 3 seconds
+    panicIntervalRef.current = setInterval(() => {
+      setPanicProgress(prev => {
+        if (prev >= 100) return 100;
+        return prev + 1; // 1% per 30ms = 3000ms total
+      });
+    }, 30);
+
+    panicTimerRef.current = setTimeout(() => {
+      triggerSOS();
+    }, 3000);
+  };
+
+  const cancelPanic = () => {
+    if (panicTimerRef.current) clearTimeout(panicTimerRef.current);
+    if (panicIntervalRef.current) clearInterval(panicIntervalRef.current);
+    if (!sosTriggered) setPanicProgress(0);
+  };
+
+  const triggerSOS = async () => {
+    if (panicTimerRef.current) clearTimeout(panicTimerRef.current);
+    if (panicIntervalRef.current) clearInterval(panicIntervalRef.current);
+    setPanicProgress(100);
+    
+    try {
+      await api.post("/safety/panic");
+      setSosTriggered(true);
+      alert("🚨 EMERGENCY SOS TRIGGERED! Your emergency contacts have been notified.");
+    } catch (e) {
+      alert("Failed to trigger SOS. Check connection.");
+      setPanicProgress(0);
+    }
+  };
+
   const handleToggleSharing = async (tripId: string, currentActive: boolean) => {
     const newState = !currentActive;
     try {
@@ -240,6 +284,60 @@ export default function SafetyPage() {
           <h1 className="text-2xl font-bold text-white">Safety Centre</h1>
           <p className="text-sm text-gray-400">Manage emergency contacts and live location sharing</p>
         </div>
+      </div>
+
+      {/* Panic Button Section */}
+      <div className="bg-deep rounded-2xl border border-red-500/30 p-8 text-center relative overflow-hidden">
+        <div className="relative z-10">
+          <h2 className="text-2xl font-bold text-white mb-2">Emergency SOS</h2>
+          <p className="text-sm text-gray-400 mb-8 max-w-md mx-auto">
+            Press and hold the button for 3 seconds to instantly notify all your emergency contacts with your live location.
+          </p>
+
+          <button
+            onPointerDown={startPanic}
+            onPointerUp={cancelPanic}
+            onPointerLeave={cancelPanic}
+            disabled={sosTriggered}
+            className={`
+              relative w-48 h-48 rounded-full flex flex-col items-center justify-center mx-auto transition-all duration-300
+              ${sosTriggered 
+                ? 'bg-red-600 cursor-not-allowed scale-95 shadow-[0_0_50px_rgba(220,38,38,0.5)]' 
+                : 'bg-red-500 hover:bg-red-600 active:scale-95 shadow-[0_0_30px_rgba(239,68,68,0.3)] hover:shadow-[0_0_50px_rgba(239,68,68,0.5)]'
+              }
+            `}
+            style={{ touchAction: 'none' }}
+          >
+            {/* Progress Ring */}
+            <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none">
+              <circle
+                cx="96" cy="96" r="90"
+                fill="none"
+                stroke="rgba(255,255,255,0.2)"
+                strokeWidth="12"
+              />
+              <circle
+                cx="96" cy="96" r="90"
+                fill="none"
+                stroke="white"
+                strokeWidth="12"
+                strokeDasharray={565.48}
+                strokeDashoffset={565.48 - (565.48 * panicProgress) / 100}
+                className="transition-all duration-75 ease-linear"
+              />
+            </svg>
+
+            <AlertTriangle size={48} className="text-white mb-2" />
+            <span className="text-white font-bold text-xl tracking-wider">
+              {sosTriggered ? "SOS SENT" : "HOLD SOS"}
+            </span>
+          </button>
+        </div>
+
+        {/* Pulsing red background effect when triggered */}
+        {sosTriggered && (
+          <div className="absolute inset-0 bg-red-500/10 animate-pulse pointer-events-none" />
+        )}
       </div>
 
       {/* Emergency Contacts Section */}

@@ -161,7 +161,13 @@ export default function PublicSOSPage() {
 
         {/* Map Area */}
         <div className="w-full h-[50vh] lg:flex-1 lg:h-screen relative bg-deep z-0">
-          <MapWithNoSSR lat={mapCenter.lat} lng={mapCenter.lng} />
+          <MapWithNoSSR 
+            lat={mapCenter.lat} 
+            lng={mapCenter.lng} 
+            userName={sosData.userName}
+            initials={sosData.userName ? sosData.userName.split(" ").map((n: string) => n[0]).join("").toUpperCase().substring(0, 2) : "??"}
+            lastLocationTime={sosData.lastLocationTime || new Date().toISOString()}
+          />
 
           {sosData.lastLocationTime && (
             <div className="absolute bottom-6 right-6 bg-black/80 backdrop-blur-md px-4 py-2 rounded-lg border border-line text-xs font-medium text-white flex items-center gap-2 shadow-xl">

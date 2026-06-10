@@ -194,14 +194,27 @@ export default function SafetyPage() {
     if (panicTimerRef.current) clearTimeout(panicTimerRef.current);
     if (panicIntervalRef.current) clearInterval(panicIntervalRef.current);
     setPanicProgress(100);
-    
-    try {
-      await api.post("/safety/panic");
-      setSosTriggered(true);
-      alert("🚨 EMERGENCY SOS TRIGGERED! Your emergency contacts have been notified.");
-    } catch (e) {
-      alert("Failed to trigger SOS. Check connection.");
-      setPanicProgress(0);
+
+    const sendPanicRequest = async (lat?: number, lng?: number) => {
+      try {
+        const payload = lat && lng ? { latitude: lat, longitude: lng } : undefined;
+        await api.post("/safety/panic", payload);
+        setSosTriggered(true);
+        alert("🚨 EMERGENCY SOS TRIGGERED! Your emergency contacts have been notified.");
+      } catch (e) {
+        alert("Failed to trigger SOS. Check connection.");
+        setPanicProgress(0);
+      }
+    };
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => sendPanicRequest(pos.coords.latitude, pos.coords.longitude),
+        () => sendPanicRequest(), // fallback if GPS fails
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    } else {
+      sendPanicRequest(); // fallback if no GPS
     }
   };
 

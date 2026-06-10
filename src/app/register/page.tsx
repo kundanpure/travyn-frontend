@@ -159,8 +159,13 @@ export default function RegisterPage() {
       setAuth(data.user, data.access_token, data.refresh_token);
       router.push("/onboarding");
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr.response?.data?.message || "Registration failed. Please try again.");
+      const axiosErr = err as { response?: { data?: { message?: string; error?: string; details?: { field: string; message: string }[] } } };
+      const data = axiosErr.response?.data;
+      if (data?.details?.length) {
+        setError(data.details.map(d => d.message).join('. '));
+      } else {
+        setError(data?.message || "Registration failed. Please try again.");
+      }
     } finally {
       setLoading(false);
     }

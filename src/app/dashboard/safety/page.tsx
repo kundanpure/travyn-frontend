@@ -292,6 +292,30 @@ export default function SafetyPage() {
                   <span className="flex items-center gap-1"><Mail size={12}/> {c.email}</span>
                   {c.phoneNumber && <span className="flex items-center gap-1"><Phone size={12}/> {c.phoneNumber}</span>}
                 </div>
+                <div className="mt-2 text-xs">
+                  {c.telegramConnected ? (
+                    <span className="text-green-400 font-medium flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Telegram Connected
+                    </span>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-yellow-500 flex items-center gap-1">
+                        <AlertTriangle size={12} /> Telegram Not Connected
+                      </span>
+                      <button
+                        onClick={() => {
+                          const botUser = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "TravynSOSBot";
+                          const link = `https://t.me/${botUser}?start=${c.id}`;
+                          navigator.clipboard.writeText(link);
+                          alert("Setup link copied! Send this to your contact.");
+                        }}
+                        className="text-primary hover:underline ml-2"
+                      >
+                        Copy Setup Link
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
               <button onClick={() => handleDeleteContact(c.id)} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors">
                 <Trash2 size={16} />

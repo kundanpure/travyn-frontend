@@ -160,7 +160,7 @@ export default function PublicSOSPage() {
         </div>
 
         {/* Map Area */}
-        <div className="flex-1 min-h-[50vh] lg:min-h-screen relative bg-deep z-0">
+        <div className="w-full h-[50vh] lg:flex-1 lg:h-screen relative bg-deep z-0">
           <MapWithNoSSR lat={mapCenter.lat} lng={mapCenter.lng} />
 
           {sosData.lastLocationTime && (

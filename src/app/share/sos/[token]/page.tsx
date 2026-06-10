@@ -3,7 +3,17 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { MapPin, Navigation, User, Phone, Clock, AlertTriangle, ShieldAlert } from "lucide-react";
-import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
+import dynamic from "next/dynamic";
+
+// Dynamically import Leaflet Map (SSR must be disabled because Leaflet uses window)
+const MapWithNoSSR = dynamic(() => import("./SOSMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="absolute inset-0 flex items-center justify-center bg-deep">
+      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  ),
+});
 import axios from "axios";
 
 // Using a basic axios call to bypass auth interceptors for public API
@@ -19,10 +29,7 @@ export default function PublicSOSPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-  });
+
 
   const fetchData = async () => {
     try {
@@ -154,41 +161,7 @@ export default function PublicSOSPage() {
 
         {/* Map Area */}
         <div className="flex-1 h-[50vh] lg:h-auto relative bg-deep">
-          {!isLoaded ? (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : (
-            <GoogleMap
-              mapContainerStyle={{ width: '100%', height: '100%' }}
-              center={mapCenter}
-              zoom={15}
-              options={{
-                disableDefaultUI: false,
-                mapTypeId: 'roadmap',
-                styles: [
-                  { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
-                  { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
-                  { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
-                  // Add more dark mode styles as needed
-                ]
-              }}
-            >
-              {sosData.lastLat && sosData.lastLng && (
-                <Marker
-                  position={{ lat: sosData.lastLat, lng: sosData.lastLng }}
-                  icon={{
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 10,
-                    fillColor: "#ef4444",
-                    fillOpacity: 1,
-                    strokeColor: "#ffffff",
-                    strokeWeight: 2,
-                  }}
-                />
-              )}
-            </GoogleMap>
-          )}
+          <MapWithNoSSR lat={mapCenter.lat} lng={mapCenter.lng} />
 
           {sosData.lastLocationTime && (
             <div className="absolute bottom-6 right-6 bg-black/80 backdrop-blur-md px-4 py-2 rounded-lg border border-line text-xs font-medium text-white flex items-center gap-2 shadow-xl">

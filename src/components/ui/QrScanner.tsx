@@ -100,7 +100,7 @@ export function QrScanner({ onScanSuccess, onScanFailure }: QrScannerProps) {
       {!showHelp && isScanning && (
         <button 
           onClick={() => setShowHelp(true)}
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-md border border-white/10 rounded-full text-xs font-medium text-zinc-300 hover:text-white hover:bg-black/80 transition-all shadow-lg"
+          className="absolute top-4 right-4 z-20 flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-md border border-white/10 rounded-full text-xs font-medium text-zinc-300 hover:text-white hover:bg-black/80 transition-all shadow-lg"
         >
           <HelpCircle size={14} />
           <span>QR not scanning?</span>

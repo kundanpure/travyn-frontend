@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { MessageCircle, Search, Inbox } from "lucide-react";
+import VerifiedBadge from "../components/VerifiedBadge";
+import UnverifiedBadge from "../components/UnverifiedBadge";
 import api from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
 import DirectMessageWindow from "./DirectMessageWindow";
@@ -15,6 +17,7 @@ export interface DMInboxItem {
   latestMessageAt: string | null;
   unreadCount: number;
   partnerProfilePhotoUrl?: string;
+  partnerVerified?: boolean;
 }
 
 export default function MessagesPage() {
@@ -115,7 +118,10 @@ export default function MessagesPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-baseline mb-1">
-                      <h3 className="font-semibold text-white truncate pr-2">{item.partnerName}</h3>
+                      <h3 className="font-semibold text-white truncate pr-2 flex items-center gap-1">
+                        {item.partnerName}
+                        {item.partnerVerified ? <VerifiedBadge size={14} /> : <UnverifiedBadge size={14} />}
+                      </h3>
                       {item.latestMessageAt && (
                         <span className="text-[10px] text-white/40 whitespace-nowrap">
                           {new Date(item.latestMessageAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
@@ -144,6 +150,7 @@ export default function MessagesPage() {
             partnerId={selectedPartnerId}
             partnerName={inbox.find((i) => i.partnerId === selectedPartnerId)?.partnerName || "Chat"}
             partnerProfilePhotoUrl={inbox.find((i) => i.partnerId === selectedPartnerId)?.partnerProfilePhotoUrl}
+            partnerVerified={inbox.find((i) => i.partnerId === selectedPartnerId)?.partnerVerified}
             onBack={() => setSelectedPartnerId(null)}
             onMessageRead={handleMessageRead}
           />

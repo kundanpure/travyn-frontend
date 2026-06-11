@@ -4,7 +4,8 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import {
-  MapPin, Plus, Users, User, Calendar, Loader2, Crown, Mountain, Heart, Share2, Eye, Compass, Copy, Check
+  MapPin, Plus, Users, User, Calendar, Loader2, Crown, Mountain, Heart, Share2, Eye, Compass, Copy, Check,
+  CheckCircle, AlertTriangle
 } from "lucide-react";
 import Link from "next/link";
 
@@ -24,6 +25,7 @@ interface TripCard {
   description: string;
   tripCode: string;
   createdAt: string;
+  creatorVerified?: boolean;
 }
 
 interface MyTrip {
@@ -196,8 +198,17 @@ export default function DashboardPage() {
                 {/* Post Header */}
                 <div className="p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-black font-bold text-sm shadow-inner">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-black font-bold text-sm shadow-inner relative">
                       {trip.creatorName.charAt(0)}
+                      {trip.creatorVerified ? (
+                        <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500/20 flex items-center justify-center" style={{ boxShadow: "0 0 0 2px #111827" }}>
+                          <CheckCircle size={10} style={{ color: "#2dd4a8" }} />
+                        </span>
+                      ) : (
+                        <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black" style={{ background: "#fbbf24", color: "#1a1a1a", boxShadow: "0 0 0 2px #111827" }}>
+                          !
+                        </span>
+                      )}
                     </div>
                     <div>
                       <div className="font-bold text-white text-sm hover:underline cursor-pointer">{trip.creatorName}</div>

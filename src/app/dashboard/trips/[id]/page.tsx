@@ -16,6 +16,8 @@ import ImageUploadModal from "@/app/dashboard/components/ImageUploadModal";
 import { ReviewModal } from "@/app/dashboard/components/ReviewModal";
 import { TripReviewModal } from "@/app/dashboard/components/TripReviewModal";
 import LocationAutocomplete from "@/app/dashboard/components/LocationAutocomplete";
+import VerifiedBadge from "@/app/dashboard/components/VerifiedBadge";
+import UnverifiedBadge from "@/app/dashboard/components/UnverifiedBadge";
 
 const typeColors: Record<string, string> = {
   BACKPACKING: "#2dd4a8", LUXURY: "#f0a030", ROAD_TRIP: "#60a5fa",
@@ -63,6 +65,7 @@ interface TripMember {
   status: "APPROVED" | "PENDING" | "REJECTED";
   joinedAt: string;
   profilePhotoUrl?: string;
+  verified?: boolean;
 }
 
 interface JoinRequest {
@@ -72,6 +75,7 @@ interface JoinRequest {
   lastName: string;
   status: string;
   requestedAt: string;
+  verified?: boolean;
 }
 
 interface TripReview {
@@ -627,8 +631,9 @@ export default function TripDetailPage() {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate" style={{ color: "var(--color-txt-white)" }}>
+                <div className="text-sm font-medium truncate flex items-center gap-1.5" style={{ color: "var(--color-txt-white)" }}>
                   {m.firstName} {m.lastName}
+                  {m.verified ? <VerifiedBadge size={14} /> : <UnverifiedBadge size={14} />}
                 </div>
                 <div className="text-xs flex items-center gap-1" style={{ color: "var(--color-txt-muted)" }}>
                   {m.role === "CREATOR" && <Crown size={10} style={{ color: "var(--color-accent)" }} />}
@@ -804,8 +809,9 @@ export default function TripDetailPage() {
                   {req.firstName[0]}{req.lastName[0]}
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm font-medium" style={{ color: "var(--color-txt-white)" }}>
+                  <div className="text-sm font-medium flex items-center gap-1.5" style={{ color: "var(--color-txt-white)" }}>
                     {req.firstName} {req.lastName}
+                    {req.verified ? <VerifiedBadge size={14} /> : <UnverifiedBadge size={14} />}
                   </div>
                   <div className="text-xs" style={{ color: "var(--color-txt-muted)" }}>
                     Requested {new Date(req.requestedAt).toLocaleDateString()}

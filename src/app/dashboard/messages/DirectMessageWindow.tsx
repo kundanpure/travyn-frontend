@@ -7,6 +7,8 @@ import { useAuthStore } from "@/stores/auth-store";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import ChatAttachmentMenu from "../components/ChatAttachmentMenu";
+import VerifiedBadge from "../components/VerifiedBadge";
+import UnverifiedBadge from "../components/UnverifiedBadge";
 
 interface DirectMessage {
   id: string;
@@ -55,11 +57,12 @@ interface DirectMessageWindowProps {
   partnerId: string;
   partnerName: string;
   partnerProfilePhotoUrl?: string;
+  partnerVerified?: boolean;
   onBack: () => void;
   onMessageRead: () => void;
 }
 
-export default function DirectMessageWindow({ partnerId, partnerName, partnerProfilePhotoUrl, onBack, onMessageRead }: DirectMessageWindowProps) {
+export default function DirectMessageWindow({ partnerId, partnerName, partnerProfilePhotoUrl, partnerVerified, onBack, onMessageRead }: DirectMessageWindowProps) {
   const { user } = useAuthStore();
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -278,7 +281,13 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
               )}
             </div>
             <div>
-              <h2 className="font-bold text-white text-lg">{partnerName}</h2>
+              <h2 className="font-bold text-white text-lg flex items-center gap-2">
+                {partnerName}
+                {partnerVerified ? <VerifiedBadge size={14} /> : <UnverifiedBadge size={14} />}
+              </h2>
+              {partnerVerified === false && (
+                <div className="text-[10px] text-amber-500/80 font-medium">This traveler has not verified their identity</div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 text-xs">

@@ -2,6 +2,7 @@
 //updated the comment to check 
 import { useState, useEffect } from "react";
 import VerifiedBadge from "../components/VerifiedBadge";
+import UnverifiedBadge from "../components/UnverifiedBadge";
 import {
   User, Edit3, Save, X, Mountain, Landmark, Palette, PartyPopper, Wallet,
   Sun, Moon, Clock, Loader2, CheckCircle2, CheckCircle, AlertCircle, Laptop, Globe, UtensilsCrossed,
@@ -101,6 +102,8 @@ export default function ProfilePage() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [genderChangesRemaining, setGenderChangesRemaining] = useState<number>(user?.genderChangesRemaining ?? 2);
   const [usernameStatus, setUsernameStatus] = useState<"IDLE" | "CHECKING" | "AVAILABLE" | "TAKEN" | "ERROR">("IDLE");
+
+  const isVerified = user?.isVerified ?? user?.status === "KYC_VERIFIED";
 
   useEffect(() => {
     fetchProfile();
@@ -374,6 +377,46 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* Verification Status Card */}
+      {!editing && (
+        <div
+          className="rounded-xl p-4 flex items-center justify-between"
+          style={{ 
+            background: isVerified ? "rgba(45, 212, 168, 0.05)" : "rgba(251, 191, 36, 0.05)", 
+            border: isVerified ? "1px solid rgba(45, 212, 168, 0.2)" : "1px solid rgba(251, 191, 36, 0.2)" 
+          }}
+        >
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5">
+              {isVerified ? (
+                <Shield size={20} className="text-emerald-400" />
+              ) : (
+                <AlertTriangle size={20} style={{ color: "#fbbf24" }} />
+              )}
+            </div>
+            <div>
+              <h3 className="font-semibold text-sm" style={{ color: "var(--color-txt-white)" }}>
+                {isVerified ? "Identity Verified" : "Identity Not Verified"}
+              </h3>
+              <p className="text-xs mt-1 max-w-md" style={{ color: "var(--color-txt-secondary)" }}>
+                {isVerified 
+                  ? "Your identity has been verified via Aadhaar. This badge builds trust and helps you find travel partners faster."
+                  : "Verify your identity to unlock women-only trips, boost your trust score, and get more trip invites."}
+              </p>
+            </div>
+          </div>
+          {!isVerified && (
+            <a 
+              href="/dashboard/settings/kyc"
+              className="shrink-0 text-xs font-bold px-4 py-2 rounded-lg transition-colors"
+              style={{ background: "#fbbf24", color: "#1a1a1a" }}
+            >
+              Verify Now
+            </a>
+          )}
+        </div>
+      )}
+
       {/* Profile Card */}
       <div
         className="rounded-2xl overflow-hidden"
@@ -463,7 +506,7 @@ export default function ProfilePage() {
               <div className="flex items-center gap-3 mb-1">
                 <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: "var(--color-txt-white)" }}>
                   {profile.firstName || user?.firstName} {profile.lastName || user?.lastName}
-                  {user?.status === "KYC_VERIFIED" && <VerifiedBadge size={18} />}
+                  {isVerified ? <VerifiedBadge size={18} /> : <UnverifiedBadge size={18} showLabel />}
                 </h2>
                 {user?.age && (
                   <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-gray-800 text-gray-300">

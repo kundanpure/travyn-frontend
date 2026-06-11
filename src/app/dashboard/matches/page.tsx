@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plane, Users, User, CheckCircle, Ticket, X, MessageSquare, Compass, Loader2, MapPin } from "lucide-react";
+import { Plane, Users, User, CheckCircle, Ticket, X, MessageSquare, Compass, Loader2, MapPin, AlertTriangle } from "lucide-react";
+import VerifiedBadge from "../components/VerifiedBadge";
+import UnverifiedBadge from "../components/UnverifiedBadge";
 import api from "@/lib/api";
 
 type MatchTab = "DISCOVER" | "MUTUAL";
@@ -136,7 +138,16 @@ export default function MatchesPage() {
                       <div>
                         <div className="text-2xl font-bold text-white mb-1">{m.firstName} {m.lastName} {m.age && <span className="text-white/40 text-lg">, {m.age}</span>}</div>
                         <div className="flex items-center gap-1.5 text-xs text-white/60">
-                          <CheckCircle size={14} className="text-emerald-500" /> Trust Score: {m.trustScore}
+                          {m.verified ? (
+                            <VerifiedBadge size={13} />
+                          ) : (
+                            <AlertTriangle size={13} style={{ color: "#fbbf24" }} />
+                          )}
+                          <span style={{ color: m.verified ? "#2dd4a8" : "#fbbf24" }}>
+                            {m.verified ? "Verified" : "Identity Pending"}
+                          </span>
+                          <span className="text-white/30 mx-1">•</span>
+                          Trust Score: {m.trustScore}
                         </div>
                         {m.locationName && (
                           <div className="flex items-center gap-1.5 text-xs text-emerald-400 mt-1">
@@ -241,7 +252,10 @@ export default function MatchesPage() {
                   )}
                 </div>
                 <div className="flex-1">
-                  <div className="font-bold text-white text-lg">{m.firstName} {m.lastName}</div>
+                  <div className="font-bold text-white text-lg flex items-center gap-2">
+                    {m.firstName} {m.lastName}
+                    {m.verified ? <VerifiedBadge size={14} /> : <UnverifiedBadge size={14} />}
+                  </div>
                   <div className="text-xs text-emerald-400 font-bold flex items-center gap-1">
                     <CheckCircle size={12} /> Mutual Match
                   </div>

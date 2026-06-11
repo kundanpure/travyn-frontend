@@ -23,6 +23,8 @@ import {
   CheckCheck,
   UserPlus,
   XCircle,
+  AlertTriangle,
+  ArrowRight,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useNotificationStore } from "@/stores/notification-store";
@@ -66,6 +68,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [kycBannerDismissed, setKycBannerDismissed] = useState(true);
+
+  const isVerified = user?.isVerified ?? user?.status === "KYC_VERIFIED";
+
+  // Show KYC banner if not verified and not dismissed this session
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const dismissed = sessionStorage.getItem("travyn-kyc-banner-dismissed");
+      setKycBannerDismissed(!!dismissed);
+    }
+  }, []);
+
+  const dismissKycBanner = () => {
+    setKycBannerDismissed(true);
+    sessionStorage.setItem("travyn-kyc-banner-dismissed", "true");
+  };
   const notifRef = useRef<HTMLDivElement>(null);
   const stompRef = useRef<Client | null>(null);
 
@@ -481,17 +499,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   }}
                   style={{ background: "none", border: "none", cursor: "pointer" }}
                 >
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold overflow-hidden"
-                    style={{
-                      background: user?.profilePhotoUrl ? "transparent" : "linear-gradient(135deg, var(--color-primary), var(--color-accent))",
-                      color: "#06080c",
-                    }}
-                  >
-                    {user?.profilePhotoUrl ? (
-                      <img src={user.profilePhotoUrl} alt="Profile" className="w-full h-full object-cover" />
-                    ) : (
-                      user?.firstName?.[0] || "U"
+                  <div className="relative">
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold overflow-hidden"
+                      style={{
+                        background: user?.profilePhotoUrl ? "transparent" : "linear-gradient(135deg, var(--color-primary), var(--color-accent))",
+                        color: "#06080c",
+                      }}
+                    >
+                      {user?.profilePhotoUrl ? (
+                        <img src={user.profilePhotoUrl} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        user?.firstName?.[0] || "U"
+                      )}
+                    </div>
+                    {!isVerified && (
+                      <span
+                        className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black"
+                        style={{ background: "#fbbf24", color: "#1a1a1a", boxShadow: "0 0 0 2px var(--color-bg-surface)" }}
+                        title="Identity not verified"
+                      >
+                        !
+                      </span>
                     )}
                   </div>
                   <span className="hidden sm:block text-sm font-medium" style={{ color: "var(--color-txt-primary)" }}>
@@ -538,6 +567,37 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
         </header>
+
+        {/* KYC Nudge Banner */}
+        {!isVerified && !kycBannerDismissed && (
+          <div
+            className="flex items-center justify-between gap-3 px-4 lg:px-6 py-2.5"
+            style={{
+              background: "linear-gradient(90deg, rgba(251,191,36,0.08), rgba(251,191,36,0.04))",
+              borderBottom: "1px solid rgba(251,191,36,0.15)",
+            }}
+          >
+            <div className="flex items-center gap-2 text-sm" style={{ color: "#fbbf24" }}>
+              <AlertTriangle size={15} />
+              <span>
+                Your identity is not verified. Verified travelers get <strong>3× more trip invites</strong>.
+              </span>
+              <a
+                href="/dashboard/settings/kyc"
+                className="inline-flex items-center gap-1 font-semibold hover:underline ml-1"
+                style={{ color: "#fbbf24" }}
+              >
+                Verify Now <ArrowRight size={13} />
+              </a>
+            </div>
+            <button
+              onClick={dismissKycBanner}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "#fbbf24", opacity: 0.6 }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
 
         {/* Page Content */}
         <main className="flex-1 p-4 lg:p-6">{children}</main>

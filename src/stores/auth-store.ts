@@ -16,6 +16,7 @@ export interface User {
   genderChangesRemaining: number;
   kycLockoutUntil?: string;
   kycFailedAttempts?: number;
+  isVerified?: boolean;
   createdAt: string;
   profilePhotoUrl?: string;
 }

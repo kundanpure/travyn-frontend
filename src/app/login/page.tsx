@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Compass, Loader2 } from "lucide-react";
+import { Compass, Loader2, MapPin, Route } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import api from "@/lib/api";
 import { useServerStatus } from "@/context/ServerStatusContext";
@@ -68,62 +68,48 @@ export default function LoginPage() {
   return (
     <>
     {showGame && <ServerWakeUp />}
-    <div
-      className="min-h-screen flex items-center justify-center px-4 py-12"
-      style={{ background: "var(--color-bg-deep)" }}
-    >
-      <div className="w-full max-w-md">
+    <div className="auth-shell">
+      {/* Ambient glow */}
+      <div className="auth-accent-glow" style={{ top: "-15%", right: "10%" }} />
+      <div className="auth-accent-glow" style={{ bottom: "-10%", left: "5%", background: "radial-gradient(circle, rgba(37, 109, 133, 0.08), transparent 70%)" }} />
+
+      {/* Floating decorative travel icons */}
+      <div className="auth-floating-icon" style={{ top: "12%", left: "8%" }}>
+        <Compass size={64} />
+      </div>
+      <div className="auth-floating-icon" style={{ bottom: "18%", right: "10%" }}>
+        <MapPin size={48} />
+      </div>
+      <div className="auth-floating-icon" style={{ top: "55%", left: "75%" }}>
+        <Route size={40} />
+      </div>
+
+      <div className="w-full max-w-md" style={{ position: "relative", zIndex: 1 }}>
         {/* Logo */}
         <Link href="/" className="flex items-center justify-center gap-2 mb-8">
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 10,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "linear-gradient(135deg, var(--color-primary), var(--color-primary-dim))",
-            }}
-          >
-            <Compass size={18} color="#06080c" />
+          <div className="auth-brand-icon">
+            <Compass size={20} color="#f6a73a" />
           </div>
-          <span className="t-gradient-text" style={{ fontSize: "1.4rem", fontFamily: "var(--font-family-display)", fontWeight: 700 }}>Travyn</span>
+          <span className="auth-brand-text">Travyn</span>
         </Link>
 
         {/* Card */}
-        <div
-          className="rounded-2xl p-8"
-          style={{
-            background: "var(--color-bg-surface)",
-            border: "1px solid var(--color-line)",
-          }}
-        >
-          <h1 className="text-2xl font-bold mb-2 text-center" style={{ color: "var(--color-txt-white)" }}>Welcome Back</h1>
-          <p
-            className="text-center mb-6 text-sm"
-            style={{ color: "var(--color-txt-secondary)" }}
-          >
-            Sign in to continue your adventure
+        <div className="auth-card">
+          <h1 className="auth-heading text-2xl mb-2 text-center">Welcome back, traveler</h1>
+          <p className="auth-subheading text-center mb-6">
+            Continue planning safer journeys with verified companions
           </p>
 
           {/* Error */}
           {error && (
-            <div
-              className="mb-4 p-3 rounded-lg text-sm"
-              style={{
-                background: "rgba(248, 113, 113, 0.1)",
-                border: "1px solid rgba(248, 113, 113, 0.3)",
-                color: "var(--color-danger)",
-              }}
-            >
-              {error}
+            <div className="auth-error mb-4 animate-in fade-in slide-in-from-top-2">
+              <span>{error}</span>
             </div>
           )}
 
           <div className="mb-6 flex justify-center">
             {loading ? (
-               <Loader2 size={24} className="animate-spin text-emerald-500" />
+               <Loader2 size={24} className="animate-spin" style={{ color: "#f6a73a" }} />
             ) : (
               <GoogleLogin
                 onSuccess={handleGoogleSuccess}
@@ -135,9 +121,9 @@ export default function LoginPage() {
             )}
           </div>
 
-          <p className="text-center mt-6 text-sm" style={{ color: "var(--color-txt-muted)" }}>
+          <p className="text-center mt-6 text-sm" style={{ color: "#64748b" }}>
             Don&apos;t have an account?{" "}
-            <Link href="/register" style={{ color: "var(--color-primary-bright)", fontWeight: 600 }}>
+            <Link href="/register" className="auth-link">
               Join Travyn
             </Link>
           </p>

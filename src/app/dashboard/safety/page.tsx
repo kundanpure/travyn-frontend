@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { 
   Shield, UserPlus, Phone, Mail, MapPin, SwitchCamera, Link as LinkIcon, 
-  Trash2, Loader2, AlertTriangle, Navigation, Clock, CheckCircle2 
+  Trash2, Loader2, AlertTriangle, Navigation, Clock, CheckCircle2, MessageCircle
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
@@ -251,10 +251,6 @@ export default function SafetyPage() {
   };
 
   const handleShareLinks = async (tripId: string) => {
-    if (contacts.length === 0) {
-      alert("Please add at least one emergency contact first.");
-      return;
-    }
     try {
       const res = await api.post(`/trips/${tripId}/location/share`);
       
@@ -277,6 +273,12 @@ export default function SafetyPage() {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     alert("Link copied to clipboard!");
+  };
+
+  const shareViaWhatsApp = (url: string) => {
+    const text = `Hi! I am sharing my live location with you for my upcoming trip. You can track my live location and SOS status here: ${url}`;
+    const encodedText = encodeURIComponent(text);
+    window.open(`https://wa.me/?text=${encodedText}`, "_blank");
   };
 
   if (loading) {
@@ -508,19 +510,28 @@ export default function SafetyPage() {
 
                     {generatedLinks[trip.id] && (
                       <div className="mt-6">
-                        <h4 className="text-sm font-semibold text-white mb-2">Generated Tracker Links</h4>
+                        <h4 className="text-sm font-semibold text-white mb-2">Master Tracking Link</h4>
                         <div className="space-y-3">
                           {generatedLinks[trip.id].map((link: any, idx: number) => (
                             <div key={idx} className="bg-surface p-3 rounded-lg border border-line flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
                               <div>
                                 <p className="text-sm font-medium text-white">{link.contactName}</p>
-                                <p className="text-xs text-gray-400">Expires: {new Date(link.expiresAt).toLocaleString()}</p>
+                                <p className="text-xs text-gray-400">{link.contactEmail}</p>
+                                <p className="text-xs text-gray-500 mt-1">Expires: {new Date(link.expiresAt).toLocaleString()}</p>
                               </div>
-                              <div className="flex items-center gap-2 w-full sm:w-auto">
+                              <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
                                 <input type="text" readOnly value={link.shareUrl} className="t-input text-xs w-full sm:w-64" />
-                                <button onClick={() => copyToClipboard(link.shareUrl)} className="p-2 rounded bg-primary/20 text-primary hover:bg-primary/30">
-                                  Copy
-                                </button>
+                                <div className="flex gap-2 w-full sm:w-auto">
+                                  <button onClick={() => copyToClipboard(link.shareUrl)} className="p-2 rounded bg-primary/20 text-primary hover:bg-primary/30 w-full sm:w-auto text-sm font-medium">
+                                    Copy
+                                  </button>
+                                  <button 
+                                    onClick={() => shareViaWhatsApp(link.shareUrl)} 
+                                    className="p-2 px-3 rounded bg-[#25D366]/20 text-[#25D366] hover:bg-[#25D366]/30 flex items-center justify-center gap-1.5 w-full sm:w-auto text-sm font-medium transition-colors whitespace-nowrap"
+                                  >
+                                    <MessageCircle size={16} /> WhatsApp
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           ))}

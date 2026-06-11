@@ -70,6 +70,7 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const stompClientRef = useRef<Client | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -200,6 +201,9 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
         messageType: "TEXT"
       });
       setMessage("");
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
       // Message will be pushed back via WebSocket, but we can also append optimistically
       // Actually, our own backend logic sends it to OUR queue as well, so we don't need to append manually
       setTimeout(scrollToBottom, 100);
@@ -395,10 +399,16 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
             
             <div className="flex-1 bg-zinc-800 rounded-2xl border border-white/10 overflow-hidden focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/50 transition-all">
               <textarea
+                ref={textareaRef}
                 value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                onChange={(e) => {
+                  setMessage(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = `${e.target.scrollHeight}px`;
+                }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
+                  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+                  if (e.key === "Enter" && !e.shiftKey && !isMobile) {
                     e.preventDefault();
                     handleSendText(e);
                   }
@@ -421,7 +431,7 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
             </button>
           </form>
         )}
-        <div className="text-center mt-2">
+        <div className="text-center mt-2 hidden md:block">
            <span className="text-[10px] text-white/30 font-medium">Press Enter to send, Shift+Enter for new line</span>
         </div>
       </div>

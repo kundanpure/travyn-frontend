@@ -219,7 +219,7 @@ export default function OnboardingPage() {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold" style={{ color: "var(--color-txt-white)" }}>Typical Budget</h2>
-                  <p className="text-sm" style={{ color: "var(--color-txt-secondary)" }}>Per week, per person (USD)</p>
+                  <p className="text-sm" style={{ color: "var(--color-txt-secondary)" }}>Per week, per person (INR)</p>
                 </div>
               </div>
 
@@ -227,14 +227,14 @@ export default function OnboardingPage() {
                 <div className="flex-1">
                   <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--color-txt-muted)" }}>Min Budget</label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold" style={{ color: "var(--color-txt-secondary)" }}>$</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold" style={{ color: "var(--color-txt-secondary)" }}>₹</span>
                     <input type="number" className="t-input w-full pl-8" value={form.budgetMin} onChange={e => setForm({...form, budgetMin: parseInt(e.target.value) || 0})} />
                   </div>
                 </div>
                 <div className="flex-1">
                   <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--color-txt-muted)" }}>Max Budget</label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold" style={{ color: "var(--color-txt-secondary)" }}>$</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold" style={{ color: "var(--color-txt-secondary)" }}>₹</span>
                     <input type="number" className="t-input w-full pl-8" value={form.budgetMax} onChange={e => setForm({...form, budgetMax: parseInt(e.target.value) || 0})} />
                   </div>
                 </div>

@@ -119,6 +119,8 @@ export default function TripDetailPage() {
   const [reviewMember, setReviewMember] = useState<{ id: string, name: string } | null>(null);
   const [reviewingTrip, setReviewingTrip] = useState(false);
   const [tripReviews, setTripReviews] = useState<TripReview[]>([]);
+  const [peerReviews, setPeerReviews] = useState<any[]>([]);
+  const [selectedRevieweeId, setSelectedRevieweeId] = useState<string>("");
   const [reviewWindow, setReviewWindow] = useState<ReviewWindow | null>(null);
 
   // Edit state
@@ -199,6 +201,13 @@ export default function TripDetailPage() {
         setTripReviews(reviewsRes.data || []);
       } catch (err) {
         console.error("Failed to load reviews", err);
+      }
+
+      try {
+        const peerReviewsRes = await api.get(`/trips/${tripId}/peer-reviews`);
+        setPeerReviews(peerReviewsRes.data || []);
+      } catch (err) {
+        console.error("Failed to load peer reviews", err);
       }
 
       // Fetch review window if completed
@@ -871,6 +880,94 @@ export default function TripDetailPage() {
           </div>
         </div>
       )}
+
+      {/* ─────────── PEER REVIEWS SECTION ─────────── */}
+      {peerReviews.length > 0 && (() => {
+        const revieweeIdsWithReviews = Array.from(new Set(peerReviews.map(r => r.revieweeId)));
+        
+        const activeRevieweeId = (selectedRevieweeId && revieweeIdsWithReviews.includes(selectedRevieweeId))
+          ? selectedRevieweeId
+          : (revieweeIdsWithReviews[0] as string);
+
+        const filteredPeerReviews = peerReviews.filter(r => r.revieweeId === activeRevieweeId);
+
+        return (
+        <div className="mt-8 border-t border-white/10 pt-8">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(45,212,168,0.15)", color: "var(--color-primary-bright)" }}>
+              <Star size={20} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white">Trip Member Reviews</h2>
+              <p className="text-sm text-gray-400">Personal peer reviews written by members of this trip.</p>
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-3 mb-6">
+            {revieweeIdsWithReviews.map(id => {
+              const reviewee = members.find(m => m.userId === id);
+              if (!reviewee) return null;
+              const isSelected = activeRevieweeId === id;
+              return (
+                <button
+                  key={id as string}
+                  onClick={() => setSelectedRevieweeId(id as string)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm transition-colors"
+                  style={{
+                    background: isSelected ? "rgba(45,212,168,0.15)" : "var(--color-bg-deep)",
+                    color: isSelected ? "var(--color-primary-bright)" : "var(--color-txt-secondary)",
+                    border: `1px solid ${isSelected ? "var(--color-primary)" : "var(--color-line)"}`
+                  }}
+                >
+                  {reviewee.profilePhotoUrl ? (
+                    <img src={reviewee.profilePhotoUrl} alt={reviewee.firstName} className="w-6 h-6 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: "var(--color-primary)", color: "#000" }}>
+                      {reviewee.firstName.charAt(0)}
+                    </div>
+                  )}
+                  {reviewee.firstName}
+                </button>
+              );
+            })}
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredPeerReviews.map((r, idx) => {
+              const reviewee = members.find(m => m.userId === r.revieweeId);
+              const revieweeName = reviewee ? `${reviewee.firstName} ${reviewee.lastName}` : "Unknown Member";
+              
+              return (
+                <div key={r.id || idx} className="p-5 rounded-2xl bg-gray-900/50 border border-gray-800/80 hover:border-gray-700 transition-colors">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-white">
+                        {r.reviewerFirstName} {r.reviewerLastName} <span className="text-gray-500 font-normal text-sm mx-1">reviewed</span> {revieweeName}
+                      </span>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ""}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Stars */}
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-3 font-medium text-gray-400">
+                    <div className="flex items-center gap-1">Punctuality: <span style={{ color: "#f0a030" }}>{r.punctualityRating}★</span></div>
+                    <div className="flex items-center gap-1">Vibe: <span style={{ color: "#f0a030" }}>{r.vibeRating}★</span></div>
+                    <div className="flex items-center gap-1">Communication: <span style={{ color: "#f0a030" }}>{r.communicationRating}★</span></div>
+                  </div>
+                  {r.textReview && (
+                    <p className="text-sm text-gray-300 leading-relaxed italic border-l-2 border-gray-700 pl-3">
+                      &quot;{r.textReview}&quot;
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        );
+      })()}
 
       {/* Creator badge */}
       {isCreator && (

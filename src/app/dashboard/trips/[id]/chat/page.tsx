@@ -209,6 +209,9 @@ export default function ChatPage() {
 
     setSending(true);
     setMessage("");
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+    }
 
     const stomp = stompClientRef.current;
     if (stomp?.connected) {
@@ -256,7 +259,8 @@ export default function ChatPage() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    if (e.key === "Enter" && !e.shiftKey && !isMobile) {
       e.preventDefault();
       handleSend();
     }

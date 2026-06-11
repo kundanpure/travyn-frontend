@@ -5,7 +5,7 @@ import VerifiedBadge from "../components/VerifiedBadge";
 import {
   User, Edit3, Save, X, Mountain, Landmark, Palette, PartyPopper, Wallet,
   Sun, Moon, Clock, Loader2, CheckCircle2, CheckCircle, AlertCircle, Laptop, Globe, UtensilsCrossed,
-  ChevronRight, Camera, Check, Plus, Shield, AlertTriangle
+  ChevronRight, Camera, Check, Plus, Shield, AlertTriangle, Star
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import api from "@/lib/api";

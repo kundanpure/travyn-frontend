@@ -93,7 +93,6 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<ProfileData>(emptyProfile);
   const [form, setForm] = useState<ProfileData>(emptyProfile);
   const [trustScore, setTrustScore] = useState<number | null>(null);
-  const [reviews, setReviews] = useState<any[]>([]);
   const [selectedGender, setSelectedGender] = useState<Gender | "">(user?.gender || "");
   const [showAvatarUpload, setShowAvatarUpload] = useState(false);
   const [showCoverUpload, setShowCoverUpload] = useState(false);
@@ -115,12 +114,6 @@ export default function ProfilePage() {
         const res = await api.get(`/users/${userId}/trust-score`);
         if (res.data && res.data.totalScore !== undefined) {
           setTrustScore(res.data.totalScore);
-        }
-        try {
-          const revRes = await api.get(`/users/${userId}/reviews`);
-          setReviews(revRes.data || []);
-        } catch (e) {
-          console.error("Failed to fetch reviews:", e);
         }
       }
     } catch (err) {
@@ -556,40 +549,6 @@ export default function ProfilePage() {
               {(profile.travelStyles || []).length > 0 && (
                 <StatCard icon={Mountain} label="Styles" value={(profile.travelStyles || []).map(s => s.replace(/_/g, " ")).join(", ")} />
               )}
-            </div>
-          )}
-
-          {/* View Mode: Past Reviews */}
-          {!editing && reviews.length > 0 && (
-            <div className="mt-8 pt-6 border-t border-white/10">
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: "var(--color-txt-white)" }}>
-                <Star size={18} style={{ color: "var(--color-primary)" }} /> Past Reviews
-              </h3>
-              <div className="space-y-4">
-                {reviews.map((r, idx) => (
-                  <div key={r.id || idx} className="p-4 rounded-xl" style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)" }}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-sm" style={{ color: "var(--color-primary-bright)" }}>
-                        {r.reviewerFirstName} {r.reviewerLastName}
-                      </span>
-                      <div className="text-xs" style={{ color: "var(--color-txt-muted)" }}>
-                        {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ""}
-                      </div>
-                    </div>
-                    {/* Stars */}
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-3 font-medium" style={{ color: "var(--color-txt-secondary)" }}>
-                      <div className="flex items-center gap-1">Punctuality: <span style={{ color: "#f0a030" }}>{r.punctualityRating}★</span></div>
-                      <div className="flex items-center gap-1">Vibe: <span style={{ color: "#f0a030" }}>{r.vibeRating}★</span></div>
-                      <div className="flex items-center gap-1">Communication: <span style={{ color: "#f0a030" }}>{r.communicationRating}★</span></div>
-                    </div>
-                    {r.textReview && (
-                      <p className="text-sm italic leading-relaxed pl-3 border-l-2" style={{ color: "var(--color-txt-muted)", borderColor: "var(--color-primary-bright)" }}>
-                        &quot;{r.textReview}&quot;
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
             </div>
           )}
         </div>

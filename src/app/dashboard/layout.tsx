@@ -59,8 +59,13 @@ function timeAgo(dateStr: string): string {
 
 function SearchInput() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams?.get("q") || "");
+
+  useEffect(() => {
+    setSearchQuery(searchParams?.get("q") || "");
+  }, [searchParams]);
 
   return (
     <div className="relative hidden sm:block">
@@ -76,10 +81,11 @@ function SearchInput() {
         onChange={(e) => setSearchQuery(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
+            const targetPath = pathname === "/dashboard/discover" ? "/dashboard/discover" : "/dashboard";
             if (searchQuery.trim()) {
-              router.push(`/dashboard?q=${encodeURIComponent(searchQuery.trim())}`);
+              router.push(`${targetPath}?q=${encodeURIComponent(searchQuery.trim())}`);
             } else {
-              router.push(`/dashboard`);
+              router.push(`${targetPath}`);
             }
           }
         }}

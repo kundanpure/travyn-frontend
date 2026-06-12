@@ -5,9 +5,10 @@ import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import {
   MapPin, Plus, Users, User, Calendar, Loader2, Crown, Mountain, Heart, Share2, Eye, Compass, Copy, Check,
-  CheckCircle, AlertTriangle
+  CheckCircle, AlertTriangle, Lightbulb, ArrowUp
 } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 interface TripCard {
   id: string;
@@ -42,22 +43,27 @@ interface MyTrip {
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
+  const searchParams = useSearchParams();
+  const q = searchParams.get("q") || "";
+
   const [discoveryTrips, setDiscoveryTrips] = useState<TripCard[]>([]);
   const [myTrips, setMyTrips] = useState<MyTrip[]>([]);
+  const [topInsights, setTopInsights] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   useEffect(() => {
-    // If user isn't loaded yet from the store, we can still fetch discovery trips,
-    // but re-fetch once the user ID is available to ensure we get their personal trips.
+    // Re-fetch when user or search query changes
     fetchData();
-  }, [user?.id]);
+  }, [user?.id, q]);
 
   const fetchData = async () => {
     try {
+      setLoading(true);
       // Fetch concurrently for speed, but handle errors individually
-      const discoveryPromise = api.get("/trips?status=OPEN&page=0&size=20").catch(e => {
+      const queryStr = q ? `&destination=${encodeURIComponent(q)}` : "";
+      const discoveryPromise = api.get(`/trips?status=OPEN&page=0&size=20${queryStr}`).catch(e => {
         console.error("Failed to fetch discovery trips", e);
         return { data: { content: [] } };
       });
@@ -67,7 +73,15 @@ export default function DashboardPage() {
         return { data: [] };
       });
 
-      const [discoveryRes, myTripsRes] = await Promise.all([discoveryPromise, myTripsPromise]);
+      let insightsPromise = Promise.resolve({ data: [] });
+      if (q) {
+        insightsPromise = api.get(`/destinations/${encodeURIComponent(q)}/insights`).catch(e => {
+          console.error("Failed to fetch insights", e);
+          return { data: [] };
+        });
+      }
+
+      const [discoveryRes, myTripsRes, insightsRes] = await Promise.all([discoveryPromise, myTripsPromise, insightsPromise]);
       
       const availableTrips = discoveryRes.data?.content || [];
       const myTripsData = myTripsRes.data || [];
@@ -81,6 +95,10 @@ export default function DashboardPage() {
       // Shuffle for discovery feed
       setDiscoveryTrips(filtered.sort(() => 0.5 - Math.random()));
       setMyTrips(myTripsData);
+      
+      // Set top 3 insights
+      const allInsights = insightsRes.data || [];
+      setTopInsights(allInsights.slice(0, 3));
     } finally {
       setLoading(false);
     }
@@ -172,9 +190,36 @@ export default function DashboardPage() {
         {/* Discovery Feed Header */}
         <div className="flex items-center justify-between px-2 mb-2">
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <Compass className="text-emerald-400" /> Discover Trips
+            <Compass className="text-emerald-400" /> {q ? `Trips to "${q}"` : "Discover Trips"}
           </h2>
         </div>
+
+        {/* Top Insights Banner */}
+        {q && topInsights.length > 0 && (
+          <div className="rounded-3xl border border-gray-800 bg-gray-900/50 p-5 mb-6">
+            <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+              <Lightbulb size={18} className="text-emerald-400" />
+              Top Insights for {q}
+            </h3>
+            <div className="space-y-3">
+              {topInsights.map(insight => (
+                <div key={insight.id} className="p-3 rounded-xl flex items-start gap-3 bg-white/5 border border-white/5">
+                  <div className="text-xl shrink-0 mt-1">
+                    {insight.category === "ALERT" ? "🚨" : insight.category === "PRO_TIP" ? "💡" : "🍽️"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-200 mb-1">{insight.content}</p>
+                    <div className="text-[10px] text-gray-500 flex items-center gap-2">
+                      <span className="font-semibold text-emerald-400">{insight.authorName}</span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1"><ArrowUp size={10}/> {insight.upvotes} upvotes</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* The Feed */}
         {discoveryTrips.length === 0 ? (

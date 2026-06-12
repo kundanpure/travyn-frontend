@@ -7,7 +7,7 @@ import {
   Loader2, CheckCircle2, XCircle, UserPlus, Crown, Copy, Check,
   Map, DollarSign, MessageCircle, Pencil, X, Save, IndianRupee,
   Mountain, Car, Landmark, Compass, Monitor, PartyPopper, ImagePlus, Star,
-  Hourglass, Eye, Navigation
+  Hourglass, Eye, Navigation, Lightbulb, ArrowUp
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
@@ -127,6 +127,12 @@ export default function TripDetailPage() {
   const [selectedRevieweeId, setSelectedRevieweeId] = useState<string>("");
   const [reviewWindow, setReviewWindow] = useState<ReviewWindow | null>(null);
 
+  // Insights State
+  const [destinationInsights, setDestinationInsights] = useState<any[]>([]);
+  const [showInsightModal, setShowInsightModal] = useState(false);
+  const [insightForm, setInsightForm] = useState({ category: "ALERT", content: "" });
+  const [insightLoading, setInsightLoading] = useState(false);
+
   // Edit state
   const [editing, setEditing] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
@@ -212,6 +218,15 @@ export default function TripDetailPage() {
         setPeerReviews(peerReviewsRes.data || []);
       } catch (err) {
         console.error("Failed to load peer reviews", err);
+      }
+
+      try {
+        if (tripRes.data.destination) {
+          const insightsRes = await api.get(`/destinations/${tripRes.data.destination}/insights`);
+          setDestinationInsights(insightsRes.data || []);
+        }
+      } catch (err) {
+        console.error("Failed to load insights", err);
       }
 
       // Fetch review window if completed
@@ -326,6 +341,36 @@ export default function TripDetailPage() {
       setEditSaving(false);
     }
   };
+
+  async function handlePostInsight(e: React.FormEvent) {
+    e.preventDefault();
+    if (!insightForm.content.trim() || !trip?.destination) return;
+    setInsightLoading(true);
+    try {
+      const res = await api.post(`/destinations/${trip.destination}/insights`, {
+        category: insightForm.category,
+        content: insightForm.content
+      });
+      setDestinationInsights([res.data, ...destinationInsights]);
+      setShowInsightModal(false);
+      setInsightForm({ category: "ALERT", content: "" });
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to post insight. Make sure you are an approved member of a trip to this destination.");
+    } finally {
+      setInsightLoading(false);
+    }
+  }
+
+  async function handleUpvoteInsight(insightId: string) {
+    try {
+      await api.post(`/destinations/insights/${insightId}/upvote`);
+      setDestinationInsights(prev => 
+        prev.map(ins => ins.id === insightId ? { ...ins, upvotes: ins.upvotes + 1 } : ins)
+      );
+    } catch (err) {
+      console.error("Failed to upvote", err);
+    }
+  }
 
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
@@ -563,6 +608,58 @@ export default function TripDetailPage() {
           ))}
         </div>
       )}
+
+      {/* ─────────── DESTINATION INSIGHTS ─────────── */}
+      <div className="rounded-xl p-5" style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Lightbulb size={20} style={{ color: "var(--color-primary)" }} />
+            <h3 className="text-sm font-semibold" style={{ color: "var(--color-txt-white)" }}>Insights for {trip.destination}</h3>
+          </div>
+          <button 
+            onClick={() => setShowInsightModal(true)}
+            className="text-xs font-medium px-3 py-1 rounded-full transition-colors hover:bg-white/10"
+            style={{ color: "var(--color-primary)", border: "1px solid var(--color-primary)" }}
+          >
+            + Share Insight
+          </button>
+        </div>
+        
+        {destinationInsights.length === 0 ? (
+          <p className="text-xs text-center py-4" style={{ color: "var(--color-txt-muted)" }}>No insights for this destination yet. Be the first to share a tip!</p>
+        ) : (
+          <div className="space-y-3">
+            {destinationInsights.map(insight => (
+              <div key={insight.id} className="p-3 rounded-lg flex items-start gap-3 transition-colors" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--color-line)" }}>
+                <div className="text-xl mt-1 shrink-0">
+                  {insight.category === "ALERT" ? "🚨" : insight.category === "PRO_TIP" ? "💡" : "🍽️"}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    {insight.authorAvatarUrl ? (
+                      <img src={insight.authorAvatarUrl} alt={insight.authorName} className="w-4 h-4 rounded-full" />
+                    ) : (
+                      <div className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold" style={{ background: "var(--color-primary)", color: "#000" }}>
+                        {insight.authorName.charAt(0)}
+                      </div>
+                    )}
+                    <span className="text-xs font-semibold" style={{ color: "var(--color-txt-secondary)" }}>{insight.authorName}</span>
+                    <span className="text-[10px]" style={{ color: "var(--color-txt-muted)" }}>• {new Date(insight.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <p className="text-sm leading-relaxed" style={{ color: "var(--color-txt-white)" }}>{insight.content}</p>
+                </div>
+                <button 
+                  onClick={() => handleUpvoteInsight(insight.id)}
+                  className="flex flex-col items-center justify-center shrink-0 w-8 h-8 rounded-md hover:bg-white/5 transition-colors"
+                >
+                  <ArrowUp size={14} style={{ color: "var(--color-txt-muted)" }} className="mb-0.5" />
+                  <span className="text-[10px] font-medium" style={{ color: "var(--color-txt-muted)" }}>{insight.upvotes}</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Join Action */}
       {!isCreator && !myMembership && trip.status === "OPEN" && new Date(trip.startDate) > new Date() && (
@@ -1323,6 +1420,56 @@ export default function TripDetailPage() {
             fetchTrip();
           }}
         />
+      )}
+      {/* ─────────── POST INSIGHT MODAL ─────────── */}
+      {showInsightModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowInsightModal(false)} />
+          <div
+            className="relative w-full max-w-md mx-4 rounded-2xl shadow-2xl overflow-hidden p-6"
+            style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold" style={{ color: "var(--color-txt-white)" }}>Share Insight for {trip?.destination}</h3>
+              <button onClick={() => setShowInsightModal(false)} className="text-gray-400 hover:text-white transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handlePostInsight} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium mb-2" style={{ color: "var(--color-txt-secondary)" }}>Category</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button type="button" onClick={() => setInsightForm({...insightForm, category: "ALERT"})} className="p-2 rounded-lg text-xs font-medium border flex items-center justify-center gap-1 transition-colors" style={{ borderColor: insightForm.category === "ALERT" ? "#ef4444" : "var(--color-line)", background: insightForm.category === "ALERT" ? "rgba(239,68,68,0.1)" : "transparent", color: insightForm.category === "ALERT" ? "#ef4444" : "var(--color-txt-secondary)" }}>
+                    🚨 Alert
+                  </button>
+                  <button type="button" onClick={() => setInsightForm({...insightForm, category: "PRO_TIP"})} className="p-2 rounded-lg text-xs font-medium border flex items-center justify-center gap-1 transition-colors" style={{ borderColor: insightForm.category === "PRO_TIP" ? "var(--color-primary)" : "var(--color-line)", background: insightForm.category === "PRO_TIP" ? "rgba(45,212,168,0.1)" : "transparent", color: insightForm.category === "PRO_TIP" ? "var(--color-primary-bright)" : "var(--color-txt-secondary)" }}>
+                    💡 Pro Tip
+                  </button>
+                  <button type="button" onClick={() => setInsightForm({...insightForm, category: "RECOMMENDATION"})} className="p-2 rounded-lg text-xs font-medium border flex items-center justify-center gap-1 transition-colors" style={{ borderColor: insightForm.category === "RECOMMENDATION" ? "#f472b6" : "var(--color-line)", background: insightForm.category === "RECOMMENDATION" ? "rgba(244,114,182,0.1)" : "transparent", color: insightForm.category === "RECOMMENDATION" ? "#f472b6" : "var(--color-txt-secondary)" }}>
+                    🍽️ Recommed
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-2" style={{ color: "var(--color-txt-secondary)" }}>Insight</label>
+                <textarea
+                  className="t-input w-full min-h-[100px] resize-y text-sm"
+                  placeholder="Share a tip or alert about this destination..."
+                  value={insightForm.content}
+                  onChange={e => setInsightForm({...insightForm, content: e.target.value})}
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={insightLoading || !insightForm.content.trim()}
+                className="t-btn-primary w-full"
+              >
+                {insightLoading ? <Loader2 size={18} className="animate-spin mx-auto" /> : "Post Insight"}
+              </button>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

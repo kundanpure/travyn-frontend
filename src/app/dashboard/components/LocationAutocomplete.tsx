@@ -87,8 +87,7 @@ export default function LocationAutocomplete({ value = "", onChange, onSelect, p
         onChange={(e) => {
           setIsTyping(true);
           setQuery(e.target.value);
-          // If they clear the input, clear the actual value too
-          if (e.target.value === "" && onChange) onChange("");
+          if (onChange) onChange(e.target.value);
         }}
         onFocus={() => {
           if (results.length > 0) setIsOpen(true);

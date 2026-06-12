@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Compass,
   LayoutDashboard,
@@ -60,6 +60,7 @@ function timeAgo(dateStr: string): string {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, logout } = useAuthStore();
   
   // Register service worker and subscribe to web push notifications
@@ -69,6 +70,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [kycBannerDismissed, setKycBannerDismissed] = useState(true);
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
 
   const isVerified = user?.isVerified ?? user?.status === "KYC_VERIFIED";
 
@@ -349,7 +351,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 />
                 <input
                   type="text"
-                  placeholder="Search trips, travelers..."
+                  placeholder="Search destinations..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      if (searchQuery.trim()) {
+                        router.push(`/dashboard?q=${encodeURIComponent(searchQuery.trim())}`);
+                      } else {
+                        router.push(`/dashboard`);
+                      }
+                    }
+                  }}
                   className="t-input"
                   style={{
                     paddingLeft: "36px",

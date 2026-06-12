@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, ArrowRight, Check, Loader2, MapPin, Calendar, Users,
   Mountain, Crown, Car, Landmark, Compass, Monitor, PartyPopper,
-  Shield, Heart, Zap, Eye, AlertTriangle, IndianRupee, ImagePlus
+  Shield, Heart, Zap, Eye, AlertTriangle, IndianRupee, ImagePlus, Lightbulb, ArrowUp
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
@@ -36,6 +36,7 @@ export default function CreateTripPage() {
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<ValidationError[]>([]);
   const [showUpload, setShowUpload] = useState(false);
+  const [destinationInsights, setDestinationInsights] = useState<any[]>([]);
   const { user } = useAuthStore();
 
   const [form, setForm] = useState({
@@ -55,6 +56,19 @@ export default function CreateTripPage() {
   });
 
   const budgetError = form.minBudget && form.maxBudget && Number(form.minBudget) > Number(form.maxBudget);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (form.destination && form.destination.length >= 2) {
+        api.get(`/destinations/${encodeURIComponent(form.destination)}/insights`)
+          .then(res => setDestinationInsights(res.data.slice(0, 3))) // show top 3 insights
+          .catch(err => console.error("Failed to fetch insights", err));
+      } else {
+        setDestinationInsights([]);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [form.destination]);
 
   const canNext = () => {
     if (step === 0) return form.title && form.destination && form.startDate && form.endDate && form.tripType && !budgetError;
@@ -167,6 +181,33 @@ export default function CreateTripPage() {
                 value={form.destination}
                 onChange={(val) => setForm({ ...form, destination: val })}
               />
+
+              {/* Pre-trip Briefing */}
+              {form.destination && destinationInsights.length > 0 && (
+                <div className="rounded-xl border border-emerald-900/30 bg-emerald-900/10 p-4 mt-4">
+                  <h3 className="text-xs font-bold text-emerald-400 mb-3 flex items-center gap-2">
+                    <Lightbulb size={14} />
+                    Pre-Trip Briefing for {form.destination}
+                  </h3>
+                  <div className="space-y-2">
+                    {destinationInsights.map(insight => (
+                      <div key={insight.id} className="p-2.5 rounded-lg flex items-start gap-2.5 bg-black/20">
+                        <div className="text-sm shrink-0">
+                          {insight.category === "ALERT" ? "🚨" : insight.category === "PRO_TIP" ? "💡" : "🍽️"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-gray-300 mb-1 leading-snug">{insight.content}</p>
+                          <div className="text-[9px] text-gray-500 flex items-center gap-2">
+                            <span className="font-semibold text-emerald-500/80">{insight.authorName}</span>
+                            <span>•</span>
+                            <span className="flex items-center gap-0.5"><ArrowUp size={8}/> {insight.upvotes}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">

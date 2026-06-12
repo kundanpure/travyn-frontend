@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { Suspense, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -57,10 +57,47 @@ function timeAgo(dateStr: string): string {
   return `${diffDays}d ago`;
 }
 
+function SearchInput() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams?.get("q") || "");
+
+  return (
+    <div className="relative hidden sm:block">
+      <Search
+        size={16}
+        className="absolute left-3 top-1/2 -translate-y-1/2"
+        style={{ color: "var(--color-txt-muted)" }}
+      />
+      <input
+        type="text"
+        placeholder="Search destinations..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            if (searchQuery.trim()) {
+              router.push(`/dashboard?q=${encodeURIComponent(searchQuery.trim())}`);
+            } else {
+              router.push(`/dashboard`);
+            }
+          }
+        }}
+        className="t-input"
+        style={{
+          paddingLeft: "36px",
+          width: "280px",
+          padding: "8px 12px 8px 36px",
+          fontSize: "0.85rem",
+        }}
+      />
+    </div>
+  );
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { user, logout } = useAuthStore();
   
   // Register service worker and subscribe to web push notifications
@@ -70,7 +107,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [kycBannerDismissed, setKycBannerDismissed] = useState(true);
-  const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
 
   const isVerified = user?.isVerified ?? user?.status === "KYC_VERIFIED";
 
@@ -343,35 +379,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <button className="lg:hidden" onClick={() => setSidebarOpen(true)} style={{ background: "none", border: "none", cursor: "pointer" }}>
                 <Menu size={22} style={{ color: "var(--color-txt-primary)" }} />
               </button>
-              <div className="relative hidden sm:block">
-                <Search
-                  size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2"
-                  style={{ color: "var(--color-txt-muted)" }}
-                />
-                <input
-                  type="text"
-                  placeholder="Search destinations..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      if (searchQuery.trim()) {
-                        router.push(`/dashboard?q=${encodeURIComponent(searchQuery.trim())}`);
-                      } else {
-                        router.push(`/dashboard`);
-                      }
-                    }
-                  }}
-                  className="t-input"
-                  style={{
-                    paddingLeft: "36px",
-                    width: "280px",
-                    padding: "8px 12px 8px 36px",
-                    fontSize: "0.85rem",
-                  }}
-                />
-              </div>
+              <Suspense fallback={<div className="w-[280px] h-10 bg-gray-800 rounded-lg animate-pulse" />}>
+                <SearchInput />
+              </Suspense>
             </div>
 
             <div className="flex items-center gap-3">

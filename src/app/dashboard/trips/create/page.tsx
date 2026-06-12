@@ -193,7 +193,7 @@ export default function CreateTripPage() {
                     {destinationInsights.map(insight => (
                       <div key={insight.id} className="p-2.5 rounded-lg flex items-start gap-2.5 bg-black/20">
                         <div className="text-sm shrink-0">
-                          {insight.category === "ALERT" ? "🚨" : insight.category === "PRO_TIP" ? "💡" : "🍽️"}
+                          {insight.category === "ALERT" ? "🚨" : insight.category === "PRO_TIP" ? "💡" : "⭐"}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs text-gray-300 mb-1 leading-snug">{insight.content}</p>

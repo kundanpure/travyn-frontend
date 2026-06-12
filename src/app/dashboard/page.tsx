@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuthStore } from "@/stores/auth-store";
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import api from "@/lib/api";
 import {
   MapPin, Plus, Users, User, Calendar, Loader2, Crown, Mountain, Heart, Share2, Eye, Compass, Copy, Check,
@@ -20,8 +20,14 @@ interface TripCard {
   coverImageUrl?: string;
   creatorId: string;
   creatorName: string;
-  availableSpots: number;
+  creatorAvatar?: string;
+  memberCount: number;
   maxSize: number;
+  tags: string[];
+  status: string;
+  memberStatus?: string;
+  memberRole?: string;
+  availableSpots: number;
   womenOnly: boolean;
   description: string;
   tripCode: string;
@@ -41,7 +47,7 @@ interface MyTrip {
   memberStatus: string;
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
   const { user } = useAuthStore();
   const searchParams = useSearchParams();
   const q = searchParams.get("q") || "";
@@ -205,7 +211,7 @@ export default function DashboardPage() {
               {topInsights.map(insight => (
                 <div key={insight.id} className="p-3 rounded-xl flex items-start gap-3 bg-white/5 border border-white/5">
                   <div className="text-xl shrink-0 mt-1">
-                    {insight.category === "ALERT" ? "🚨" : insight.category === "PRO_TIP" ? "💡" : "🍽️"}
+                    {insight.category === "ALERT" ? "🚨" : insight.category === "PRO_TIP" ? "💡" : "⭐"}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-200 mb-1">{insight.content}</p>
@@ -385,5 +391,13 @@ export default function DashboardPage() {
       </div>
 
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="flex-1 flex items-center justify-center min-h-[50vh]"><Loader2 className="animate-spin text-emerald-500" size={32} /></div>}>
+      <DashboardContent />
+    </Suspense>
   );
 }

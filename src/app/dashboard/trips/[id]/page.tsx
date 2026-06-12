@@ -632,7 +632,7 @@ export default function TripDetailPage() {
             {destinationInsights.map(insight => (
               <div key={insight.id} className="p-3 rounded-lg flex items-start gap-3 transition-colors" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--color-line)" }}>
                 <div className="text-xl mt-1 shrink-0">
-                  {insight.category === "ALERT" ? "🚨" : insight.category === "PRO_TIP" ? "💡" : "🍽️"}
+                  {insight.category === "ALERT" ? "🚨" : insight.category === "PRO_TIP" ? "💡" : "⭐"}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
@@ -1446,7 +1446,7 @@ export default function TripDetailPage() {
                     💡 Pro Tip
                   </button>
                   <button type="button" onClick={() => setInsightForm({...insightForm, category: "RECOMMENDATION"})} className="p-2 rounded-lg text-xs font-medium border flex items-center justify-center gap-1 transition-colors" style={{ borderColor: insightForm.category === "RECOMMENDATION" ? "#f472b6" : "var(--color-line)", background: insightForm.category === "RECOMMENDATION" ? "rgba(244,114,182,0.1)" : "transparent", color: insightForm.category === "RECOMMENDATION" ? "#f472b6" : "var(--color-txt-secondary)" }}>
-                    🍽️ Recommed
+                    ⭐ Recommed
                   </button>
                 </div>
               </div>

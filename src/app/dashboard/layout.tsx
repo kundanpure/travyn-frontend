@@ -81,11 +81,10 @@ function SearchInput() {
         onChange={(e) => setSearchQuery(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
-            const targetPath = pathname === "/dashboard/discover" ? "/dashboard/discover" : "/dashboard";
             if (searchQuery.trim()) {
-              router.push(`${targetPath}?q=${encodeURIComponent(searchQuery.trim())}`);
+              router.push(`/dashboard?q=${encodeURIComponent(searchQuery.trim())}`);
             } else {
-              router.push(`${targetPath}`);
+              router.push(`/dashboard`);
             }
           }
         }}

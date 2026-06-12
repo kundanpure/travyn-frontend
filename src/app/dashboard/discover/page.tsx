@@ -50,6 +50,11 @@ export default function DiscoverPage() {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
 
+  useEffect(() => {
+    fetchTrips(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tripType, statusFilter]);
+
   const fetchTrips = async (reset = true) => {
     setLoading(true);
     try {

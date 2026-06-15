@@ -11,7 +11,6 @@ import {
   compressImage,
   getCroppedImg,
   uploadToSupabase,
-  generateUploadPath,
 } from "@/lib/upload";
 import type { UploadProgress } from "@/lib/upload";
 
@@ -101,8 +100,7 @@ export default function ImageUploadModal({
       const compressed = await compressImage(file);
 
       setProgress({ stage: "uploading", percent: 60, message: "Uploading to cloud..." });
-      const path = generateUploadPath(userId, bucket, file.name);
-      const result = await uploadToSupabase(bucket, path, compressed);
+      const result = await uploadToSupabase(bucket, { name: file.name, blob: compressed });
 
       setProgress({ stage: "done", percent: 100, message: "Upload complete!" });
       setTimeout(() => onUploadComplete(result.url), 600);
@@ -132,8 +130,7 @@ export default function ImageUploadModal({
       const compressed = await compressImage(croppedFile);
 
       setProgress({ stage: "uploading", percent: 70, message: "Uploading to cloud..." });
-      const path = generateUploadPath(userId, bucket, selectedFile.name);
-      const result = await uploadToSupabase(bucket, path, compressed);
+      const result = await uploadToSupabase(bucket, { name: selectedFile.name, blob: compressed });
 
       setProgress({ stage: "done", percent: 100, message: "Upload complete!" });
       setTimeout(() => onUploadComplete(result.url), 600);

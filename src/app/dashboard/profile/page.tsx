@@ -86,7 +86,7 @@ const emptyProfile: ProfileData = {
 };
 
 export default function ProfilePage() {
-  const { user, setAuth } = useAuthStore();
+  const { user, setUser } = useAuthStore();
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -260,6 +260,7 @@ export default function ProfilePage() {
       const safe = sanitize(res.data);
       setProfile(safe);
       setForm(safe);
+      if (user) setUser({ ...user, profilePhotoUrl: url });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch {

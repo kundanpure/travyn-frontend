@@ -22,17 +22,35 @@ export async function POST(request: NextRequest) {
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
+    // 1. Enforce Authentication
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const bucket = formData.get("bucket") as string | null;
-    const path = formData.get("path") as string | null;
 
-    if (!file || !bucket || !path) {
+    if (!file || !bucket) {
       return NextResponse.json(
-        { error: "Missing required fields: file, bucket, path" },
+        { error: "Missing required fields: file, bucket" },
         { status: 400 }
       );
     }
+
+    // 2. Whitelist allowed buckets
+    const allowedBuckets = ["avatars", "covers", "chat-images", "profile-photos", "trip-covers"];
+    if (!allowedBuckets.includes(bucket)) {
+      return NextResponse.json(
+        { error: "Invalid bucket specified" },
+        { status: 400 }
+      );
+    }
+
+    // 3. Generate file path securely server-side
+    const extension = file.name.split(".").pop() || "bin";
+    const path = `${crypto.randomUUID()}_${Date.now()}.${extension}`;
 
     // Validate file type
     const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];

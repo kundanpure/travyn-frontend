@@ -37,36 +37,32 @@ export async function compressImage(
   }
 }
 
-// ─── Path Generation ─────────────────────────────────────────
-export function generateUploadPath(
-  userId: string,
-  bucket: string,
-  originalName: string
-): string {
-  const timestamp = Date.now();
-  const ext = originalName.split(".").pop()?.toLowerCase() || "jpg";
-  const safeName = originalName
-    .replace(/\.[^/.]+$/, "")
-    .replace(/[^a-zA-Z0-9-_]/g, "_")
-    .slice(0, 30);
-  return `${userId}/${safeName}_${timestamp}.${ext}`;
-}
 
 // ─── Upload via Secure Server Route ──────────────────────────
 // Uploads go through /api/upload (Next.js server route) so the
 // Supabase service key never touches the browser.
 export async function uploadToSupabase(
   bucket: string,
-  path: string,
-  blob: Blob
+  fileInfo: { name: string; blob: Blob }
 ): Promise<UploadResult> {
   const formData = new FormData();
-  formData.append("file", blob, path.split("/").pop() || "upload.jpg");
+  formData.append("file", fileInfo.blob, fileInfo.name);
   formData.append("bucket", bucket);
-  formData.append("path", path);
+
+  // Retrieve auth state from localStorage
+  const stored = localStorage.getItem("travyn-auth");
+  let token = "";
+  if (stored) {
+    try {
+      token = JSON.parse(stored).state?.accessToken || "";
+    } catch (e) {}
+  }
 
   const response = await fetch("/api/upload", {
     method: "POST",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: formData,
   });
 
@@ -103,11 +99,9 @@ export async function uploadImage(
       message: "Uploading to cloud...",
     });
 
-    const path = generateUploadPath(userId, bucket, file.name);
     const result = await uploadToSupabase(
       bucket,
-      path,
-      compressed
+      { name: file.name, blob: compressed }
     );
 
     onProgress?.({

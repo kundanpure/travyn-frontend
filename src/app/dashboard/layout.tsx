@@ -227,7 +227,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!notif.read) markAsRead(notif.id);
     setNotifOpen(false);
     if (notif.referenceId) {
-      if (notif.type === "JOIN_APPROVED" || notif.type === "JOIN_REJECTED" || notif.type === "JOIN_REQUEST") {
+      if (notif.type === "JOIN_APPROVED" || notif.type === "JOIN_REJECTED" || notif.type === "JOIN_REQUEST" || notif.type.includes("REVIEW")) {
         router.push(`/dashboard/trips/${notif.referenceId}`);
       } else if (notif.type === "DIRECT_MESSAGE") {
         router.push(`/dashboard/messages?partnerId=${notif.referenceId}`);

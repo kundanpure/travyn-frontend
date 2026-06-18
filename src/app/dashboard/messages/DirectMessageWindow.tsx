@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ArrowLeft, Send, Loader2, Wifi, WifiOff, MessageCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
 import { Client } from "@stomp/stompjs";
@@ -19,7 +20,7 @@ interface DirectMessage {
   content: string;
   messageType: "TEXT" | "SYSTEM" | "IMAGE";
   isRead: boolean;
-  createdAt: any;
+  createdAt: string | number | number[] | { epochSecond?: number; nano?: number };
 }
 
 function parseDate(d: any): Date | null {
@@ -47,7 +48,7 @@ function parseDate(d: any): Date | null {
   return isNaN(date.getTime()) ? null : date;
 }
 
-function formatTime(d: string | number | null | undefined): string {
+function formatTime(d: string | number | number[] | { epochSecond?: number; nano?: number } | null | undefined): string {
   const date = parseDate(d);
   if (!date) return "";
   return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
@@ -70,6 +71,7 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
   const [sending, setSending] = useState(false);
   const [stompConnected, setStompConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<string>("NONE");
+  const [errorMsg, setErrorMsg] = useState("");
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const stompClientRef = useRef<Client | null>(null);
@@ -212,6 +214,8 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
       setTimeout(scrollToBottom, 100);
     } catch (err) {
       console.error("Failed to send message", err);
+      setErrorMsg("Failed to send message. Please try again.");
+      setTimeout(() => setErrorMsg(""), 3000);
       scrollToBottom();
       
       // If this was our first message, update status to PENDING_SENT
@@ -368,7 +372,19 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
       </div>
 
       {/* Input Area / Status Banners */}
-      <div className="p-4 bg-zinc-900 border-t border-white/10 shrink-0">
+      <div className="p-4 bg-zinc-900 border-t border-white/10 shrink-0 relative">
+        <AnimatePresence>
+          {errorMsg && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="absolute -top-12 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-xl text-sm shadow-lg border border-red-400 font-medium whitespace-nowrap"
+            >
+              {errorMsg}
+            </motion.div>
+          )}
+        </AnimatePresence>
         {connectionStatus === "PENDING_RECEIVED" ? (
           <div className="bg-zinc-800 rounded-2xl p-4 text-center border border-white/10 shadow-lg">
             <p className="text-zinc-300 text-sm mb-4">

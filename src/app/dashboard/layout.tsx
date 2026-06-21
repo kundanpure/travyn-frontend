@@ -7,7 +7,6 @@ import {
   Compass,
   LayoutDashboard,
   Map,
-  MapPin,
   MessageCircle,
   Users,
   Shield,
@@ -25,6 +24,7 @@ import {
   XCircle,
   AlertTriangle,
   ArrowRight,
+  Plus,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useNotificationStore } from "@/stores/notification-store";
@@ -32,10 +32,12 @@ import { useWebPush } from "@/hooks/useWebPush";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import SafetyCheckModal from "./components/SafetyCheckModal";
+import ThemeToggle from "./components/ThemeToggle";
 
-const navItems = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/dashboard/discover", icon: Compass, label: "Discover Trips" },
+/* ── Nav definitions ── */
+const sidebarNav = [
+  { href: "/dashboard", icon: LayoutDashboard, label: "Home" },
+  { href: "/dashboard/discover", icon: Compass, label: "Discover" },
   { href: "/dashboard/my-trips", icon: Map, label: "My Trips" },
   { href: "/dashboard/messages", icon: MessageCircle, label: "Messages" },
   { href: "/dashboard/matches", icon: Users, label: "Matches" },
@@ -44,6 +46,15 @@ const navItems = [
   { href: "/dashboard/settings", icon: Settings, label: "Settings" },
 ];
 
+const mobileNav = [
+  { href: "/dashboard", icon: LayoutDashboard, label: "Home" },
+  { href: "/dashboard/discover", icon: Compass, label: "Discover" },
+  { href: "/dashboard/trips/create", icon: Plus, label: "Create", isCreate: true },
+  { href: "/dashboard/messages", icon: MessageCircle, label: "Messages" },
+  { href: "/dashboard/profile", icon: User, label: "Profile" },
+];
+
+/* ── Helpers ── */
 function timeAgo(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
@@ -59,20 +70,19 @@ function timeAgo(dateStr: string): string {
 
 function SearchInput() {
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState(searchParams?.get("q") || "");
+  const [searchQuery, setSearchQuery] = useState(searchParams?.get("destination") || searchParams?.get("q") || "");
 
   useEffect(() => {
-    setSearchQuery(searchParams?.get("q") || "");
+    setSearchQuery(searchParams?.get("destination") || searchParams?.get("q") || "");
   }, [searchParams]);
 
   return (
-    <div className="relative hidden sm:block">
+    <div className="relative flex-1 max-w-md">
       <Search
         size={16}
         className="absolute left-3 top-1/2 -translate-y-1/2"
-        style={{ color: "var(--color-txt-muted)" }}
+        style={{ color: "var(--text-muted)" }}
       />
       <input
         type="text"
@@ -82,30 +92,30 @@ function SearchInput() {
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             if (searchQuery.trim()) {
-              router.push(`/dashboard?q=${encodeURIComponent(searchQuery.trim())}`);
+              router.push(`/dashboard/discover?destination=${encodeURIComponent(searchQuery.trim())}`);
             } else {
-              router.push(`/dashboard`);
+              router.push(`/dashboard/discover`);
             }
           }
         }}
         className="t-input"
         style={{
-          paddingLeft: "36px",
-          width: "280px",
-          padding: "8px 12px 8px 36px",
-          fontSize: "0.85rem",
+          paddingLeft: "38px",
+          padding: "9px 14px 9px 38px",
+          fontSize: "0.875rem",
+          borderRadius: "var(--radius-full)",
         }}
       />
     </div>
   );
 }
 
+/* ── Main Layout ── */
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
-  
-  // Register service worker and subscribe to web push notifications
+
   useWebPush(user);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -115,7 +125,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const isVerified = user?.isVerified ?? user?.status === "KYC_VERIFIED";
 
-  // Show KYC banner if not verified and not dismissed this session
   useEffect(() => {
     if (typeof window !== "undefined") {
       const dismissed = sessionStorage.getItem("travyn-kyc-banner-dismissed");
@@ -127,7 +136,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setKycBannerDismissed(true);
     sessionStorage.setItem("travyn-kyc-banner-dismissed", "true");
   };
+
   const notifRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const stompRef = useRef<Client | null>(null);
 
   const {
@@ -145,7 +156,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push("/login");
   };
 
-  // Fetch notifications on mount
   useEffect(() => {
     fetchNotifications();
     fetchUnreadCount();
@@ -154,17 +164,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // WebSocket subscription for real-time notifications
   useEffect(() => {
     if (!user?.id) return;
-
     const stored = localStorage.getItem("travyn-auth");
     if (!stored) return;
-
     let token = "";
     try {
       const { state } = JSON.parse(stored);
       token = state?.accessToken || "";
-    } catch {
-      return;
-    }
+    } catch { return; }
     if (!token) return;
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
@@ -172,51 +178,44 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     const client = new Client({
       webSocketFactory: () => new SockJS(`${wsBaseUrl}/ws`),
-      connectHeaders: {
-        Authorization: `Bearer ${token}`,
-      },
+      connectHeaders: { Authorization: `Bearer ${token}` },
       reconnectDelay: 5000,
       heartbeatIncoming: 10000,
       heartbeatOutgoing: 10000,
-
       onConnect: () => {
         client.subscribe(`/topic/user.${user.id}.notifications`, (frame) => {
           try {
             const notification = JSON.parse(frame.body);
-            
-            // If the user is actively looking at this specific chat, silently mark the notification as read instead of showing it
             if (notification.type === "DIRECT_MESSAGE" && typeof window !== "undefined") {
               const urlParams = new URLSearchParams(window.location.search);
               const isLookingAtChat = window.location.pathname === "/dashboard/messages" && urlParams.get("partnerId") === notification.referenceId;
-              
               if (isLookingAtChat && document.visibilityState === "visible") {
-                 markAsRead(notification.id);
-                 return;
+                markAsRead(notification.id);
+                return;
               }
             }
-            
             addNotification(notification);
-          } catch {
-            // ignore parse errors
-          }
+          } catch { /* ignore parse errors */ }
         });
       },
     });
 
     client.activate();
     stompRef.current = client;
-
     return () => {
       client.deactivate();
       stompRef.current = null;
     };
   }, [user?.id, addNotification]);
 
-  // Close notification dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setNotifOpen(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClick);
@@ -241,62 +240,84 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   };
 
+  const isActive = (href: string) => {
+    if (href === "/dashboard") return pathname === "/dashboard";
+    return pathname.startsWith(href);
+  };
+
   return (
-    <div className="min-h-screen flex" style={{ background: "var(--color-bg-deep)" }}>
-      {/* Sidebar — Desktop */}
+    <div className="min-h-screen flex" style={{ background: "var(--bg-primary)" }}>
+
+      {/* ═══════════ DESKTOP SIDEBAR ═══════════ */}
       <aside
-        className="hidden lg:flex flex-col w-64 fixed top-0 left-0 h-full z-40"
+        className="hidden lg:flex flex-col w-[240px] fixed top-0 left-0 h-full z-40"
         style={{
-          background: "var(--color-bg-surface)",
-          borderRight: "1px solid var(--color-line)",
+          background: "var(--bg-sidebar)",
+          borderRight: "1px solid var(--border)",
         }}
       >
         {/* Logo */}
-        <div className="p-6 flex items-center gap-2">
+        <div className="px-5 py-5 flex items-center gap-2.5">
           <div
             style={{
-              width: 28,
-              height: 28,
-              borderRadius: 8,
+              width: 32,
+              height: 32,
+              borderRadius: 10,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              background: "linear-gradient(135deg, var(--color-primary), var(--color-primary-dim))",
+              background: "var(--brand)",
             }}
           >
-            <Compass size={16} color="#06080c" />
+            <Compass size={18} color="white" />
           </div>
-          <span className="t-gradient-text" style={{ fontSize: "1.2rem", fontFamily: "var(--font-family-display)", fontWeight: 700 }}>Travyn</span>
+          <span
+            style={{
+              fontSize: "1.25rem",
+              fontFamily: "var(--font-family-display)",
+              fontWeight: 700,
+              color: "var(--text-primary)",
+            }}
+          >
+            Travyn
+          </span>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-2 space-y-1">
-          {navItems.map(({ href, icon: Icon, label }) => {
-            const active = pathname === href;
+        {/* Nav Links */}
+        <nav className="flex-1 px-3 py-2 space-y-0.5">
+          {sidebarNav.map(({ href, icon: Icon, label }) => {
+            const active = isActive(href);
             return (
               <Link
                 key={href}
                 href={href}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150"
                 style={{
-                  background: active ? "rgba(45, 212, 168, 0.1)" : "transparent",
-                  color: active ? "var(--color-primary-bright)" : "var(--color-txt-secondary)",
-                  borderLeft: active ? "3px solid var(--color-primary)" : "3px solid transparent",
+                  background: active ? "var(--brand-light)" : "transparent",
+                  color: active ? "var(--brand)" : "var(--text-secondary)",
                 }}
               >
-                <Icon size={18} />
+                <Icon size={18} style={{ opacity: active ? 1 : 0.7 }} />
                 {label}
               </Link>
             );
           })}
         </nav>
 
-        {/* Bottom */}
-        <div className="p-4" style={{ borderTop: "1px solid var(--color-line)" }}>
+        {/* Bottom Section */}
+        <div className="px-3 py-4 space-y-2" style={{ borderTop: "1px solid var(--border)" }}>
+          <div className="flex items-center justify-between px-3">
+            <ThemeToggle size={16} />
+          </div>
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm w-full transition-colors"
-            style={{ color: "var(--color-txt-muted)", background: "none", border: "none", cursor: "pointer" }}
+            style={{
+              color: "var(--text-muted)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+            }}
           >
             <LogOut size={18} />
             Sign Out
@@ -304,41 +325,58 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      {/* Mobile Sidebar Overlay */}
+      {/* ═══════════ MOBILE SIDEBAR OVERLAY ═══════════ */}
       {sidebarOpen && (
         <div className="lg:hidden fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setSidebarOpen(false)} />
+          <div
+            className="absolute inset-0"
+            style={{ background: "var(--bg-overlay)" }}
+            onClick={() => setSidebarOpen(false)}
+          />
           <aside
             className="absolute left-0 top-0 h-full w-72 flex flex-col"
             style={{
-              background: "var(--color-bg-surface)",
-              borderRight: "1px solid var(--color-line)",
+              background: "var(--bg-sidebar)",
+              borderRight: "1px solid var(--border)",
+              boxShadow: "var(--shadow-xl)",
             }}
           >
-            <div className="p-6 flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="px-5 py-5 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
                 <div
                   style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 8,
+                    width: 32,
+                    height: 32,
+                    borderRadius: 10,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    background: "linear-gradient(135deg, var(--color-primary), var(--color-primary-dim))",
+                    background: "var(--brand)",
                   }}
                 >
-                  <Compass size={16} color="#06080c" />
+                  <Compass size={18} color="white" />
                 </div>
-                <span className="t-gradient-text" style={{ fontSize: "1.2rem", fontFamily: "var(--font-family-display)", fontWeight: 700 }}>Travyn</span>
+                <span
+                  style={{
+                    fontSize: "1.25rem",
+                    fontFamily: "var(--font-family-display)",
+                    fontWeight: 700,
+                    color: "var(--text-primary)",
+                  }}
+                >
+                  Travyn
+                </span>
               </div>
-              <button onClick={() => setSidebarOpen(false)} style={{ background: "none", border: "none", cursor: "pointer" }}>
-                <X size={20} style={{ color: "var(--color-txt-muted)" }} />
+              <button
+                onClick={() => setSidebarOpen(false)}
+                style={{ background: "none", border: "none", cursor: "pointer" }}
+              >
+                <X size={20} style={{ color: "var(--text-muted)" }} />
               </button>
             </div>
-            <nav className="flex-1 px-3 py-2 space-y-1">
-              {navItems.map(({ href, icon: Icon, label }) => {
-                const active = pathname === href;
+            <nav className="flex-1 px-3 py-2 space-y-0.5">
+              {sidebarNav.map(({ href, icon: Icon, label }) => {
+                const active = isActive(href);
                 return (
                   <Link
                     key={href}
@@ -346,8 +384,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     onClick={() => setSidebarOpen(false)}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all"
                     style={{
-                      background: active ? "rgba(45, 212, 168, 0.1)" : "transparent",
-                      color: active ? "var(--color-primary-bright)" : "var(--color-txt-secondary)",
+                      background: active ? "var(--brand-light)" : "transparent",
+                      color: active ? "var(--brand)" : "var(--text-secondary)",
                     }}
                   >
                     <Icon size={18} />
@@ -356,11 +394,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 );
               })}
             </nav>
-            <div className="p-4" style={{ borderTop: "1px solid var(--color-line)" }}>
+            <div className="px-3 py-4 space-y-2" style={{ borderTop: "1px solid var(--border)" }}>
+              <div className="flex items-center justify-between px-3">
+                <ThemeToggle size={16} />
+              </div>
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm w-full"
-                style={{ color: "var(--color-txt-muted)", background: "none", border: "none", cursor: "pointer" }}
+                style={{ color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}
               >
                 <LogOut size={18} />
                 Sign Out
@@ -370,26 +411,56 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       )}
 
-      {/* Main Content */}
-      <div className="flex-1 lg:ml-64 flex flex-col min-h-screen">
+      {/* ═══════════ MAIN CONTENT ═══════════ */}
+      <div className="flex-1 lg:ml-[240px] flex flex-col min-h-screen pb-16 lg:pb-0">
         <SafetyCheckModal />
 
-        {/* Top Bar */}
+        {/* ─── TOP BAR ─── */}
         <header
-          className="sticky top-0 z-30 t-glass-strong"
-          style={{ borderBottom: "1px solid var(--color-line)" }}
+          className="sticky top-0 z-30"
+          style={{
+            background: "var(--bg-primary)",
+            borderBottom: "1px solid var(--border)",
+          }}
         >
-          <div className="flex items-center justify-between px-4 lg:px-6 py-3">
-            <div className="flex items-center gap-3">
-              <button className="lg:hidden" onClick={() => setSidebarOpen(true)} style={{ background: "none", border: "none", cursor: "pointer" }}>
-                <Menu size={22} style={{ color: "var(--color-txt-primary)" }} />
+          <div className="flex items-center justify-between px-4 lg:px-5 py-3 gap-3">
+            {/* Left: hamburger + search */}
+            <div className="flex items-center gap-3 flex-1">
+              <button
+                className="lg:hidden"
+                onClick={() => setSidebarOpen(true)}
+                style={{ background: "none", border: "none", cursor: "pointer" }}
+              >
+                <Menu size={22} style={{ color: "var(--text-primary)" }} />
               </button>
-              <Suspense fallback={<div className="w-[280px] h-10 bg-gray-800 rounded-lg animate-pulse" />}>
-                <SearchInput />
-              </Suspense>
+
+              {/* Mobile logo */}
+              <span
+                className="lg:hidden font-bold"
+                style={{
+                  fontFamily: "var(--font-family-display)",
+                  color: "var(--text-primary)",
+                  fontSize: "1.1rem",
+                }}
+              >
+                Travyn
+              </span>
+
+              {/* Desktop search */}
+              <div className="hidden sm:block flex-1">
+                <Suspense fallback={<div className="w-64 h-9 rounded-full animate-pulse" style={{ background: "var(--bg-tertiary)" }} />}>
+                  <SearchInput />
+                </Suspense>
+              </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            {/* Right: theme + notifs + user */}
+            <div className="flex items-center gap-1.5">
+              {/* Theme toggle — mobile only (desktop has it in sidebar) */}
+              <div className="lg:hidden">
+                <ThemeToggle size={16} />
+              </div>
+
               {/* Notifications */}
               <div className="relative" ref={notifRef}>
                 <button
@@ -400,11 +471,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     setUserMenuOpen(false);
                   }}
                 >
-                  <Bell size={20} style={{ color: "var(--color-txt-secondary)" }} />
+                  <Bell size={20} style={{ color: "var(--text-secondary)" }} />
                   {unreadCount > 0 && (
                     <span
-                      className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center"
-                      style={{ background: "var(--color-danger)", color: "white" }}
+                      className="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 rounded-full text-[10px] font-bold flex items-center justify-center"
+                      style={{ background: "var(--danger)", color: "white", minWidth: 18, height: 18 }}
                     >
                       {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
@@ -414,29 +485,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 {/* Notification Dropdown */}
                 {notifOpen && (
                   <div
-                    className="absolute right-0 top-12 w-80 rounded-xl shadow-2xl overflow-hidden"
+                    className="absolute right-0 top-12 w-80 rounded-xl overflow-hidden"
                     style={{
-                      background: "var(--color-bg-elevated)",
-                      border: "1px solid var(--color-line)",
-                      maxHeight: "400px",
+                      background: "var(--bg-card)",
+                      border: "1px solid var(--border)",
+                      boxShadow: "var(--shadow-xl)",
+                      maxHeight: "420px",
                     }}
                   >
-                    {/* Header */}
                     <div
                       className="flex items-center justify-between px-4 py-3"
-                      style={{ borderBottom: "1px solid var(--color-line)" }}
+                      style={{ borderBottom: "1px solid var(--border)" }}
                     >
-                      <span className="text-sm font-semibold" style={{ color: "var(--color-txt-white)" }}>
+                      <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
                         Notifications
                       </span>
                       {unreadCount > 0 && (
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            markAllAsRead();
-                          }}
+                          onClick={(e) => { e.stopPropagation(); markAllAsRead(); }}
                           className="flex items-center gap-1 text-xs"
-                          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-primary)" }}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--brand)" }}
                         >
                           <CheckCheck size={14} />
                           Mark all read
@@ -444,12 +512,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       )}
                     </div>
 
-                    {/* List */}
-                    <div style={{ maxHeight: "340px", overflowY: "auto" }}>
+                    <div style={{ maxHeight: "360px", overflowY: "auto" }}>
                       {notifications.length === 0 ? (
                         <div className="px-4 py-8 text-center">
-                          <Bell size={28} className="mx-auto mb-2" style={{ color: "var(--color-txt-dim)" }} />
-                          <p className="text-sm" style={{ color: "var(--color-txt-muted)" }}>
+                          <Bell size={28} className="mx-auto mb-2" style={{ color: "var(--text-muted)" }} />
+                          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
                             No notifications yet
                           </p>
                         </div>
@@ -460,53 +527,50 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             onClick={() => handleNotifClick(notif)}
                             className="w-full flex items-start gap-3 px-4 py-3 text-left transition-colors"
                             style={{
-                              background: notif.read ? "transparent" : "rgba(45, 212, 168, 0.05)",
+                              background: notif.read ? "transparent" : "var(--brand-light)",
                               border: "none",
-                              borderBottom: "1px solid var(--color-line)",
+                              borderBottom: "1px solid var(--border)",
                               cursor: "pointer",
                             }}
                           >
                             <div
                               className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mt-0.5"
                               style={{
-                                background: notif.read
-                                  ? "var(--color-bg-surface)"
-                                  : notif.type === "JOIN_APPROVED" ? "rgba(45, 212, 168, 0.15)"
-                                  : notif.type === "JOIN_REJECTED" ? "rgba(248, 113, 113, 0.15)"
-                                  : notif.type === "JOIN_REQUEST" ? "rgba(251, 191, 36, 0.15)"
-                                  : "rgba(45, 212, 168, 0.15)",
+                                background: notif.read ? "var(--bg-tertiary)"
+                                  : notif.type === "JOIN_APPROVED" ? "var(--brand-light)"
+                                  : notif.type === "JOIN_REJECTED" ? "var(--danger-light)"
+                                  : notif.type === "JOIN_REQUEST" ? "var(--accent-light)"
+                                  : "var(--brand-light)",
                               }}
                             >
                               {notif.type === "JOIN_APPROVED" ? (
-                                <UserPlus size={14} style={{ color: notif.read ? "var(--color-txt-muted)" : "#2dd4a8" }} />
+                                <UserPlus size={14} style={{ color: notif.read ? "var(--text-muted)" : "var(--brand)" }} />
                               ) : notif.type === "JOIN_REJECTED" ? (
-                                <XCircle size={14} style={{ color: notif.read ? "var(--color-txt-muted)" : "#f87171" }} />
+                                <XCircle size={14} style={{ color: notif.read ? "var(--text-muted)" : "var(--danger)" }} />
                               ) : notif.type === "JOIN_REQUEST" ? (
-                                <UserPlus size={14} style={{ color: notif.read ? "var(--color-txt-muted)" : "#fbbf24" }} />
+                                <UserPlus size={14} style={{ color: notif.read ? "var(--text-muted)" : "var(--accent)" }} />
                               ) : (
-                                <MessageCircle size={14} style={{ color: notif.read ? "var(--color-txt-muted)" : "var(--color-primary)" }} />
+                                <MessageCircle size={14} style={{ color: notif.read ? "var(--text-muted)" : "var(--brand)" }} />
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
                               <p
                                 className="text-sm leading-snug"
                                 style={{
-                                  color: notif.read
-                                    ? "var(--color-txt-muted)"
-                                    : "var(--color-txt-primary)",
+                                  color: notif.read ? "var(--text-muted)" : "var(--text-primary)",
                                   fontWeight: notif.read ? 400 : 500,
                                 }}
                               >
                                 {notif.message}
                               </p>
-                              <span className="text-xs" style={{ color: "var(--color-txt-dim)" }}>
+                              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
                                 {timeAgo(notif.createdAt)}
                               </span>
                             </div>
                             {!notif.read && (
                               <div
                                 className="flex-shrink-0 w-2 h-2 rounded-full mt-2"
-                                style={{ background: "var(--color-primary)" }}
+                                style={{ background: "var(--brand)" }}
                               />
                             )}
                           </button>
@@ -518,7 +582,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
 
               {/* User Menu */}
-              <div className="relative">
+              <div className="relative" ref={userMenuRef}>
                 <button
                   className="flex items-center gap-2 p-1.5 rounded-lg transition-colors"
                   onClick={() => {
@@ -531,8 +595,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <div
                       className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold overflow-hidden"
                       style={{
-                        background: user?.profilePhotoUrl ? "transparent" : "linear-gradient(135deg, var(--color-primary), var(--color-accent))",
-                        color: "#06080c",
+                        background: user?.profilePhotoUrl ? "transparent" : "var(--brand)",
+                        color: "white",
                       }}
                     >
                       {user?.profilePhotoUrl ? (
@@ -544,48 +608,52 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     {!isVerified && (
                       <span
                         className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-black"
-                        style={{ background: "#fbbf24", color: "#1a1a1a", boxShadow: "0 0 0 2px var(--color-bg-surface)" }}
+                        style={{ background: "var(--accent)", color: "#1a1a1a", boxShadow: `0 0 0 2px var(--bg-primary)` }}
                         title="Identity not verified"
                       >
                         !
                       </span>
                     )}
                   </div>
-                  <span className="hidden sm:block text-sm font-medium" style={{ color: "var(--color-txt-primary)" }}>
+                  <span
+                    className="hidden sm:block text-sm font-medium"
+                    style={{ color: "var(--text-primary)" }}
+                  >
                     {user?.firstName || "User"}
                   </span>
-                  <ChevronDown size={14} style={{ color: "var(--color-txt-muted)" }} />
+                  <ChevronDown size={14} style={{ color: "var(--text-muted)" }} className="hidden sm:block" />
                 </button>
 
                 {userMenuOpen && (
                   <div
-                    className="absolute right-0 top-12 w-48 rounded-xl py-2 shadow-2xl"
+                    className="absolute right-0 top-12 w-48 rounded-xl py-1.5"
                     style={{
-                      background: "var(--color-bg-elevated)",
-                      border: "1px solid var(--color-line)",
+                      background: "var(--bg-card)",
+                      border: "1px solid var(--border)",
+                      boxShadow: "var(--shadow-lg)",
                     }}
                   >
                     <Link
                       href="/dashboard/profile"
-                      className="flex items-center gap-2 px-4 py-2 text-sm"
-                      style={{ color: "var(--color-txt-secondary)" }}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm transition-colors"
+                      style={{ color: "var(--text-secondary)" }}
                       onClick={() => setUserMenuOpen(false)}
                     >
                       <User size={16} /> Profile
                     </Link>
                     <Link
                       href="/dashboard/settings"
-                      className="flex items-center gap-2 px-4 py-2 text-sm"
-                      style={{ color: "var(--color-txt-secondary)" }}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm transition-colors"
+                      style={{ color: "var(--text-secondary)" }}
                       onClick={() => setUserMenuOpen(false)}
                     >
                       <Settings size={16} /> Settings
                     </Link>
-                    <hr style={{ borderColor: "var(--color-line)", margin: "4px 0" }} />
+                    <hr style={{ borderColor: "var(--border)", margin: "4px 0" }} />
                     <button
                       onClick={handleLogout}
-                      className="flex items-center gap-2 px-4 py-2 text-sm w-full"
-                      style={{ color: "var(--color-danger)", background: "none", border: "none", cursor: "pointer" }}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm w-full"
+                      style={{ color: "var(--danger)", background: "none", border: "none", cursor: "pointer" }}
                     >
                       <LogOut size={16} /> Sign Out
                     </button>
@@ -596,16 +664,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        {/* KYC Nudge Banner */}
+        {/* ─── KYC NUDGE BANNER ─── */}
         {!isVerified && !kycBannerDismissed && (
           <div
-            className="flex items-center justify-between gap-3 px-4 lg:px-6 py-2.5"
+            className="flex items-center justify-between gap-3 px-4 lg:px-5 py-2.5"
             style={{
-              background: "linear-gradient(90deg, rgba(251,191,36,0.08), rgba(251,191,36,0.04))",
-              borderBottom: "1px solid rgba(251,191,36,0.15)",
+              background: "var(--accent-light)",
+              borderBottom: "1px solid var(--border)",
             }}
           >
-            <div className="flex items-center gap-2 text-sm" style={{ color: "#fbbf24" }}>
+            <div className="flex items-center gap-2 text-sm" style={{ color: "var(--accent-text)" }}>
               <AlertTriangle size={15} />
               <span>
                 Your identity is not verified. Verified travelers get <strong>3× more trip invites</strong>.
@@ -613,23 +681,88 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <a
                 href="/dashboard/settings/kyc"
                 className="inline-flex items-center gap-1 font-semibold hover:underline ml-1"
-                style={{ color: "#fbbf24" }}
+                style={{ color: "var(--accent-text)" }}
               >
                 Verify Now <ArrowRight size={13} />
               </a>
             </div>
             <button
               onClick={dismissKycBanner}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "#fbbf24", opacity: 0.6 }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--accent-text)", opacity: 0.6 }}
             >
               <X size={16} />
             </button>
           </div>
         )}
 
-        {/* Page Content */}
+        {/* ─── PAGE CONTENT ─── */}
         <main className="flex-1 p-4 lg:p-6">{children}</main>
       </div>
+
+      {/* ═══════════ MOBILE BOTTOM NAV ═══════════ */}
+      <nav
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40"
+        style={{
+          background: "var(--bg-primary)",
+          borderTop: "1px solid var(--border)",
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        }}
+      >
+        <div className="flex items-center justify-around h-14">
+          {mobileNav.map(({ href, icon: Icon, label, isCreate }) => {
+            const active = isActive(href);
+
+            if (isCreate) {
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className="flex flex-col items-center justify-center -mt-4"
+                >
+                  <div
+                    className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg"
+                    style={{
+                      background: "var(--brand)",
+                      boxShadow: "0 4px 12px rgba(22,163,74,0.3)",
+                    }}
+                  >
+                    <Icon size={22} color="white" strokeWidth={2.5} />
+                  </div>
+                </Link>
+              );
+            }
+
+            return (
+              <Link
+                key={href}
+                href={href}
+                className="flex flex-col items-center justify-center gap-0.5 py-1 px-3"
+              >
+                <Icon
+                  size={20}
+                  style={{ color: active ? "var(--brand)" : "var(--text-muted)" }}
+                  strokeWidth={active ? 2.5 : 1.8}
+                />
+                <span
+                  className="text-[10px] font-medium"
+                  style={{ color: active ? "var(--brand)" : "var(--text-muted)" }}
+                >
+                  {label}
+                </span>
+                {/* Unread badge on Messages */}
+                {href === "/dashboard/messages" && unreadCount > 0 && (
+                  <span
+                    className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center"
+                    style={{ background: "var(--danger)", color: "white" }}
+                  >
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

@@ -14,30 +14,43 @@ export default function SettingsPage() {
 
       <div className="space-y-4">
         {/* Match Preferences Card */}
-        <Link href="/onboarding" className="block rounded-3xl p-6 transition-all hover:bg-white/5" style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}>
+        <Link
+          href="/onboarding"
+          className="block rounded-xl p-5 transition-all"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)", textDecoration: "none" }}
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-emerald-500/20 text-emerald-400">
-                <SlidersHorizontal size={24} />
+              <div
+                className="w-11 h-11 rounded-xl flex items-center justify-center"
+                style={{ background: "var(--brand-light)", color: "var(--brand)" }}
+              >
+                <SlidersHorizontal size={22} />
               </div>
               <div>
-                <h2 className="font-bold text-white mb-1">Match Preferences</h2>
-                <p className="text-sm text-white/50">Update your travel style, budget, and compatibility answers.</p>
+                <h2 className="font-semibold mb-0.5" style={{ color: "var(--text-primary)" }}>Match Preferences</h2>
+                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Update your travel style, budget, and compatibility answers.</p>
               </div>
             </div>
-            <ChevronRight size={20} className="text-white/30" />
+            <ChevronRight size={18} style={{ color: "var(--text-muted)" }} />
           </div>
         </Link>
 
         {/* General Placeholder */}
-        <div className="rounded-3xl p-6" style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}>
-          <div className="flex items-center gap-4 opacity-50">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-blue-500/20 text-blue-400">
-              <Settings size={24} />
+        <div
+          className="rounded-xl p-5"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)", opacity: 0.6 }}
+        >
+          <div className="flex items-center gap-4">
+            <div
+              className="w-11 h-11 rounded-xl flex items-center justify-center"
+              style={{ background: "var(--bg-tertiary)", color: "var(--text-muted)" }}
+            >
+              <Settings size={22} />
             </div>
             <div>
-              <h2 className="font-bold text-white mb-1">General Settings</h2>
-              <p className="text-sm text-white/50">Account details, privacy controls, and notifications coming soon.</p>
+              <h2 className="font-semibold mb-0.5" style={{ color: "var(--text-primary)" }}>General Settings</h2>
+              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Account details, privacy controls, and notifications coming soon.</p>
             </div>
           </div>
         </div>

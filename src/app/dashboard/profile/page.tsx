@@ -510,12 +510,12 @@ export default function ProfilePage() {
                   {isVerified ? <VerifiedBadge size={18} /> : <UnverifiedBadge size={18} showLabel />}
                 </h2>
                 {user?.age && (
-                  <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-gray-800 text-gray-300">
+                  <span className="px-2 py-0.5 rounded-md text-xs font-medium" style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}>
                     {user.age} yrs
                   </span>
                 )}
                 {user?.dob && (
-                  <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-gray-800/50 text-gray-400 border border-gray-700/50">
+                  <span className="px-2 py-0.5 rounded-md text-xs font-medium" style={{ background: "var(--bg-tertiary)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>
                     DOB: {user.dob}
                   </span>
                 )}

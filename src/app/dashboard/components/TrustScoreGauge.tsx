@@ -17,7 +17,7 @@ export function TrustScoreGauge({ score }: TrustScoreGaugeProps) {
   else if (score < 70) color = "text-yellow-500";
 
   return (
-    <div className="flex flex-col items-center justify-center p-4 bg-gray-900/50 rounded-xl border border-gray-800 shadow-xl backdrop-blur-md">
+    <div className="flex flex-col items-center justify-center p-4 rounded-xl shadow-xl backdrop-blur-md" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
       <div className="relative flex items-center justify-center">
         {/* Background Circle */}
         <svg className="w-28 h-28 transform -rotate-90">
@@ -45,7 +45,7 @@ export function TrustScoreGauge({ score }: TrustScoreGaugeProps) {
           />
         </svg>
         <div className="absolute flex flex-col items-center justify-center">
-          <span className="text-3xl font-bold text-white">{score}</span>
+          <span className="text-3xl font-bold" style={{ color: "var(--text-primary)" }}>{score}</span>
           <span className="text-[10px] uppercase tracking-wider text-gray-400 font-medium">Score</span>
         </div>
       </div>

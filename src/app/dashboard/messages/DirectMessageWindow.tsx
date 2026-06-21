@@ -92,11 +92,8 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
 
   const loadMessages = useCallback(async () => {
     try {
-      // Load connection status
       const statusRes = await api.get(`/dm/${partnerId}/status`);
       setConnectionStatus(statusRes.data.status);
-
-      // Load messages
       const res = await api.get(`/dm/${partnerId}/messages?page=0&size=50`);
       setMessages(res.data);
       scrollToBottom();
@@ -135,20 +132,14 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
       debug: (str) => console.log("[STOMP DM]", str),
       onConnect: () => {
         setStompConnected(true);
-        
-        // Subscribe to incoming messages for this user
         client.subscribe(`/topic/user.${user?.id}.dm.messages`, (msg) => {
           const newMsg: DirectMessage = JSON.parse(msg.body);
-          
-          // Only append if it belongs to this conversation
           if (newMsg.senderId === partnerId || newMsg.receiverId === partnerId) {
             setMessages((prev) => {
               if (prev.some((p) => p.id === newMsg.id)) return prev;
               return [...prev, newMsg];
             });
             setTimeout(scrollToBottom, 100);
-
-            // If it's from partner, mark it as read immediately if window is focused
             if (newMsg.senderId === partnerId) {
                if (document.visibilityState === "visible") {
                   markAsRead();
@@ -156,12 +147,9 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
             }
           }
         });
-
-        // Subscribe to read receipts
         client.subscribe(`/topic/user.${user?.id}.dm.read-receipts`, (msg) => {
           const readerId = msg.body;
           if (readerId === partnerId) {
-            // Partner read our messages, update local state to show double ticks
             setMessages(prev => prev.map(m => (!m.isRead && m.senderId === user?.id) ? { ...m, isRead: true } : m));
           }
         });
@@ -177,7 +165,6 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
     client.activate();
     stompClientRef.current = client;
 
-    // Mark as read when tab becomes visible
     const handleVisibilityChange = () => {
        if (document.visibilityState === "visible") {
           markAsRead();
@@ -197,9 +184,6 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
     if (!message.trim() || sending) return;
 
     setSending(true);
-    const stomp = stompClientRef.current;
-    
-    // We can use STOMP or REST to send. Let's use REST for simplicity to ensure DB save first
     try {
       const res = await api.post(`/dm/${partnerId}/messages`, {
         content: message.trim(),
@@ -209,16 +193,12 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
-      // Message will be pushed back via WebSocket, but we can also append optimistically
-      // Actually, our own backend logic sends it to OUR queue as well, so we don't need to append manually
       setTimeout(scrollToBottom, 100);
     } catch (err) {
       console.error("Failed to send message", err);
       setErrorMsg("Failed to send message. Please try again.");
       setTimeout(() => setErrorMsg(""), 3000);
       scrollToBottom();
-      
-      // If this was our first message, update status to PENDING_SENT
       if (connectionStatus === "CO_TRAVELER") {
         setConnectionStatus("PENDING_SENT");
       }
@@ -239,7 +219,7 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
   const handleReject = async () => {
     try {
       await api.post(`/matches/${partnerId}/pass`);
-      onBack(); // close chat on reject
+      onBack();
     } catch (err) {
       console.error("Failed to reject", err);
     }
@@ -259,7 +239,7 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
 
   if (loading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-white/50">
+      <div className="flex-1 flex flex-col items-center justify-center" style={{ color: "var(--text-muted)" }}>
         <Loader2 className="animate-spin mb-4" size={32} />
         <p>Loading messages...</p>
       </div>
@@ -267,17 +247,28 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-zinc-950">
-      <div className="p-4 border-b border-white/10 bg-zinc-900/50 flex flex-col backdrop-blur-md sticky top-0 z-10 shrink-0">
+    <div className="flex-1 flex flex-col h-full" style={{ background: "var(--bg-primary)" }}>
+      {/* Header */}
+      <div
+        className="p-4 flex flex-col backdrop-blur-md sticky top-0 z-10 shrink-0"
+        style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-card)" }}
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={onBack}
-              className="p-2 md:hidden hover:bg-white/10 rounded-full transition-colors text-white"
+              className="p-2 md:hidden rounded-full transition-colors"
+              style={{ color: "var(--text-primary)", background: "none", border: "none", cursor: "pointer" }}
             >
               <ArrowLeft size={20} />
             </button>
-            <div className={`w-10 h-10 rounded-full ${partnerProfilePhotoUrl ? 'bg-transparent' : 'bg-emerald-500/20 text-emerald-400'} flex items-center justify-center font-bold flex-shrink-0 overflow-hidden`}>
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center font-bold flex-shrink-0 overflow-hidden text-sm"
+              style={{
+                background: partnerProfilePhotoUrl ? "transparent" : "var(--brand-light)",
+                color: "var(--brand)",
+              }}
+            >
               {partnerProfilePhotoUrl ? (
                 <img src={partnerProfilePhotoUrl} alt={partnerName} className="w-full h-full object-cover" />
               ) : (
@@ -285,18 +276,18 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
               )}
             </div>
             <div>
-              <h2 className="font-bold text-white text-lg flex items-center gap-2">
+              <h2 className="font-bold text-base flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
                 {partnerName}
                 {partnerVerified ? <VerifiedBadge size={14} /> : <UnverifiedBadge size={14} />}
               </h2>
               {partnerVerified === false && (
-                <div className="text-[10px] text-amber-500/80 font-medium">This traveler has not verified their identity</div>
+                <div className="text-[10px] font-medium" style={{ color: "#f59e0b" }}>This traveler has not verified their identity</div>
               )}
             </div>
           </div>
           <div className="flex items-center gap-2 text-xs">
             {stompConnected ? (
-              <span className="flex items-center gap-1 text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full">
+              <span className="flex items-center gap-1 px-2 py-1 rounded-full" style={{ color: "var(--brand)", background: "var(--brand-light)" }}>
                 <Wifi size={12} /> Connected
               </span>
             ) : (
@@ -309,11 +300,11 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar bg-zinc-950/50 min-h-0">
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 min-h-0" style={{ background: "var(--bg-primary)" }}>
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-white/40">
-            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-              <MessageCircle size={32} className="opacity-50" />
+          <div className="h-full flex flex-col items-center justify-center" style={{ color: "var(--text-muted)" }}>
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: "var(--bg-tertiary)" }}>
+              <MessageCircle size={32} style={{ opacity: 0.5 }} />
             </div>
             <p className="text-sm">Say hi to {partnerName}!</p>
           </div>
@@ -325,7 +316,10 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
             if (isSystem) {
               return (
                 <div key={msg.id || index} className="flex justify-center my-4">
-                  <span className="text-xs bg-white/5 text-white/60 px-3 py-1 rounded-full">
+                  <span
+                    className="text-xs px-3 py-1 rounded-full"
+                    style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)" }}
+                  >
                     {msg.content}
                   </span>
                 </div>
@@ -337,10 +331,13 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
                 <div className={`flex items-end gap-2 max-w-[85%] ${isMe ? "flex-row-reverse" : "flex-row"}`}>
                   <div
                     className={`rounded-2xl px-4 py-2.5 shadow-sm relative group ${
-                      isMe 
-                        ? "bg-emerald-600 text-white rounded-br-sm" 
-                        : "bg-zinc-800 text-zinc-100 border border-white/5 rounded-bl-sm"
+                      isMe ? "rounded-br-sm" : "rounded-bl-sm"
                     }`}
+                    style={{
+                      background: isMe ? "var(--brand)" : "var(--bg-card)",
+                      color: isMe ? "white" : "var(--text-primary)",
+                      border: isMe ? "none" : "1px solid var(--border)",
+                    }}
                   >
                     {msg.messageType === "IMAGE" ? (
                       <div className="mt-1 -mx-2 -mb-2 rounded-xl overflow-hidden cursor-pointer" onClick={() => window.open(msg.content, '_blank')}>
@@ -372,57 +369,61 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
       </div>
 
       {/* Input Area / Status Banners */}
-      <div className="p-4 bg-zinc-900 border-t border-white/10 shrink-0 relative">
+      <div className="p-4 shrink-0 relative" style={{ background: "var(--bg-card)", borderTop: "1px solid var(--border)" }}>
         <AnimatePresence>
           {errorMsg && (
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              className="absolute -top-12 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-xl text-sm shadow-lg border border-red-400 font-medium whitespace-nowrap"
+              className="absolute -top-12 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl text-sm shadow-lg font-medium whitespace-nowrap"
+              style={{ background: "var(--danger)", color: "white", border: "1px solid rgba(239,68,68,0.5)" }}
             >
               {errorMsg}
             </motion.div>
           )}
         </AnimatePresence>
         {connectionStatus === "PENDING_RECEIVED" ? (
-          <div className="bg-zinc-800 rounded-2xl p-4 text-center border border-white/10 shadow-lg">
-            <p className="text-zinc-300 text-sm mb-4">
-              <strong className="text-white">{partnerName}</strong> wants to connect and chat with you.
+          <div className="rounded-2xl p-4 text-center shadow-lg" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border)" }}>
+            <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
+              <strong style={{ color: "var(--text-primary)" }}>{partnerName}</strong> wants to connect and chat with you.
             </p>
             <div className="flex gap-3 justify-center">
               <button 
                 onClick={handleReject}
-                className="px-6 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-xl text-sm font-medium transition-colors"
+                className="px-6 py-2 rounded-xl text-sm font-medium transition-colors"
+                style={{ background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border)", cursor: "pointer" }}
               >
                 Reject
               </button>
               <button 
                 onClick={handleAccept}
-                className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-emerald-500/20"
+                className="t-btn-primary px-6 py-2 rounded-xl text-sm font-medium"
               >
                 Accept
               </button>
             </div>
           </div>
         ) : connectionStatus === "PENDING_SENT" ? (
-          <div className="bg-zinc-800/50 rounded-2xl p-4 text-center border border-white/5">
-            <p className="text-zinc-400 text-sm">
+          <div className="rounded-2xl p-4 text-center" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border)" }}>
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
               Request sent. You can send more messages once they accept.
             </p>
           </div>
         ) : connectionStatus === "REJECTED" ? (
-          <div className="bg-zinc-800/50 rounded-2xl p-4 text-center border border-white/5">
-            <p className="text-zinc-400 text-sm">
+          <div className="rounded-2xl p-4 text-center" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border)" }}>
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
               You can no longer message this user.
             </p>
           </div>
         ) : (
           <form onSubmit={handleSendText} className="flex gap-2 items-end max-w-4xl mx-auto">
-            {/* Chat Attachment Menu (Photos/Media) */}
             <ChatAttachmentMenu userId={user?.id || ""} onImageUploaded={handleImageUploaded} />
             
-            <div className="flex-1 bg-zinc-800 rounded-2xl border border-white/10 overflow-hidden focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/50 transition-all">
+            <div
+              className="flex-1 rounded-xl overflow-hidden transition-all"
+              style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border)" }}
+            >
               <textarea
                 ref={textareaRef}
                 value={message}
@@ -439,25 +440,28 @@ export default function DirectMessageWindow({ partnerId, partnerName, partnerPro
                   }
                 }}
                 placeholder="Message..."
-                className="w-full bg-transparent text-white px-4 py-3 max-h-32 min-h-[44px] resize-none outline-none text-[15px]"
+                className="w-full px-4 py-3 max-h-32 min-h-[44px] resize-none outline-none text-[15px]"
                 rows={1}
                 style={{
                   height: "auto",
                   minHeight: "44px",
+                  background: "transparent",
+                  color: "var(--text-primary)",
+                  border: "none",
                 }}
               />
             </div>
             <button
               type="submit"
               disabled={!message.trim() || sending}
-              className="p-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-emerald-500/20 flex-shrink-0"
+              className="t-btn-primary p-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0"
             >
               {sending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} className="ml-0.5" />}
             </button>
           </form>
         )}
         <div className="text-center mt-2 hidden md:block">
-           <span className="text-[10px] text-white/30 font-medium">Press Enter to send, Shift+Enter for new line</span>
+           <span className="text-[10px] font-medium" style={{ color: "var(--text-muted)" }}>Press Enter to send, Shift+Enter for new line</span>
         </div>
       </div>
     </div>

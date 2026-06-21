@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   Compass, Plus, Search, MapPin, Calendar, Users, Filter, Loader2,
   Heart, ArrowRight, X
@@ -41,6 +42,7 @@ interface TripCard {
 }
 
 export default function DiscoverPage() {
+  const searchParams = useSearchParams();
   const [trips, setTrips] = useState<TripCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [destination, setDestination] = useState("");
@@ -49,11 +51,32 @@ export default function DiscoverPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [initialized, setInitialized] = useState(false);
 
+  // Read destination from URL on mount (e.g. from top search bar)
   useEffect(() => {
+    const urlDest = searchParams?.get("destination") || "";
+    setDestination(urlDest);
+    setInitialized(true);
+  }, [searchParams]);
+
+  // Fetch trips when filters change (only after initialization)
+  useEffect(() => {
+    if (!initialized) return;
     fetchTrips(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tripType, statusFilter]);
+  }, [tripType, statusFilter, initialized]);
+
+  // Also refetch when destination is set from URL on first load
+  useEffect(() => {
+    if (!initialized) return;
+    // Only auto-fetch if destination came from URL param
+    const urlDest = searchParams?.get("destination") || "";
+    if (urlDest && destination === urlDest) {
+      fetchTrips(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [destination, initialized]);
 
   const fetchTrips = async (reset = true) => {
     setLoading(true);

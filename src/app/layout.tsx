@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ServerStatusProvider } from "@/context/ServerStatusContext";
+import { ThemeProvider } from "@/context/ThemeProvider";
 import GoogleProvider from "@/context/GoogleProvider";
 
 export const metadata: Metadata = {
@@ -30,13 +31,29 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
+      <head>
+        {/* Prevent flash of wrong theme (FOWT) — runs before React hydrates */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var theme = localStorage.getItem('travyn-theme');
+                  if (!theme) {
+                    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                  }
+                  document.documentElement.setAttribute('data-theme', theme);
+                } catch(e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
       <body>
-        {/* ServerStatusProvider silently pings the backend on app load
-            so Render wakes up before the user even clicks anything.
-            Login + Register pages read from this context to show
-            the mini-game if the user tries to submit before server is ready. */}
         <GoogleProvider>
-          <ServerStatusProvider>{children}</ServerStatusProvider>
+          <ThemeProvider>
+            <ServerStatusProvider>{children}</ServerStatusProvider>
+          </ThemeProvider>
         </GoogleProvider>
       </body>
     </html>

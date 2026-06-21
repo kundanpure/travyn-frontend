@@ -93,7 +93,7 @@ export default function SafetyCheckModal() {
           <AlertTriangle className="w-10 h-10 text-red-500 animate-pulse" />
         </div>
         
-        <h2 className="text-3xl font-bold text-white mb-2">Safety Check</h2>
+        <h2 className="text-3xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>Safety Check</h2>
         <p className="text-gray-300 mb-6 text-lg">
           You haven't moved in over 2 hours and are away from your Safe Zones. Are you okay?
         </p>

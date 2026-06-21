@@ -49,7 +49,6 @@ export default function MatchesPage() {
       setMatches(prev => prev.filter(m => m.userId !== targetId));
       
       if (action === "connect") {
-        // Optimistically check if it became mutual (backend would normally push this, but we'll re-fetch for safety)
         setTimeout(() => fetchData(), 1000);
       }
     } catch (err) {
@@ -58,17 +57,17 @@ export default function MatchesPage() {
   };
 
   if (loading) {
-    return <div className="flex h-[60vh] items-center justify-center"><Loader2 size={32} className="animate-spin text-emerald-500" /></div>;
+    return <div className="flex h-[60vh] items-center justify-center"><Loader2 size={32} className="animate-spin" style={{ color: "var(--brand)" }} /></div>;
   }
 
   if (!hasPrefs) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
-        <div className="w-20 h-20 rounded-3xl flex items-center justify-center mb-6" style={{ background: "rgba(45,212,168,0.1)", border: "1px solid rgba(45,212,168,0.2)" }}>
-          <Compass size={36} className="text-emerald-500" />
+        <div className="w-20 h-20 rounded-3xl flex items-center justify-center mb-6" style={{ background: "var(--brand-light)", border: "1px solid var(--border)" }}>
+          <Compass size={36} style={{ color: "var(--brand)" }} />
         </div>
-        <h1 className="text-2xl font-bold mb-3" style={{ color: "var(--color-txt-white)" }}>Complete Your Profile</h1>
-        <p className="text-sm max-w-sm mb-6" style={{ color: "var(--color-txt-secondary)" }}>
+        <h1 className="text-2xl font-bold mb-3" style={{ color: "var(--text-primary)" }}>Complete Your Profile</h1>
+        <p className="text-sm max-w-sm mb-6" style={{ color: "var(--text-secondary)" }}>
           You need to complete the travel compatibility quiz in onboarding to see your matches.
         </p>
         <a href="/onboarding" className="t-btn-primary px-6 py-3 rounded-xl flex items-center gap-2">
@@ -83,14 +82,20 @@ export default function MatchesPage() {
       
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: "var(--color-txt-white)" }}>Travel Matches</h1>
-          <p className="text-sm" style={{ color: "var(--color-txt-secondary)" }}>Find your perfect companion</p>
+          <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Travel Matches</h1>
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Find your perfect companion</p>
         </div>
         
-        <div className="flex p-1 rounded-xl" style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)" }}>
+        <div className="flex p-1 rounded-xl" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border)" }}>
           <button 
             onClick={() => setTab("DISCOVER")}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${tab === "DISCOVER" ? "bg-white/10 text-white" : "text-white/40 hover:text-white/70"}`}
+            className="px-4 py-2 rounded-lg text-sm font-bold transition-all"
+            style={{
+              background: tab === "DISCOVER" ? "var(--brand-light)" : "transparent",
+              color: tab === "DISCOVER" ? "var(--brand)" : "var(--text-muted)",
+              border: "none",
+              cursor: "pointer",
+            }}
           >
             <div className="flex items-center gap-2">
               <Ticket size={16} /> Discover
@@ -98,11 +103,17 @@ export default function MatchesPage() {
           </button>
           <button 
             onClick={() => setTab("MUTUAL")}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${tab === "MUTUAL" ? "bg-white/10 text-white" : "text-white/40 hover:text-white/70"}`}
+            className="px-4 py-2 rounded-lg text-sm font-bold transition-all"
+            style={{
+              background: tab === "MUTUAL" ? "var(--brand-light)" : "transparent",
+              color: tab === "MUTUAL" ? "var(--brand)" : "var(--text-muted)",
+              border: "none",
+              cursor: "pointer",
+            }}
           >
             <div className="flex items-center gap-2">
               <Users size={16} /> Mutual
-              {mutuals.length > 0 && <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-500 text-black">{mutuals.length}</span>}
+              {mutuals.length > 0 && <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold" style={{ background: "var(--brand)", color: "white" }}>{mutuals.length}</span>}
             </div>
           </button>
         </div>
@@ -111,46 +122,49 @@ export default function MatchesPage() {
       {tab === "DISCOVER" && (
         <div className="space-y-6">
           {matches.length === 0 ? (
-            <div className="text-center py-20 text-white/40">No more matches found right now. Check back later!</div>
+            <div className="text-center py-20" style={{ color: "var(--text-muted)" }}>No more matches found right now. Check back later!</div>
           ) : (
             matches.map(m => (
-              <div key={m.userId} className="relative overflow-hidden rounded-3xl transition-all" style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}>
+              <div key={m.userId} className="relative overflow-hidden rounded-2xl transition-all" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
                 {/* Boarding Pass Header */}
-                <div className="px-6 py-4 flex items-center justify-between border-b" style={{ borderColor: "var(--color-line)", background: "rgba(255,255,255,0.02)" }}>
-                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm tracking-widest uppercase">
+                <div className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-tertiary)" }}>
+                  <div className="flex items-center gap-2 font-bold text-sm tracking-widest uppercase" style={{ color: "var(--brand)" }}>
                     <Plane size={16} /> Travyn Boarding Pass
                   </div>
-                  <div className="text-xs font-mono text-white/30">ID: {m.userId.split('-')[0].toUpperCase()}</div>
+                  <div className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>ID: {m.userId.split('-')[0].toUpperCase()}</div>
                 </div>
 
                 <div className="p-6 md:p-8 flex flex-col md:flex-row gap-8">
                   {/* Left Column - Passenger */}
                   <div className="flex-1">
-                    <div className="text-xs text-white/40 font-bold mb-2 tracking-widest uppercase">Passenger</div>
+                    <div className="text-xs font-bold mb-2 tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>Passenger</div>
                     <div className="flex items-center gap-4 mb-6">
-                      <div className="w-16 h-16 rounded-full bg-white/10 flex-shrink-0 overflow-hidden">
+                      <div className="w-16 h-16 rounded-full flex-shrink-0 overflow-hidden" style={{ background: "var(--bg-tertiary)" }}>
                         {m.profilePhotoUrl ? (
                            <img src={m.profilePhotoUrl} alt={m.firstName} className="w-full h-full object-cover" />
                         ) : (
-                           <div className="w-full h-full flex items-center justify-center text-white/20"><User size={24}/></div>
+                           <div className="w-full h-full flex items-center justify-center" style={{ color: "var(--text-muted)" }}><User size={24}/></div>
                         )}
                       </div>
                       <div>
-                        <div className="text-2xl font-bold text-white mb-1">{m.firstName} {m.lastName} {m.age && <span className="text-white/40 text-lg">, {m.age}</span>}</div>
-                        <div className="flex items-center gap-1.5 text-xs text-white/60">
+                        <div className="text-2xl font-bold mb-1" style={{ color: "var(--text-primary)" }}>
+                          {m.firstName} {m.lastName}
+                          {m.age && <span className="text-lg ml-1" style={{ color: "var(--text-muted)" }}>, {m.age}</span>}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-secondary)" }}>
                           {m.verified ? (
                             <VerifiedBadge size={13} />
                           ) : (
                             <AlertTriangle size={13} style={{ color: "#fbbf24" }} />
                           )}
-                          <span style={{ color: m.verified ? "#2dd4a8" : "#fbbf24" }}>
+                          <span style={{ color: m.verified ? "var(--brand)" : "#fbbf24" }}>
                             {m.verified ? "Verified" : "Identity Pending"}
                           </span>
-                          <span className="text-white/30 mx-1">•</span>
+                          <span style={{ color: "var(--text-muted)" }}>•</span>
                           Trust Score: {m.trustScore}
                         </div>
                         {m.locationName && (
-                          <div className="flex items-center gap-1.5 text-xs text-emerald-400 mt-1">
+                          <div className="flex items-center gap-1.5 text-xs mt-1" style={{ color: "var(--brand)" }}>
                             <MapPin size={14} /> 
                             {m.locationName} 
                             {m.distanceInKm !== undefined && m.distanceInKm !== null && ` • ${Math.round(m.distanceInKm)} km away`}
@@ -161,34 +175,38 @@ export default function MatchesPage() {
 
                     <div className="grid grid-cols-2 gap-4 mb-6">
                       <div>
-                        <div className="text-[10px] text-white/40 font-bold mb-1 tracking-widest uppercase">Travel Style</div>
-                        <div className="text-sm text-white/80">{m.travelStyles?.join(', ') || 'Flexible'}</div>
+                        <div className="text-[10px] font-bold mb-1 tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>Travel Style</div>
+                        <div className="text-sm" style={{ color: "var(--text-secondary)" }}>{m.travelStyles?.join(', ') || 'Flexible'}</div>
                       </div>
                       <div>
-                        <div className="text-[10px] text-white/40 font-bold mb-1 tracking-widest uppercase">Personality</div>
-                        <div className="text-sm text-white/80">{m.personalityLabel}</div>
+                        <div className="text-[10px] font-bold mb-1 tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>Personality</div>
+                        <div className="text-sm" style={{ color: "var(--text-secondary)" }}>{m.personalityLabel}</div>
                       </div>
                     </div>
                   </div>
 
                   {/* Right Column - Compatibility */}
-                  <div className="md:w-64 flex flex-col items-center justify-center border-t md:border-t-0 md:border-l pt-6 md:pt-0 md:pl-8 border-dashed" style={{ borderColor: "var(--color-line)" }}>
-                    <div className="text-xs text-white/40 font-bold mb-4 tracking-widest uppercase text-center">Compatibility</div>
+                  <div className="md:w-64 flex flex-col items-center justify-center border-t md:border-t-0 md:border-l pt-6 md:pt-0 md:pl-8 border-dashed" style={{ borderColor: "var(--border)" }}>
+                    <div className="text-xs font-bold mb-4 tracking-widest uppercase text-center" style={{ color: "var(--text-muted)" }}>Compatibility</div>
                     <div className="relative flex items-center justify-center mb-6">
                       <svg className="w-24 h-24 transform -rotate-90">
-                        <circle cx="48" cy="48" r="40" stroke="rgba(255,255,255,0.05)" strokeWidth="8" fill="none" />
-                        <circle cx="48" cy="48" r="40" stroke="var(--color-primary)" strokeWidth="8" fill="none" strokeDasharray="251.2" strokeDashoffset={251.2 - (251.2 * m.compatibilityScore) / 100} className="transition-all duration-1000 ease-out" />
+                        <circle cx="48" cy="48" r="40" stroke="var(--bg-tertiary)" strokeWidth="8" fill="none" />
+                        <circle cx="48" cy="48" r="40" stroke="var(--brand)" strokeWidth="8" fill="none" strokeDasharray="251.2" strokeDashoffset={251.2 - (251.2 * m.compatibilityScore) / 100} className="transition-all duration-1000 ease-out" />
                       </svg>
                       <div className="absolute flex flex-col items-center justify-center">
-                        <span className="text-2xl font-bold text-white">{m.compatibilityScore}%</span>
+                        <span className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>{m.compatibilityScore}%</span>
                       </div>
                     </div>
                     
                     <div className="w-full space-y-2">
-                      <button onClick={() => handleAction(m.userId, "connect")} className="w-full t-btn-primary p-3 flex items-center justify-center gap-2 rounded-xl text-sm font-bold shadow-[0_0_20px_rgba(45,212,168,0.3)]">
+                      <button onClick={() => handleAction(m.userId, "connect")} className="w-full t-btn-primary p-3 flex items-center justify-center gap-2 rounded-xl text-sm font-bold">
                         <Ticket size={16} /> Stamp Passport
                       </button>
-                      <button onClick={() => handleAction(m.userId, "pass")} className="w-full p-2 text-xs font-bold text-white/30 hover:text-white/60 transition-colors">
+                      <button
+                        onClick={() => handleAction(m.userId, "pass")}
+                        className="w-full p-2 text-xs font-bold transition-colors"
+                        style={{ color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}
+                      >
                         Pass
                       </button>
                     </div>
@@ -197,8 +215,8 @@ export default function MatchesPage() {
                 
                 {/* Expand Toggle */}
                 <div 
-                  className="w-full p-3 text-center text-xs font-bold text-white/40 hover:text-white/70 hover:bg-white/5 transition-all cursor-pointer border-t" 
-                  style={{ borderColor: "var(--color-line)" }}
+                  className="w-full p-3 text-center text-xs font-bold transition-all cursor-pointer" 
+                  style={{ borderTop: "1px solid var(--border)", color: "var(--text-muted)" }}
                   onClick={() => setExpandedId(expandedId === m.userId ? null : m.userId)}
                 >
                   {expandedId === m.userId ? "Hide Breakdown" : "View Full Breakdown"}
@@ -206,7 +224,7 @@ export default function MatchesPage() {
                 
                 {/* Expanded Details */}
                 {expandedId === m.userId && (
-                  <div className="p-6 md:p-8 bg-black/20 border-t" style={{ borderColor: "var(--color-line)" }}>
+                  <div className="p-6 md:p-8" style={{ background: "var(--bg-tertiary)", borderTop: "1px solid var(--border)" }}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                       {Object.entries({
                         "Travel Style": m.breakdown.travelStyleScore,
@@ -220,11 +238,11 @@ export default function MatchesPage() {
                       }).map(([label, score]) => (
                         <div key={label}>
                           <div className="flex justify-between text-xs mb-1">
-                            <span className="text-white/60">{label}</span>
-                            <span className="text-white/40">{score as number}%</span>
+                            <span style={{ color: "var(--text-secondary)" }}>{label}</span>
+                            <span style={{ color: "var(--text-muted)" }}>{score as number}%</span>
                           </div>
-                          <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
-                            <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${score}%` }} />
+                          <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-primary)" }}>
+                            <div className="h-full rounded-full" style={{ width: `${score}%`, background: "var(--brand)" }} />
                           </div>
                         </div>
                       ))}
@@ -240,27 +258,31 @@ export default function MatchesPage() {
       {tab === "MUTUAL" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {mutuals.length === 0 ? (
-            <div className="col-span-2 text-center py-20 text-white/40">You don't have any mutual matches yet.</div>
+            <div className="col-span-2 text-center py-20" style={{ color: "var(--text-muted)" }}>You don&apos;t have any mutual matches yet.</div>
           ) : (
             mutuals.map(m => (
-              <div key={m.userId} className="p-4 rounded-2xl flex items-center gap-4 transition-all" style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}>
-                <div className="w-14 h-14 rounded-full bg-white/10 flex-shrink-0 overflow-hidden">
+              <div key={m.userId} className="p-4 rounded-2xl flex items-center gap-4 transition-all" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+                <div className="w-14 h-14 rounded-full flex-shrink-0 overflow-hidden" style={{ background: "var(--bg-tertiary)" }}>
                   {m.profilePhotoUrl ? (
                      <img src={m.profilePhotoUrl} alt={m.firstName} className="w-full h-full object-cover" />
                   ) : (
-                     <div className="w-full h-full flex items-center justify-center text-white/20"><User size={24}/></div>
+                     <div className="w-full h-full flex items-center justify-center" style={{ color: "var(--text-muted)" }}><User size={24}/></div>
                   )}
                 </div>
                 <div className="flex-1">
-                  <div className="font-bold text-white text-lg flex items-center gap-2">
+                  <div className="font-bold text-lg flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
                     {m.firstName} {m.lastName}
                     {m.verified ? <VerifiedBadge size={14} /> : <UnverifiedBadge size={14} />}
                   </div>
-                  <div className="text-xs text-emerald-400 font-bold flex items-center gap-1">
+                  <div className="text-xs font-bold flex items-center gap-1" style={{ color: "var(--brand)" }}>
                     <CheckCircle size={12} /> Mutual Match
                   </div>
                 </div>
-                <a href={`/dashboard/messages?partnerId=${m.userId}`} className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-white">
+                <a
+                  href={`/dashboard/messages?partnerId=${m.userId}`}
+                  className="p-3 rounded-xl transition-colors"
+                  style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)" }}
+                >
                   <MessageSquare size={20} />
                 </a>
               </div>

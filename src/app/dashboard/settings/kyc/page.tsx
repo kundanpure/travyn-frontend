@@ -108,8 +108,8 @@ export default function KycVerificationPage() {
           <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
             <ShieldCheck size={40} className="text-emerald-500" />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Identity Verified</h2>
-          <p className="text-gray-400 mb-6">
+          <h2 className="text-2xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>Identity Verified</h2>
+          <p style={{ color: "var(--text-muted)" }} className="mb-6">
             Your identity has been successfully verified via Aadhaar Secure QR. Your TrustScore has increased!
           </p>
           <div className="bg-emerald-950/30 border border-emerald-900/50 rounded-xl p-4 inline-block text-left">
@@ -130,8 +130,8 @@ export default function KycVerificationPage() {
           <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
             <ShieldAlert size={40} className="text-red-500" />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Verification Locked</h2>
-          <p className="text-gray-400 mb-6">
+          <h2 className="text-2xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>Verification Locked</h2>
+          <p style={{ color: "var(--text-muted)" }} className="mb-6">
             You have exceeded the maximum number of failed verification attempts. For security reasons, identity verification is temporarily locked.
           </p>
           <div className="bg-red-950/30 border border-red-900/50 rounded-xl p-6 inline-block">
@@ -149,14 +149,14 @@ export default function KycVerificationPage() {
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 mb-4 transition-colors">
           <ArrowLeft size={16} /> Back to Dashboard
         </Link>
-        <h1 className="text-2xl font-bold text-white">Identity Verification</h1>
-        <p className="text-sm text-gray-400 mt-1">Upload the back of your Aadhaar card to scan the Secure QR Code.</p>
+        <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Identity Verification</h1>
+        <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>Upload the back of your Aadhaar card to scan the Secure QR Code.</p>
       </div>
 
       <div className="bg-blue-950/20 border border-blue-900/30 rounded-2xl p-5 flex items-start gap-4">
         <ShieldCheck size={24} className="text-blue-400 flex-shrink-0" />
         <div>
-          <h4 className="font-semibold text-white text-sm mb-1">Zero-Retention Policy</h4>
+          <h4 className="font-semibold text-sm mb-1" style={{ color: "var(--text-primary)" }}>Zero-Retention Policy</h4>
           <p className="text-xs text-blue-200/70">
             Your privacy is our priority. Your image is processed entirely in-memory to extract the cryptographic signature and demographic data. It is never saved to our disks or databases.
           </p>
@@ -200,14 +200,15 @@ export default function KycVerificationPage() {
             )}
             <div 
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-gray-700 hover:border-blue-500 rounded-2xl p-12 text-center cursor-pointer transition-colors group"
+              className="border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-colors group"
+              style={{ borderColor: "var(--border)" }}
             >
-            <div className="w-16 h-16 bg-gray-800 group-hover:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors">
-              <Upload size={28} className="text-gray-400 group-hover:text-blue-400" />
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors" style={{ background: "var(--bg-tertiary)" }}>
+              <Upload size={28} style={{ color: "var(--text-muted)" }} />
             </div>
-            <h3 className="text-lg font-semibold text-white mb-1">Upload Aadhaar QR</h3>
-            <p className="text-sm text-gray-400">Click or drag an image of the back of your Aadhaar card</p>
-            <p className="text-xs text-gray-500 mt-4">Make sure the QR code is clearly visible and well-lit.</p>
+            <h3 className="text-lg font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Upload Aadhaar QR</h3>
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>Click or drag an image of the back of your Aadhaar card</p>
+            <p className="text-xs mt-4" style={{ color: "var(--text-muted)" }}>Make sure the QR code is clearly visible and well-lit.</p>
             <div className="mt-6 text-center">
               <button 
                 onClick={(e) => { e.stopPropagation(); setScanMethod("CAMERA"); }}
@@ -227,13 +228,13 @@ export default function KycVerificationPage() {
         </div>
         ) : (
           <div className="space-y-6">
-            <div className="relative rounded-2xl overflow-hidden border border-gray-700 bg-gray-900 h-64 flex items-center justify-center">
+            <div className="relative rounded-2xl overflow-hidden h-64 flex items-center justify-center" style={{ border: "1px solid var(--border)", background: "var(--bg-tertiary)" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={preview} alt="QR Preview" className="max-h-full max-w-full object-contain" />
               {loading && (
-                <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm flex flex-col items-center justify-center">
+                <div className="absolute inset-0 backdrop-blur-sm flex flex-col items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }}>
                   <Loader2 size={40} className="text-blue-500 animate-spin mb-4" />
-                  <p className="text-sm font-medium text-white animate-pulse">Verifying Cryptographic Signature...</p>
+                  <p className="text-sm font-medium animate-pulse" style={{ color: "white" }}>Verifying Cryptographic Signature...</p>
                 </div>
               )}
             </div>
@@ -259,7 +260,8 @@ export default function KycVerificationPage() {
                   setScanMethod("CAMERA");
                 }}
                 disabled={loading}
-                className="flex-1 py-3 px-4 rounded-xl font-medium text-sm border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors disabled:opacity-50"
+                className="flex-1 py-3 px-4 rounded-xl font-medium text-sm transition-colors disabled:opacity-50"
+                style={{ border: "1px solid var(--border)", color: "var(--text-secondary)", background: "var(--bg-tertiary)", cursor: "pointer" }}
               >
                 Try Another Image
               </button>

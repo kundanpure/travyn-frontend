@@ -296,16 +296,16 @@ export default function SafetyPage() {
           <Shield size={24} className="text-primary" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-white">Safety Centre</h1>
-          <p className="text-sm text-gray-400">Manage emergency contacts and live location sharing</p>
+          <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Safety Centre</h1>
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Manage emergency contacts and live location sharing</p>
         </div>
       </div>
 
       {/* Panic Button Section */}
       <div className="bg-deep rounded-2xl border border-red-500/30 p-8 text-center relative overflow-hidden">
         <div className="relative z-10">
-          <h2 className="text-2xl font-bold text-white mb-2">Emergency SOS</h2>
-          <p className="text-sm text-gray-400 mb-8 max-w-md mx-auto">
+          <h2 className="text-2xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>Emergency SOS</h2>
+          <p className="text-sm mb-8 max-w-md mx-auto" style={{ color: "var(--text-muted)" }}>
             Press and hold the button for 3 seconds to instantly notify all your emergency contacts with your live location.
           </p>
 
@@ -358,7 +358,7 @@ export default function SafetyPage() {
       {/* Emergency Contacts Section */}
       <div className="bg-surface rounded-2xl border border-line p-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-lg font-semibold text-white">Emergency Contacts</h2>
+          <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>Emergency Contacts</h2>
           {contacts.length < 5 && (
             <button 
               onClick={() => setShowAddContact(!showAddContact)}
@@ -390,7 +390,7 @@ export default function SafetyPage() {
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setShowAddContact(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancel</button>
+              <button type="button" onClick={() => setShowAddContact(false)} className="px-4 py-2 text-sm" style={{ color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}>Cancel</button>
               <button type="submit" className="t-btn-primary px-4 py-2">Save Contact</button>
             </div>
           </form>
@@ -400,7 +400,7 @@ export default function SafetyPage() {
           {contacts.map((c) => (
             <div key={c.id} className="flex justify-between items-center p-3 rounded-xl bg-deep border border-line">
               <div>
-                <p className="font-medium text-white">{c.name} <span className="text-xs text-gray-500 ml-2">{c.relationship}</span></p>
+                <p className="font-medium" style={{ color: "var(--text-primary)" }}>{c.name} <span className="text-xs ml-2" style={{ color: "var(--text-muted)" }}>{c.relationship}</span></p>
                 <div className="flex items-center gap-4 text-xs text-gray-400 mt-1">
                   <span className="flex items-center gap-1"><Mail size={12}/> {c.email}</span>
                   {c.phoneNumber && <span className="flex items-center gap-1"><Phone size={12}/> {c.phoneNumber}</span>}
@@ -443,7 +443,7 @@ export default function SafetyPage() {
 
       {/* Active Trips Location Sharing */}
       <div className="bg-surface rounded-2xl border border-line p-6">
-        <h2 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+        <h2 className="text-lg font-semibold mb-6 flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
           <Navigation size={18} className="text-primary"/> Live Location Sharing
         </h2>
         
@@ -456,7 +456,7 @@ export default function SafetyPage() {
               <div key={trip.id} className="p-4 rounded-xl border border-line bg-deep">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                   <div>
-                    <h3 className="font-semibold text-white">{trip.title}</h3>
+                    <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>{trip.title}</h3>
                     <p className="text-xs text-gray-400 flex items-center gap-1 mt-1">
                       <MapPin size={12}/> {trip.destination}
                     </p>
@@ -472,7 +472,8 @@ export default function SafetyPage() {
                     
                     <button 
                       onClick={() => handleToggleSharing(trip.id, isActive)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isActive ? 'bg-primary' : 'bg-gray-600'}`}
+                      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+                      style={{ background: isActive ? 'var(--brand)' : 'var(--bg-tertiary)' }}
                     >
                       <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isActive ? 'translate-x-6' : 'translate-x-1'}`} />
                     </button>
@@ -487,7 +488,7 @@ export default function SafetyPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-white mb-2 flex items-center gap-1">
+                      <label className="block text-sm font-medium mb-2 flex items-center gap-1" style={{ color: "var(--text-primary)" }}>
                         <MapPin size={14} className="text-gray-400"/> Accommodation Pin (Geofence)
                       </label>
                       <p className="text-xs text-gray-400 mb-3">
@@ -510,12 +511,12 @@ export default function SafetyPage() {
 
                     {generatedLinks[trip.id] && (
                       <div className="mt-6">
-                        <h4 className="text-sm font-semibold text-white mb-2">Master Tracking Link</h4>
+                        <h4 className="text-sm font-semibold mb-2" style={{ color: "var(--text-primary)" }}>Master Tracking Link</h4>
                         <div className="space-y-3">
                           {generatedLinks[trip.id].map((link: any, idx: number) => (
                             <div key={idx} className="bg-surface p-3 rounded-lg border border-line flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
                               <div>
-                                <p className="text-sm font-medium text-white">{link.contactName}</p>
+                                <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{link.contactName}</p>
                                 <p className="text-xs text-gray-400">{link.contactEmail}</p>
                                 <p className="text-xs text-gray-500 mt-1">Expires: {new Date(link.expiresAt).toLocaleString()}</p>
                               </div>

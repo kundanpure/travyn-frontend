@@ -618,8 +618,8 @@ export default function TripDetailPage() {
           </div>
           <button 
             onClick={() => setShowInsightModal(true)}
-            className="text-xs font-medium px-3 py-1 rounded-full transition-colors hover:bg-white/10"
-            style={{ color: "var(--color-primary)", border: "1px solid var(--color-primary)" }}
+            className="text-xs font-medium px-3 py-1 rounded-full transition-colors"
+            style={{ color: "var(--color-primary)", border: "1px solid var(--color-primary)", background: "var(--brand-light)" }}
           >
             + Share Insight
           </button>
@@ -650,7 +650,8 @@ export default function TripDetailPage() {
                 </div>
                 <button 
                   onClick={() => handleUpvoteInsight(insight.id)}
-                  className="flex flex-col items-center justify-center shrink-0 w-8 h-8 rounded-md hover:bg-white/5 transition-colors"
+                  className="flex flex-col items-center justify-center shrink-0 w-8 h-8 rounded-md transition-colors"
+                  style={{ cursor: "pointer" }}
                 >
                   <ArrowUp size={14} style={{ color: "var(--color-txt-muted)" }} className="mb-0.5" />
                   <span className="text-[10px] font-medium" style={{ color: "var(--color-txt-muted)" }}>{insight.upvotes}</span>

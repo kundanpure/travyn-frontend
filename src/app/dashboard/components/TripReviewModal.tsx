@@ -39,16 +39,16 @@ export function TripReviewModal({ tripId, tripTitle, onClose, onSuccess }: TripR
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md p-6 rounded-2xl shadow-2xl bg-gray-900 border border-gray-800">
+      <div className="relative w-full max-w-md p-6 rounded-2xl shadow-2xl" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white"
+          className="absolute top-4 right-4" style={{ color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}
         >
           <X size={20} />
         </button>
 
-        <h2 className="text-xl font-bold text-white mb-2">Review Trip</h2>
-        <p className="text-sm text-gray-400 mb-6">
+        <h2 className="text-xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>Review Trip</h2>
+        <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
           How was your experience on the trip "{tripTitle}"? Rate the overall experience and destination.
         </p>
 
@@ -82,7 +82,7 @@ export function TripReviewModal({ tripId, tripTitle, onClose, onSuccess }: TripR
             Comments (Optional)
           </label>
           <textarea
-            className="w-full bg-gray-800 border border-gray-700 rounded-xl p-3 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
+            className="t-input w-full"
             rows={4}
             placeholder="Share your experience about the trip..."
             value={comment}

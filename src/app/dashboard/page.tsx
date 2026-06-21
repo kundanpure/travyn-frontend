@@ -5,7 +5,7 @@ import { Suspense, useState, useEffect } from "react";
 import api from "@/lib/api";
 import {
   MapPin, Plus, Users, User, Calendar, Loader2, Crown, Mountain, Heart, Share2, Eye, Compass, Copy, Check,
-  CheckCircle, AlertTriangle, Lightbulb, ArrowUp
+  CheckCircle, AlertTriangle, Lightbulb, ArrowUp, Navigation, ArrowRight
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -110,8 +110,12 @@ function DashboardContent() {
     }
   };
 
+  const ongoingTrips = myTrips
+    .filter(t => t.memberStatus === "APPROVED" && t.status === "IN_PROGRESS")
+    .sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
+
   const upcomingTrips = myTrips
-    .filter(t => t.memberStatus === "APPROVED" && new Date(t.startDate) > new Date())
+    .filter(t => t.memberStatus === "APPROVED" && new Date(t.startDate) > new Date() && t.status !== "IN_PROGRESS")
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
   const handleJoin = async (tripId: string) => {
@@ -156,6 +160,50 @@ function DashboardContent() {
       {/* Main Feed Column */}
       <div className="flex-1 space-y-6 max-w-2xl mx-auto w-full">
         
+        {/* Ongoing Trip Banner */}
+        {ongoingTrips.length > 0 && (
+          <div className="mb-8">
+            {ongoingTrips.map(trip => (
+              <Link
+                key={trip.id}
+                href={`/dashboard/trips/${trip.id}`}
+                className="block rounded-2xl overflow-hidden group transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-900/30"
+                style={{
+                  background: "linear-gradient(135deg, rgba(45,212,168,0.12) 0%, rgba(96,165,250,0.08) 100%)",
+                  border: "1px solid rgba(45,212,168,0.3)",
+                }}
+              >
+                <div className="p-5 flex items-center gap-4">
+                  {/* Pulsing live dot */}
+                  <div className="relative flex-shrink-0">
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "rgba(45,212,168,0.15)" }}>
+                      <Navigation size={24} style={{ color: "#2dd4a8" }} />
+                    </div>
+                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full animate-pulse" style={{ background: "#2dd4a8", boxShadow: "0 0 8px rgba(45,212,168,0.6)" }} />
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider" style={{ background: "rgba(45,212,168,0.2)", color: "#2dd4a8" }}>
+                        🟢 ONGOING
+                      </span>
+                      <span className="text-xs" style={{ color: "var(--color-txt-muted)" }}>
+                        Ends {new Date(trip.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-bold text-white truncate">{trip.title}</h3>
+                    <p className="text-sm flex items-center gap-1 mt-0.5" style={{ color: "var(--color-txt-secondary)" }}>
+                      <MapPin size={12} /> {trip.destination}
+                    </p>
+                  </div>
+                  
+                  <ArrowRight size={20} className="flex-shrink-0 group-hover:translate-x-1 transition-transform" style={{ color: "#2dd4a8" }} />
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+
         {/* My Upcoming Trips (Horizontal Stories Style) */}
         {upcomingTrips.length > 0 && (
           <div className="mb-8">

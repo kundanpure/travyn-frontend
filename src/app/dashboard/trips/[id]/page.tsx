@@ -283,6 +283,19 @@ export default function TripDetailPage() {
     }
   };
 
+  const handleTransferAdmin = async (memberId: string, memberName: string) => {
+    if (!confirm(`Are you sure you want to transfer ownership of this trip to ${memberName}? You will become a regular member.`)) return;
+    setActionLoading(`transfer-${memberId}`);
+    try {
+      await api.put(`/trips/${tripId}/transfer/${memberId}`);
+      await fetchTrip();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to transfer ownership");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleRequest = async (memberId: string, status: string) => {
     setActionLoading(memberId);
     try {
@@ -782,6 +795,23 @@ export default function TripDetailPage() {
               </div>
               
               <div className="flex items-center gap-2">
+                {/* Transfer Admin Button - Only if I am the creator and the other is a member */}
+                {isCreator && m.userId !== user?.id && trip.status !== "CANCELLED" && trip.status !== "COMPLETED" && (
+                  <button
+                    onClick={() => handleTransferAdmin(m.userId, m.firstName)}
+                    disabled={actionLoading === `transfer-${m.userId}`}
+                    className="p-2 rounded-lg transition-colors flex items-center justify-center hover:scale-105"
+                    style={{ background: "rgba(251, 191, 36, 0.1)", border: "1px solid rgba(251, 191, 36, 0.3)", color: "#fbbf24" }}
+                    title="Make Admin"
+                  >
+                    {actionLoading === `transfer-${m.userId}` ? (
+                      <div className="w-4 h-4 border-2 border-[#fbbf24] border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Crown size={16} />
+                    )}
+                  </button>
+                )}
+
                 {/* Message Button - Only if it's an active trip and not myself */}
                 {m.userId !== user?.id && myMembership?.status === "APPROVED" && (
                   <a

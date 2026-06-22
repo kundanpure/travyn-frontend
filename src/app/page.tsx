@@ -499,10 +499,10 @@ export default function LandingPage() {
         <div className="t-container">
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 }} className="md:!grid-cols-4">
             {[
-              { target: 100, suffix: "", label: "Founding Member Spots", Icon: Users },
-              { target: 1, suffix: "", label: "Mission: Safe Travel", Icon: MapPin },
-              { target: 100, suffix: "%", label: "Verified Users Only", Icon: Shield },
-              { target: 0, suffix: " Bots", label: "Fake Profiles", Icon: Sparkles },
+              { target: 50, suffix: "+", label: "Destinations to Explore", Icon: MapPin },
+              { target: 1, suffix: "-Tap", label: "SOS Alerts", Icon: Shield },
+              { target: 100, suffix: "%", label: "Aadhaar Verified Travelers", Icon: Users },
+              { target: 0, suffix: " Tolerance", label: "For Fake Profiles", Icon: Lock },
             ].map(({ target, suffix, label, Icon }, i) => (
               <Reveal key={label} delay={i * 100}>
                 <div className="t-stat-card">

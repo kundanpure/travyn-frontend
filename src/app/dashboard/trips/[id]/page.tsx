@@ -724,15 +724,20 @@ export default function TripDetailPage() {
         cutoff.setDate(cutoff.getDate() - 1);
         return new Date() < cutoff;
       })() && (
-        <button
-          onClick={handleLeave}
-          disabled={actionLoading === "leave"}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-red-500/10"
-          style={{ color: "#f87171", border: "1px dashed rgba(248,113,113,0.3)", background: "transparent", cursor: "pointer" }}
-        >
-          {actionLoading === "leave" ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />} 
-          {myMembership.status === "PENDING" ? "Withdraw Request" : "Leave Trip"}
-        </button>
+        <div className="w-full flex flex-col items-center gap-2">
+          <button
+            onClick={handleLeave}
+            disabled={actionLoading === "leave"}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-red-500/10"
+            style={{ color: "#f87171", border: "1px dashed rgba(248,113,113,0.3)", background: "transparent", cursor: "pointer" }}
+          >
+            {actionLoading === "leave" ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />} 
+            {myMembership.status === "PENDING" ? "Withdraw Request" : "Leave Trip"}
+          </button>
+          <span className="text-xs text-center" style={{ color: "var(--color-txt-muted)" }}>
+            You can request to join again later if spots are available.
+          </span>
+        </div>
       )}
 
       {/* Members */}

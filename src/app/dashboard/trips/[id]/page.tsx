@@ -270,6 +270,19 @@ export default function TripDetailPage() {
     setJoining(false);
   };
 
+  const handleLeave = async () => {
+    if (!confirm("Are you sure you want to withdraw from this trip?")) return;
+    setActionLoading("leave");
+    try {
+      await api.delete(`/trips/${tripId}/leave`);
+      await fetchTrip();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to leave trip");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleRequest = async (memberId: string, status: string) => {
     setActionLoading(memberId);
     try {
@@ -704,6 +717,22 @@ export default function TripDetailPage() {
         >
           <CheckCircle2 size={16} className="inline mr-2" /> You&apos;re a member of this trip!
         </div>
+      )}
+      
+      {myMembership && !isCreator && trip.status !== "CANCELLED" && trip.status !== "COMPLETED" && (() => {
+        const cutoff = new Date(trip.startDate);
+        cutoff.setDate(cutoff.getDate() - 1);
+        return new Date() < cutoff;
+      })() && (
+        <button
+          onClick={handleLeave}
+          disabled={actionLoading === "leave"}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-red-500/10"
+          style={{ color: "#f87171", border: "1px dashed rgba(248,113,113,0.3)", background: "transparent", cursor: "pointer" }}
+        >
+          {actionLoading === "leave" ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />} 
+          {myMembership.status === "PENDING" ? "Withdraw Request" : "Leave Trip"}
+        </button>
       )}
 
       {/* Members */}

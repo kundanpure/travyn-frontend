@@ -968,7 +968,7 @@ export default function TripDetailPage() {
           <div className="space-y-3">
             {requests.map((req) => (
               <div
-                key={req.memberId}
+                key={req.userId}
                 className="flex items-center gap-3 p-3 rounded-xl"
                 style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)" }}
               >
@@ -989,20 +989,20 @@ export default function TripDetailPage() {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handleRequest(req.memberId, "APPROVED")}
-                    disabled={actionLoading === req.memberId}
+                    onClick={() => handleRequest(req.userId, "APPROVED")}
+                    disabled={actionLoading === req.userId}
                     className="p-2 rounded-lg transition-colors"
                     style={{ background: "rgba(45,212,168,0.1)", border: "1px solid rgba(45,212,168,0.3)", cursor: "pointer" }}
                   >
-                    {actionLoading === req.memberId ? (
+                    {actionLoading === req.userId ? (
                       <Loader2 size={16} className="animate-spin" style={{ color: "#2dd4a8" }} />
                     ) : (
                       <CheckCircle2 size={16} style={{ color: "#2dd4a8" }} />
                     )}
                   </button>
                   <button
-                    onClick={() => handleRequest(req.memberId, "REJECTED")}
-                    disabled={actionLoading === req.memberId}
+                    onClick={() => handleRequest(req.userId, "REJECTED")}
+                    disabled={actionLoading === req.userId}
                     className="p-2 rounded-lg transition-colors"
                     style={{ background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)", cursor: "pointer" }}
                   >

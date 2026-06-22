@@ -120,17 +120,15 @@ export default function MessagesPage() {
                 className="w-full text-left p-4 transition-colors"
                 style={{
                   background: selectedPartnerId === item.partnerId ? "var(--brand-light)" : "transparent",
-                  borderBottom: "1px solid var(--border)",
-                  borderLeft: selectedPartnerId === item.partnerId ? "2px solid var(--brand)" : "2px solid transparent",
-                  cursor: "pointer",
-                  border: "none",
+                  borderTopWidth: 0,
+                  borderRightWidth: 0,
                   borderBottomWidth: 1,
                   borderBottomStyle: "solid",
                   borderBottomColor: "var(--border)",
-                  ...(selectedPartnerId === item.partnerId ? {
-                    background: "var(--brand-light)",
-                    borderLeft: "2px solid var(--brand)",
-                  } : {}),
+                  borderLeftWidth: 2,
+                  borderLeftStyle: "solid",
+                  borderLeftColor: selectedPartnerId === item.partnerId ? "var(--brand)" : "transparent",
+                  cursor: "pointer",
                 }}
               >
                 <div className="flex items-center gap-3">

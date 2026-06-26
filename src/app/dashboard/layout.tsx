@@ -678,14 +678,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               borderBottom: "1px solid var(--border)",
             }}
           >
-            <div className="flex items-center gap-2 text-sm" style={{ color: "var(--accent-text)" }}>
-              <AlertTriangle size={15} />
+            <div className="flex items-center gap-2 text-sm flex-wrap min-w-0" style={{ color: "var(--accent-text)" }}>
+              <AlertTriangle size={15} className="flex-shrink-0" />
               <span>
                 Your identity is not verified. Verified travelers get <strong>3× more trip invites</strong>.
               </span>
               <a
                 href="/dashboard/settings/kyc"
-                className="inline-flex items-center gap-1 font-semibold hover:underline ml-1"
+                className="inline-flex items-center gap-1 font-semibold hover:underline"
                 style={{ color: "var(--accent-text)" }}
               >
                 Verify Now <ArrowRight size={13} />

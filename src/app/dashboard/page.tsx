@@ -135,7 +135,7 @@ function DashboardContent() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto pb-10 space-y-8">
+    <div className="max-w-5xl mx-auto pb-10 space-y-8 overflow-hidden">
 
       {/* ─── GREETING ─── */}
       <div>
@@ -187,8 +187,8 @@ function DashboardContent() {
                 >
                   {trip.title}
                 </h3>
-                <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: "var(--text-secondary)" }}>
-                  <MapPin size={11} /> {trip.destination}
+                <p className="text-xs flex items-center gap-1 mt-0.5 truncate" style={{ color: "var(--text-secondary)" }}>
+                  <MapPin size={11} className="flex-shrink-0" /> {trip.destination}
                 </p>
               </div>
               <ArrowRight

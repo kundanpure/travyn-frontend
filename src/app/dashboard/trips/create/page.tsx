@@ -38,6 +38,13 @@ export default function CreateTripPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [destinationInsights, setDestinationInsights] = useState<any[]>([]);
   const { user } = useAuthStore();
+  
+  const [myTrips, setMyTrips] = useState<any[]>([]);
+  const [dateError, setDateError] = useState("");
+
+  useEffect(() => {
+    api.get("/trips/my-trips").then(res => setMyTrips(res.data)).catch(() => {});
+  }, []);
 
   const [form, setForm] = useState({
     title: "",
@@ -70,8 +77,30 @@ export default function CreateTripPage() {
     return () => clearTimeout(timer);
   }, [form.destination]);
 
+  useEffect(() => {
+    if (form.startDate && form.endDate && myTrips.length > 0) {
+      const s1 = new Date(form.startDate);
+      const e1 = new Date(form.endDate);
+      
+      const overlap = myTrips.some(t => {
+        if (t.status === "CANCELLED" || t.status === "COMPLETED") return false;
+        const s2 = new Date(t.startDate);
+        const e2 = new Date(t.endDate);
+        return s1 <= e2 && s2 <= e1;
+      });
+
+      if (overlap) {
+        setDateError("You already have an approved trip scheduled during these dates");
+      } else {
+        setDateError("");
+      }
+    } else {
+      setDateError("");
+    }
+  }, [form.startDate, form.endDate, myTrips]);
+
   const canNext = () => {
-    if (step === 0) return form.title && form.destination && form.startDate && form.endDate && form.tripType && !budgetError;
+    if (step === 0) return form.title && form.destination && form.startDate && form.endDate && form.tripType && !budgetError && !dateError;
     if (step === 1) return form.maxSize >= 2 && form.maxSize <= 12;
     return true;
   };
@@ -235,6 +264,11 @@ export default function CreateTripPage() {
                 />
               </div>
             </div>
+            {dateError && (
+              <div className="text-xs mt-1 block font-medium p-2 rounded-lg" style={{ background: "rgba(248,113,113,0.1)", color: "#f87171" }}>
+                ⚠ {dateError}
+              </div>
+            )}
 
             <div>
               <label className="text-xs font-medium mb-2 block" style={{ color: "var(--color-txt-secondary)" }}>

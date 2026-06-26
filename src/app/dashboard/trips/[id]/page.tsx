@@ -275,6 +275,32 @@ export default function TripDetailPage() {
     setJoining(false);
   };
 
+  const handleLeave = async () => {
+    if (!confirm("Are you sure you want to withdraw from this trip?")) return;
+    setActionLoading("leave");
+    try {
+      await api.delete(`/trips/${tripId}/leave`);
+      await fetchTrip();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to leave trip");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleTransferAdmin = async (memberId: string, memberName: string) => {
+    if (!confirm(`Are you sure you want to transfer ownership of this trip to ${memberName}? You will become a regular member.`)) return;
+    setActionLoading(`transfer-${memberId}`);
+    try {
+      await api.put(`/trips/${tripId}/transfer/${memberId}`);
+      await fetchTrip();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to transfer ownership");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleRequest = async (memberId: string, status: string) => {
     setActionLoading(memberId);
     try {
@@ -721,6 +747,27 @@ export default function TripDetailPage() {
           <CheckCircle2 size={16} className="inline mr-2" /> You&apos;re a member of this trip!
         </div>
       )}
+      
+      {myMembership && !isCreator && trip.status !== "CANCELLED" && trip.status !== "COMPLETED" && (() => {
+        const cutoff = new Date(trip.startDate);
+        cutoff.setDate(cutoff.getDate() - 1);
+        return new Date() < cutoff;
+      })() && (
+        <div className="w-full flex flex-col items-center gap-2">
+          <button
+            onClick={handleLeave}
+            disabled={actionLoading === "leave"}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-red-500/10"
+            style={{ color: "#f87171", border: "1px dashed rgba(248,113,113,0.3)", background: "transparent", cursor: "pointer" }}
+          >
+            {actionLoading === "leave" ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />} 
+            {myMembership.status === "PENDING" ? "Withdraw Request" : "Leave Trip"}
+          </button>
+          <span className="text-xs text-center" style={{ color: "var(--color-txt-muted)" }}>
+            You can request to join again later if spots are available.
+          </span>
+        </div>
+      )}
 
       {/* Members */}
       <div
@@ -764,6 +811,23 @@ export default function TripDetailPage() {
               </div>
               
               <div className="flex items-center gap-2">
+                {/* Transfer Admin Button - Only if I am the creator and the other is a member */}
+                {isCreator && m.userId !== user?.id && trip.status !== "CANCELLED" && trip.status !== "COMPLETED" && (
+                  <button
+                    onClick={() => handleTransferAdmin(m.userId, m.firstName)}
+                    disabled={actionLoading === `transfer-${m.userId}`}
+                    className="p-2 rounded-lg transition-colors flex items-center justify-center hover:scale-105"
+                    style={{ background: "rgba(251, 191, 36, 0.1)", border: "1px solid rgba(251, 191, 36, 0.3)", color: "#fbbf24" }}
+                    title="Make Admin"
+                  >
+                    {actionLoading === `transfer-${m.userId}` ? (
+                      <div className="w-4 h-4 border-2 border-[#fbbf24] border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Crown size={16} />
+                    )}
+                  </button>
+                )}
+
                 {/* Message Button - Only if it's an active trip and not myself */}
                 {m.userId !== user?.id && (isCreator || myMembership?.status === "APPROVED") && (
                   <a
@@ -920,7 +984,7 @@ export default function TripDetailPage() {
           <div className="space-y-3">
             {requests.map((req) => (
               <div
-                key={req.memberId}
+                key={req.userId}
                 className="flex items-center gap-3 p-3 rounded-xl"
                 style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)" }}
               >
@@ -941,20 +1005,20 @@ export default function TripDetailPage() {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handleRequest(req.memberId, "APPROVED")}
-                    disabled={actionLoading === req.memberId}
+                    onClick={() => handleRequest(req.userId, "APPROVED")}
+                    disabled={actionLoading === req.userId}
                     className="p-2 rounded-lg transition-colors"
                     style={{ background: "rgba(45,212,168,0.1)", border: "1px solid rgba(45,212,168,0.3)", cursor: "pointer" }}
                   >
-                    {actionLoading === req.memberId ? (
+                    {actionLoading === req.userId ? (
                       <Loader2 size={16} className="animate-spin" style={{ color: "#2dd4a8" }} />
                     ) : (
                       <CheckCircle2 size={16} style={{ color: "#2dd4a8" }} />
                     )}
                   </button>
                   <button
-                    onClick={() => handleRequest(req.memberId, "REJECTED")}
-                    disabled={actionLoading === req.memberId}
+                    onClick={() => handleRequest(req.userId, "REJECTED")}
+                    disabled={actionLoading === req.userId}
                     className="p-2 rounded-lg transition-colors"
                     style={{ background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)", cursor: "pointer" }}
                   >

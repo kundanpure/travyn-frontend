@@ -25,6 +25,7 @@ import {
   AlertTriangle,
   ArrowRight,
   Plus,
+  PartyPopper,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useNotificationStore } from "@/stores/notification-store";
@@ -226,7 +227,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!notif.read) markAsRead(notif.id);
     setNotifOpen(false);
     if (notif.referenceId) {
-      if (notif.type === "JOIN_APPROVED" || notif.type === "JOIN_REJECTED" || notif.type === "JOIN_REQUEST" || notif.type.includes("REVIEW")) {
+      if (notif.type === "JOIN_APPROVED" || notif.type === "JOIN_REJECTED" || notif.type === "JOIN_REQUEST" || notif.type === "NEW_MEMBER_JOINED" || notif.type === "MEMBER_LEFT" || notif.type.includes("REVIEW")) {
         router.push(`/dashboard/trips/${notif.referenceId}`);
       } else if (notif.type === "DIRECT_MESSAGE") {
         router.push(`/dashboard/messages?partnerId=${notif.referenceId}`);
@@ -537,16 +538,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                               className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mt-0.5"
                               style={{
                                 background: notif.read ? "var(--bg-tertiary)"
-                                  : notif.type === "JOIN_APPROVED" ? "var(--brand-light)"
-                                  : notif.type === "JOIN_REJECTED" ? "var(--danger-light)"
+                                  : notif.type === "JOIN_APPROVED" || notif.type === "NEW_MEMBER_JOINED" ? "var(--brand-light)"
+                                  : notif.type === "JOIN_REJECTED" || notif.type === "MEMBER_LEFT" ? "var(--danger-light)"
                                   : notif.type === "JOIN_REQUEST" ? "var(--accent-light)"
                                   : "var(--brand-light)",
                               }}
                             >
                               {notif.type === "JOIN_APPROVED" ? (
                                 <UserPlus size={14} style={{ color: notif.read ? "var(--text-muted)" : "var(--brand)" }} />
+                              ) : notif.type === "NEW_MEMBER_JOINED" ? (
+                                <PartyPopper size={14} style={{ color: notif.read ? "var(--text-muted)" : "var(--brand)" }} />
                               ) : notif.type === "JOIN_REJECTED" ? (
                                 <XCircle size={14} style={{ color: notif.read ? "var(--text-muted)" : "var(--danger)" }} />
+                              ) : notif.type === "MEMBER_LEFT" ? (
+                                <User size={14} style={{ color: notif.read ? "var(--text-muted)" : "var(--danger)" }} />
                               ) : notif.type === "JOIN_REQUEST" ? (
                                 <UserPlus size={14} style={{ color: notif.read ? "var(--text-muted)" : "var(--accent)" }} />
                               ) : (

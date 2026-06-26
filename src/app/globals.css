@@ -771,6 +771,30 @@
     background: radial-gradient(circle, rgba(240, 160, 48, 0.20), transparent 70%);
     animation: orb-drift 15s ease-in-out 3s infinite reverse;
   }
+
+  /* ── Mobile: scale down orbs and hide spinning rings ── */
+  @media (max-width: 767px) {
+    .t-orb {
+      width: 200px !important;
+      height: 200px !important;
+      filter: blur(60px);
+    }
+    .t-spin-ring {
+      display: none !important;
+    }
+  }
+
+  /* ── Spinning ring — uses wrapper so translate centering is preserved ── */
+  .t-spin-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    border-radius: 50%;
+    pointer-events: none;
+    /* translate for centering is separate from the rotate animation */
+    translate: -50% -50%;
+    animation: spin-slow 25s linear infinite;
+  }
   .t-grid-pattern {
     background-image:
       linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),

@@ -258,7 +258,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div style={{ background: "var(--color-bg-deep)", minHeight: "100vh" }}>
+    <div style={{ background: "var(--color-bg-deep)", minHeight: "100vh", overflowX: "hidden" }}>
 
       {/* ════════════════════ NAVBAR ════════════════════ */}
       <nav
@@ -375,38 +375,28 @@ export default function LandingPage() {
         {/* Grid overlay */}
         <div className="t-grid-pattern" style={{ position: "absolute", inset: 0, opacity: 0.4 }} />
 
-        {/* Spinning rings */}
+        {/* Spinning rings — uses .t-spin-ring class for proper mobile handling */}
         <div
+          className="t-spin-ring"
           style={{
-            position: "absolute",
             width: 600,
             height: 600,
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            borderRadius: "50%",
             border: "1px solid rgba(45, 212, 168, 0.06)",
-            pointerEvents: "none",
-            animation: "spin-slow 25s linear infinite",
           }}
         />
         <div
+          className="t-spin-ring"
           style={{
-            position: "absolute",
             width: 800,
             height: 800,
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            borderRadius: "50%",
             border: "1px dashed rgba(240, 160, 48, 0.04)",
-            pointerEvents: "none",
-            animation: "spin-slow 35s linear infinite reverse",
+            animationDuration: "35s",
+            animationDirection: "reverse",
           }}
         />
 
         {/* Content */}
-        <div className="t-container" style={{ position: "relative", zIndex: 10, textAlign: "center", paddingTop: 112, paddingBottom: 80 }}>
+        <div className="t-container" style={{ position: "relative", zIndex: 10, textAlign: "center", paddingTop: "clamp(80px, 15vw, 112px)", paddingBottom: "clamp(48px, 10vw, 80px)" }}>
           <Reveal delay={100}>
             <div className="t-badge t-badge-primary" style={{ marginBottom: 32 }}>
               <Sparkles size={14} />
@@ -832,7 +822,7 @@ export default function LandingPage() {
               <p style={{ maxWidth: 480, margin: "0 auto 40px", color: "var(--color-txt-secondary)", fontSize: "1.1rem", lineHeight: 1.7 }}>
                 Join thousands of verified solo travelers already exploring the world together, safely and confidently.
               </p>
-              <Link href="/register" className="t-btn-primary" style={{ padding: "18px 42px", fontSize: "1.1rem" }}>
+              <Link href="/register" className="t-btn-primary" style={{ padding: "16px clamp(24px, 5vw, 42px)", fontSize: "clamp(0.95rem, 2.5vw, 1.1rem)" }}>
                 Start Your Journey — Free <ArrowRight size={20} />
               </Link>
               <p style={{ marginTop: 24, fontSize: "0.85rem", color: "var(--color-txt-dim)" }}>

@@ -116,6 +116,7 @@ export default function TripDetailPage() {
   const [requests, setRequests] = useState<JoinRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState("");
   const [copied, setCopied] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [locationSharingActive, setLocationSharingActive] = useState(false);
@@ -263,10 +264,14 @@ export default function TripDetailPage() {
 
   const handleJoin = async () => {
     setJoining(true);
+    setJoinError("");
     try {
       await api.post(`/trips/${tripId}/join`);
       await fetchTrip();
-    } catch {}
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setJoinError(axiosErr?.response?.data?.message || "Failed to join trip. Please try again.");
+    }
     setJoining(false);
   };
 
@@ -668,6 +673,7 @@ export default function TripDetailPage() {
         cutoff.setDate(cutoff.getDate() - 1);
         return new Date() < cutoff;
       })() && (
+        <>
         <button
           onClick={handleJoin}
           disabled={joining}
@@ -676,6 +682,16 @@ export default function TripDetailPage() {
         >
           {joining ? <Loader2 size={18} className="animate-spin" /> : <><UserPlus size={18} /> Request to Join</>}
         </button>
+        {joinError && (
+          <div
+            className="w-full text-center py-3 rounded-xl text-sm font-medium mt-2"
+            style={{ background: "rgba(248,113,113,0.1)", color: "#f87171", border: "1px solid rgba(248,113,113,0.2)" }}
+          >
+            <XCircle size={16} className="inline mr-2" />
+            {joinError}
+          </div>
+        )}
+        </>
       )}
       {!isCreator && !myMembership && trip.status === "OPEN" && (() => {
         const cutoff = new Date(trip.startDate);
@@ -749,7 +765,7 @@ export default function TripDetailPage() {
               
               <div className="flex items-center gap-2">
                 {/* Message Button - Only if it's an active trip and not myself */}
-                {m.userId !== user?.id && myMembership?.status === "APPROVED" && (
+                {m.userId !== user?.id && (isCreator || myMembership?.status === "APPROVED") && (
                   <a
                     href={`/dashboard/messages?partnerId=${m.userId}`}
                     className="p-2 rounded-lg transition-colors flex items-center justify-center hover:scale-105"

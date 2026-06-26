@@ -247,7 +247,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   return (
-    <div className="min-h-screen flex" style={{ background: "var(--bg-primary)" }}>
+    <div className="min-h-screen flex overflow-x-hidden" style={{ background: "var(--bg-primary)" }}>
 
       {/* ═══════════ DESKTOP SIDEBAR ═══════════ */}
       <aside
@@ -413,7 +413,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       {/* ═══════════ MAIN CONTENT ═══════════ */}
-      <div className="flex-1 lg:ml-[240px] flex flex-col min-h-screen pb-16 lg:pb-0">
+      <div className="flex-1 lg:ml-[240px] flex flex-col min-h-screen pb-16 lg:pb-0 min-w-0 overflow-x-hidden">
         <SafetyCheckModal />
 
         {/* ─── TOP BAR ─── */}
@@ -701,7 +701,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
 
         {/* ─── PAGE CONTENT ─── */}
-        <main className="flex-1 p-4 lg:p-6">{children}</main>
+        <main className="flex-1 p-4 lg:p-6 min-w-0">{children}</main>
       </div>
 
       {/* ═══════════ MOBILE BOTTOM NAV ═══════════ */}

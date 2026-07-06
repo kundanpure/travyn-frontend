@@ -76,7 +76,14 @@ export default function GoogleCompleteProfileModal({
       });
       const data = res.data;
       setAuth(data.user, data.access_token, data.refresh_token);
-      router.push("/dashboard");
+      // Check for pending invite link
+      const pendingInvite = sessionStorage.getItem("pendingInviteToken");
+      if (pendingInvite) {
+        sessionStorage.removeItem("pendingInviteToken");
+        router.push(`/invite/${pendingInvite}`);
+      } else {
+        router.push("/dashboard");
+      }
     } catch (err: any) {
       const data = err.response?.data;
       if (data?.details?.length) {

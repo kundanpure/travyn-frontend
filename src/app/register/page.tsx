@@ -157,7 +157,13 @@ export default function RegisterPage() {
       });
       const data = res.data;
       setAuth(data.user, data.access_token, data.refresh_token);
-      router.push("/onboarding");
+      const pendingInvite = sessionStorage.getItem("pendingInviteToken");
+      if (pendingInvite) {
+        sessionStorage.removeItem("pendingInviteToken");
+        router.push(`/invite/${pendingInvite}`);
+      } else {
+        router.push("/onboarding");
+      }
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string; error?: string; details?: { field: string; message: string }[] } } };
       const data = axiosErr.response?.data;
@@ -185,7 +191,13 @@ export default function RegisterPage() {
       } else {
         const data = res.data;
         setAuth(data.user, data.access_token, data.refresh_token);
-        router.push("/dashboard");
+        const pendingInvite = sessionStorage.getItem("pendingInviteToken");
+        if (pendingInvite) {
+          sessionStorage.removeItem("pendingInviteToken");
+          router.push(`/invite/${pendingInvite}`);
+        } else {
+          router.push("/dashboard");
+        }
       }
     } catch (err: any) {
       setError("Google Login failed. Please try again.");

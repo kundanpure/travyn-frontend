@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, MapPin, Calendar, Users, Hash, Shield, Heart, Clock,
   Loader2, CheckCircle2, XCircle, UserPlus, Crown, Copy, Check,
-  Map, DollarSign, MessageCircle, Pencil, X, Save, IndianRupee,
+  Map, DollarSign, MessageCircle, Pencil, X, Save, IndianRupee, Link2,
   Mountain, Car, Landmark, Compass, Monitor, PartyPopper, ImagePlus, Star,
   Hourglass, Eye, Navigation, Lightbulb, ArrowUp
 } from "lucide-react";
@@ -18,6 +18,7 @@ import { TripReviewModal } from "@/app/dashboard/components/TripReviewModal";
 import LocationAutocomplete from "@/app/dashboard/components/LocationAutocomplete";
 import VerifiedBadge from "@/app/dashboard/components/VerifiedBadge";
 import UnverifiedBadge from "@/app/dashboard/components/UnverifiedBadge";
+import InviteFriendsModal from "@/app/dashboard/components/InviteFriendsModal";
 
 const typeColors: Record<string, string> = {
   BACKPACKING: "#2dd4a8", LUXURY: "#f0a030", ROAD_TRIP: "#60a5fa",
@@ -139,6 +140,7 @@ export default function TripDetailPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
   const [showUpload, setShowUpload] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const [editForm, setEditForm] = useState({
     title: "",
     destination: "",
@@ -488,19 +490,34 @@ export default function TripDetailPage() {
                 )}
               </div>
               {isCreator && trip.status !== "COMPLETED" && trip.status !== "CANCELLED" && (
-                <button
-                  onClick={openEditModal}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                  style={{
-                    background: "rgba(45, 212, 168, 0.15)",
-                    color: "#2dd4a8",
-                    border: "1px solid rgba(45, 212, 168, 0.3)",
-                    backdropFilter: "blur(8px)",
-                    cursor: "pointer",
-                  }}
-                >
-                  <Pencil size={12} /> Edit Trip
-                </button>
+                <>
+                  <button
+                    onClick={openEditModal}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                    style={{
+                      background: "rgba(45, 212, 168, 0.15)",
+                      color: "#2dd4a8",
+                      border: "1px solid rgba(45, 212, 168, 0.3)",
+                      backdropFilter: "blur(8px)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Pencil size={12} /> Edit Trip
+                  </button>
+                  <button
+                    onClick={() => setShowInviteModal(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                    style={{
+                      background: "rgba(246, 167, 58, 0.15)",
+                      color: "#f6a73a",
+                      border: "1px solid rgba(246, 167, 58, 0.3)",
+                      backdropFilter: "blur(8px)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Link2 size={12} /> Invite Friends
+                  </button>
+                </>
               )}
               {(myMembership?.status === "APPROVED" || isCreator) && trip.status === "COMPLETED" && !tripReviews.some(r => r.reviewerId?.toLowerCase() === user?.id?.toLowerCase()) && (
                 <button
@@ -1559,6 +1576,13 @@ export default function TripDetailPage() {
             </form>
           </div>
         </div>
+      )}
+      {showInviteModal && trip && (
+        <InviteFriendsModal
+          tripId={trip.id}
+          tripTitle={trip.title}
+          onClose={() => setShowInviteModal(false)}
+        />
       )}
     </div>
   );

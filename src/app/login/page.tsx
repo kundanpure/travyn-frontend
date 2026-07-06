@@ -56,7 +56,14 @@ export default function LoginPage() {
       } else {
         const data = res.data;
         setAuth(data.user, data.access_token, data.refresh_token);
-        router.push("/dashboard");
+        // Check for pending invite link
+        const pendingInvite = sessionStorage.getItem("pendingInviteToken");
+        if (pendingInvite) {
+          sessionStorage.removeItem("pendingInviteToken");
+          router.push(`/invite/${pendingInvite}`);
+        } else {
+          router.push("/dashboard");
+        }
       }
     } catch (err: any) {
       setError("Google Login failed. Please try again.");

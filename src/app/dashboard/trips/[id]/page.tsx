@@ -7,7 +7,7 @@ import {
   Loader2, CheckCircle2, XCircle, UserPlus, Crown, Copy, Check,
   Map, DollarSign, MessageCircle, Pencil, X, Save, IndianRupee, Link2,
   Mountain, Car, Landmark, Compass, Monitor, PartyPopper, ImagePlus, Star,
-  Hourglass, Eye, Navigation, Lightbulb, ArrowUp
+  Hourglass, Eye, Navigation, Lightbulb, ArrowUp, Trash2
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
@@ -141,6 +141,8 @@ export default function TripDetailPage() {
   const [editError, setEditError] = useState("");
   const [showUpload, setShowUpload] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     title: "",
     destination: "",
@@ -263,6 +265,54 @@ export default function TripDetailPage() {
       console.error("Failed to load review window", err);
     }
   }
+
+  const handleInitiateCancel = async () => {
+    setActionLoading("cancel");
+    try {
+      await api.post(`/trips/${tripId}/cancel/initiate`);
+      await fetchTrip();
+      setCancelConfirmOpen(false);
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to initiate cancellation");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleVoteCancel = async (vote: string) => {
+    setActionLoading("vote");
+    try {
+      await api.put(`/trips/${tripId}/cancel/vote`, { vote });
+      alert("Vote submitted successfully!");
+      await fetchTrip();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to submit vote");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteTrip = async () => {
+    setActionLoading("delete");
+    try {
+      await api.delete(`/trips/${tripId}`);
+      // Hard delete cover image if it exists
+      if (trip?.coverImageUrl) {
+        try {
+          const urlObj = new URL(trip.coverImageUrl);
+          const pathSegments = urlObj.pathname.split('/');
+          const filename = pathSegments[pathSegments.length - 1];
+          await api.delete(`/upload?bucket=trip-covers&path=${filename}`);
+        } catch (e) { console.error("Failed to delete cover image", e); }
+      }
+      router.push("/dashboard/trips");
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to delete trip");
+    } finally {
+      setActionLoading(null);
+      setDeleteConfirmOpen(false);
+    }
+  };
 
   const handleJoin = async () => {
     setJoining(true);
@@ -451,7 +501,16 @@ export default function TripDetailPage() {
           }}
         >
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-          <div className="absolute bottom-4 left-5 right-5">
+          
+          {trip.status === "CANCELLED" && (
+            <div className="absolute inset-0 flex items-center justify-center backdrop-blur-md z-10" style={{ background: "rgba(0,0,0,0.4)" }}>
+              <div className="border-4 text-red-500 font-black text-4xl md:text-6xl px-8 py-4 rounded-2xl transform -rotate-12 uppercase tracking-widest" style={{ borderColor: "#ef4444", textShadow: "0 0 10px rgba(239, 68, 68, 0.5)", boxShadow: "inset 0 0 20px rgba(239,68,68,0.2), 0 0 20px rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.05)" }}>
+                Cancelled
+              </div>
+            </div>
+          )}
+
+          <div className={`absolute bottom-4 left-5 right-5 ${trip.status === "CANCELLED" ? "z-20" : ""}`}>
             <div className="flex items-center gap-2 mb-2">
               <span
                 className="px-2.5 py-1 rounded-lg text-xs font-semibold"
@@ -464,11 +523,11 @@ export default function TripDetailPage() {
                 style={{
                   background: trip.status === "OPEN" ? "rgba(45,212,168,0.2)"
                     : trip.status === "COMPLETED" ? "rgba(96,165,250,0.2)"
-                    : trip.status === "CANCELLED" ? "rgba(248,113,113,0.2)"
+                    : (trip.status === "CANCELLED" || trip.status === "CANCELLATION_PENDING") ? "rgba(248,113,113,0.2)"
                     : "rgba(156,163,175,0.2)",
                   color: trip.status === "OPEN" ? "#2dd4a8"
                     : trip.status === "COMPLETED" ? "#60a5fa"
-                    : trip.status === "CANCELLED" ? "#f87171"
+                    : (trip.status === "CANCELLED" || trip.status === "CANCELLATION_PENDING") ? "#f87171"
                     : "#9ca3af",
                 }}
               >
@@ -490,7 +549,7 @@ export default function TripDetailPage() {
                 )}
               </div>
               {isCreator && trip.status !== "COMPLETED" && trip.status !== "CANCELLED" && (
-                <>
+                <div className="flex items-center gap-2">
                   <button
                     onClick={openEditModal}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
@@ -517,7 +576,7 @@ export default function TripDetailPage() {
                   >
                     <Link2 size={12} /> Invite Friends
                   </button>
-                </>
+                </div>
               )}
               {(myMembership?.status === "APPROVED" || isCreator) && trip.status === "COMPLETED" && !tripReviews.some(r => r.reviewerId?.toLowerCase() === user?.id?.toLowerCase()) && (
                 <button
@@ -537,6 +596,42 @@ export default function TripDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Voting Banner */}
+        {trip.status === "CANCELLATION_PENDING" && (
+          <div className="p-5" style={{ background: "rgba(240, 160, 48, 0.1)", borderTop: "1px solid rgba(240, 160, 48, 0.3)" }}>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: "#f0a030" }}>
+                  <Shield size={16} /> Cancellation Vote Pending
+                </h3>
+                <p className="text-xs mt-1" style={{ color: "var(--color-txt-muted)" }}>
+                  The creator has requested to cancel this trip. A majority vote from all members is required to cancel it.
+                </p>
+              </div>
+              {!isCreator && myMembership?.status === "APPROVED" && (
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => handleVoteCancel('YES')} 
+                    disabled={actionLoading === "vote"}
+                    className="flex items-center gap-1 px-4 py-2 rounded-lg text-xs font-bold transition-all hover:scale-105 disabled:opacity-50" 
+                    style={{ background: "rgba(248, 113, 113, 0.1)", color: "#f87171", border: "1px solid rgba(248, 113, 113, 0.4)" }}
+                  >
+                    {actionLoading === "vote" ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={14} />} Vote Cancel
+                  </button>
+                  <button 
+                    onClick={() => handleVoteCancel('NO')} 
+                    disabled={actionLoading === "vote"}
+                    className="flex items-center gap-1 px-4 py-2 rounded-lg text-xs font-bold transition-all hover:scale-105 disabled:opacity-50" 
+                    style={{ background: "rgba(45, 212, 168, 0.1)", color: "#2dd4a8", border: "1px solid rgba(45, 212, 168, 0.4)" }}
+                  >
+                    {actionLoading === "vote" ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={14} />} Vote Keep
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Info Cards */}
         <div
@@ -1583,6 +1678,70 @@ export default function TripDetailPage() {
           tripTitle={trip.title}
           onClose={() => setShowInviteModal(false)}
         />
+      )}
+
+      {/* ─────────── DANGER ZONE ─────────── */}
+      {isCreator && (
+        <div className="rounded-xl p-5" style={{ background: "var(--color-bg-surface)", border: "1px solid rgba(248, 113, 113, 0.3)" }}>
+          <h3 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: "#f87171" }}>
+            <Shield size={16} /> Danger Zone
+          </h3>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button 
+              onClick={() => setCancelConfirmOpen(true)}
+              disabled={trip.status === "CANCELLED" || trip.status === "CANCELLATION_PENDING"}
+              className="flex-1 p-3 rounded-xl flex items-center justify-center gap-2 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
+              style={{ background: "rgba(240, 160, 48, 0.1)", border: "1px solid rgba(240, 160, 48, 0.3)", color: "#f0a030" }}
+            >
+              <XCircle size={16} /> Cancel Trip
+            </button>
+            <button 
+              onClick={() => setDeleteConfirmOpen(true)}
+              className="flex-1 p-3 rounded-xl flex items-center justify-center gap-2 transition-all hover:scale-[1.02]"
+              style={{ background: "rgba(248, 113, 113, 0.1)", border: "1px solid rgba(248, 113, 113, 0.3)", color: "#f87171" }}
+            >
+              <Trash2 size={16} /> Delete Trip
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Confirm Modal */}
+      {cancelConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setCancelConfirmOpen(false)} />
+          <div className="relative w-full max-w-md mx-4 rounded-2xl p-6" style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}>
+            <h3 className="text-xl font-bold mb-2" style={{ color: "var(--color-txt-white)" }}>Cancel Trip?</h3>
+            <p className="text-sm mb-6" style={{ color: "var(--color-txt-muted)" }}>
+              If there are active members in this trip, a cancellation vote will be initiated. If the majority votes YES, the trip will be officially cancelled. If you are the only member, it will be cancelled instantly.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setCancelConfirmOpen(false)} className="t-btn-outline flex-1 py-3">Never mind</button>
+              <button onClick={handleInitiateCancel} disabled={actionLoading === "cancel"} className="flex-1 py-3 rounded-xl font-bold transition-all flex items-center justify-center" style={{ background: "rgba(240, 160, 48, 0.2)", color: "#f0a030" }}>
+                {actionLoading === "cancel" ? <Loader2 size={16} className="animate-spin" /> : "Initiate Cancel"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirm Modal */}
+      {deleteConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDeleteConfirmOpen(false)} />
+          <div className="relative w-full max-w-md mx-4 rounded-2xl p-6" style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}>
+            <h3 className="text-xl font-bold mb-2 text-red-500">Hard Delete Trip?</h3>
+            <p className="text-sm mb-6" style={{ color: "var(--color-txt-muted)" }}>
+              This will permanently delete the trip and all associated data. You can only do this if there are no other active members in the trip.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteConfirmOpen(false)} className="t-btn-outline flex-1 py-3">Never mind</button>
+              <button onClick={handleDeleteTrip} disabled={actionLoading === "delete"} className="flex-1 py-3 rounded-xl font-bold transition-all flex items-center justify-center" style={{ background: "rgba(248, 113, 113, 0.2)", color: "#f87171" }}>
+                {actionLoading === "delete" ? <Loader2 size={16} className="animate-spin" /> : "Yes, Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

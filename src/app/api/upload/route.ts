@@ -108,3 +108,66 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return NextResponse.json(
+        { error: "Server storage configuration missing" },
+        { status: 500 }
+      );
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // 1. Enforce Authentication
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const bucket = searchParams.get("bucket");
+    const path = searchParams.get("path");
+
+    if (!bucket || !path) {
+      return NextResponse.json(
+        { error: "Missing required fields: bucket, path" },
+        { status: 400 }
+      );
+    }
+
+    // 2. Whitelist allowed buckets
+    const allowedBuckets = ["avatars", "covers", "chat-images", "profile-photos", "trip-covers"];
+    if (!allowedBuckets.includes(bucket)) {
+      return NextResponse.json(
+        { error: "Invalid bucket specified" },
+        { status: 400 }
+      );
+    }
+
+    // 3. Delete from Supabase Storage
+    const { error } = await supabaseAdmin.storage
+      .from(bucket)
+      .remove([path]);
+
+    if (error) {
+      console.error("Supabase delete error:", error);
+      return NextResponse.json(
+        { error: `Delete failed: ${error.message}` },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("Delete API error:", err);
+    return NextResponse.json(
+      { error: "Internal server error during delete" },
+      { status: 500 }
+    );
+  }
+}

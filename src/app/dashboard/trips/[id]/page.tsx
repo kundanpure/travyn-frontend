@@ -640,7 +640,7 @@ export default function TripDetailPage() {
         >
           {[
             { icon: MapPin, label: "Destination", value: trip.destination },
-            { icon: Calendar, label: "Dates", value: `${formatDate(trip.startDate).split(",")[0]} – ${formatDate(trip.endDate).split(",")[0]}` },
+            { icon: Calendar, label: "Dates", value: `${new Date(trip.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${new Date(trip.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` },
             { icon: Users, label: "Spots", value: `${trip.availableSpots}/${trip.maxSize} left` },
             { icon: Hash, label: "Trip Code", value: trip.tripCode },
           ].map(({ icon: Icon, label, value }) => (

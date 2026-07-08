@@ -302,10 +302,10 @@ export default function TripDetailPage() {
           const urlObj = new URL(trip.coverImageUrl);
           const pathSegments = urlObj.pathname.split('/');
           const filename = pathSegments[pathSegments.length - 1];
-          await api.delete(`/upload?bucket=trip-covers&path=${filename}`);
+          await api.delete(`/api/upload?bucket=trip-covers&path=${filename}`, { baseURL: '' });
         } catch (e) { console.error("Failed to delete cover image", e); }
       }
-      router.push("/dashboard/trips");
+      router.push("/dashboard");
     } catch (err: any) {
       alert(err.response?.data?.message || "Failed to delete trip");
     } finally {

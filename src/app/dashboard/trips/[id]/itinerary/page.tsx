@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Calendar, MapPin, Clock, Plus, Trash2, Edit3,
   ChevronDown, ChevronRight, GripVertical, Loader2,
-  Car, Utensils, Mountain, Hotel, Coffee, Save, X, ArrowUp, ArrowDown
+  Car, Utensils, Mountain, Hotel, Coffee, Save, X, ArrowUp, ArrowDown,
+  CalendarPlus, StickyNote
 } from "lucide-react";
 import api from "@/lib/api";
-import { useAuthStore } from "@/stores/auth-store";
 
 const categoryConfig: Record<string, { icon: typeof Car; color: string; label: string }> = {
   TRAVEL: { icon: Car, color: "#60a5fa", label: "Travel" },
@@ -45,40 +45,54 @@ interface ItineraryDay {
   updatedAt: string;
 }
 
+interface TripInfo {
+  startDate: string;
+  endDate: string;
+  title: string;
+}
+
 export default function ItineraryPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuthStore();
   const tripId = params.id as string;
+  const initialExpandDone = useRef(false);
 
   const [days, setDays] = useState<ItineraryDay[]>([]);
+  const [trip, setTrip] = useState<TripInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [addingItem, setAddingItem] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<string | null>(null);
+  const [editingDay, setEditingDay] = useState<string | null>(null);
+  const [addingDay, setAddingDay] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [initialExpandDone, setInitialExpandDone] = useState(false);
 
   // Form states
   const [itemForm, setItemForm] = useState({
     title: "", description: "", location: "", startTime: "", endTime: "", category: "ACTIVITY",
   });
+  const [dayForm, setDayForm] = useState({ date: "", title: "", notes: "" });
+  const [editDayForm, setEditDayForm] = useState({ title: "", notes: "" });
 
   const fetchItinerary = useCallback(async () => {
     try {
-      const res = await api.get(`/trips/${tripId}/itinerary`);
+      const [res, tripRes] = await Promise.all([
+        api.get(`/trips/${tripId}/itinerary`),
+        api.get(`/trips/${tripId}`)
+      ]);
       setDays(res.data || []);
-      // Auto-expand all days on first load
-      if (!initialExpandDone && res.data?.length > 0) {
+      setTrip(tripRes.data);
+      // Auto-expand all days on first load only
+      if (!initialExpandDone.current && res.data?.length > 0) {
         setExpandedDays(new Set(res.data.map((d: ItineraryDay) => d.id)));
-        setInitialExpandDone(true);
+        initialExpandDone.current = true;
       }
     } catch {
       // Handle error
     } finally {
       setLoading(false);
     }
-  }, [tripId, initialExpandDone]);
+  }, [tripId]);
 
   useEffect(() => {
     fetchItinerary();
@@ -93,6 +107,7 @@ export default function ItineraryPage() {
     });
   };
 
+  // ─── Item handlers ───────────────────────────────────────────
   const handleAddItem = async (dayId: string) => {
     if (!itemForm.title.trim()) return;
     setSaving(true);
@@ -132,8 +147,6 @@ export default function ItineraryPage() {
     } catch {}
   };
 
-
-
   const handleMoveItem = async (dayId: string, itemIndex: number, direction: "up" | "down") => {
     const day = days.find(d => d.id === dayId);
     if (!day) return;
@@ -160,8 +173,48 @@ export default function ItineraryPage() {
     });
   };
 
+  // ─── Day handlers ────────────────────────────────────────────
+  const handleAddDay = async () => {
+    if (!dayForm.date) return;
+    setSaving(true);
+    try {
+      await api.post(`/trips/${tripId}/itinerary/days`, dayForm);
+      setAddingDay(false);
+      setDayForm({ date: "", title: "", notes: "" });
+      await fetchItinerary();
+    } catch {}
+    setSaving(false);
+  };
+
+  const handleDeleteDay = async (dayId: string) => {
+    if (!window.confirm("Delete this entire day and all its activities? This cannot be undone.")) return;
+    try {
+      await api.delete(`/trips/${tripId}/itinerary/days/${dayId}`);
+      await fetchItinerary();
+    } catch {}
+  };
+
+  const startEditDay = (day: ItineraryDay) => {
+    setEditingDay(day.id);
+    setEditDayForm({ title: day.title || "", notes: day.notes || "" });
+  };
+
+  const handleUpdateDay = async (dayId: string) => {
+    setSaving(true);
+    try {
+      await api.put(`/trips/${tripId}/itinerary/days/${dayId}`, editDayForm);
+      setEditingDay(null);
+      setEditDayForm({ title: "", notes: "" });
+      await fetchItinerary();
+    } catch {}
+    setSaving(false);
+  };
+
+  // ─── Helpers ─────────────────────────────────────────────────
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+
+  const totalActivities = days.reduce((sum, d) => sum + d.items.length, 0);
 
   if (loading) {
     return (
@@ -184,19 +237,75 @@ export default function ItineraryPage() {
         </button>
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: "var(--color-txt-white)" }}>
             <Calendar size={24} className="inline mr-2" style={{ color: "var(--color-primary)" }} />
             Trip Itinerary
           </h1>
           <p className="text-sm mt-1" style={{ color: "var(--color-txt-muted)" }}>
-            {days.length} days planned • {days.reduce((sum, d) => sum + d.items.length, 0)} activities
+            {days.length} {days.length === 1 ? "day" : "days"} planned • {totalActivities} {totalActivities === 1 ? "activity" : "activities"}
           </p>
         </div>
+        <button
+          onClick={() => setAddingDay(true)}
+          className="t-btn-primary flex items-center gap-1.5"
+          style={{ padding: "10px 20px", fontSize: "0.85rem" }}
+        >
+          <CalendarPlus size={16} /> Add Day
+        </button>
       </div>
 
-
+      {/* Add Day Form */}
+      {addingDay && (
+        <div
+          className="rounded-xl p-5 space-y-4"
+          style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line-active)" }}
+        >
+          <h3 className="text-sm font-semibold" style={{ color: "var(--color-txt-white)" }}>Add New Day</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input
+              type="date"
+              value={dayForm.date}
+              min={trip?.startDate?.split("T")[0]}
+              max={trip?.endDate?.split("T")[0]}
+              onChange={(e) => setDayForm({ ...dayForm, date: e.target.value })}
+              className="t-input"
+            />
+            <input
+              placeholder="Day title (optional)"
+              value={dayForm.title}
+              onChange={(e) => setDayForm({ ...dayForm, title: e.target.value })}
+              className="t-input"
+            />
+          </div>
+          <textarea
+            placeholder="Notes (optional)"
+            value={dayForm.notes}
+            onChange={(e) => setDayForm({ ...dayForm, notes: e.target.value })}
+            className="t-input"
+            rows={2}
+            style={{ resize: "none" }}
+          />
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => { setAddingDay(false); setDayForm({ date: "", title: "", notes: "" }); }}
+              className="t-btn-outline"
+              style={{ padding: "8px 16px", fontSize: "0.85rem" }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAddDay}
+              disabled={saving || !dayForm.date}
+              className="t-btn-primary"
+              style={{ padding: "8px 16px", fontSize: "0.85rem" }}
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save Day
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Timeline */}
       <div className="relative">
@@ -209,6 +318,7 @@ export default function ItineraryPage() {
         <div className="space-y-4">
           {days.map((day) => {
             const isExpanded = expandedDays.has(day.id);
+            const isDayEditing = editingDay === day.id;
             return (
               <div key={day.id} className="relative pl-14">
                 {/* Timeline dot */}
@@ -228,14 +338,14 @@ export default function ItineraryPage() {
                   style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}
                 >
                   {/* Day header */}
-                  <button
+                  <div
+                    className="group flex items-center justify-between p-4 cursor-pointer"
                     onClick={() => toggleDay(day.id)}
-                    className="group w-full flex items-center justify-between p-4 text-left"
-                    style={{ background: "none", border: "none", cursor: "pointer" }}
+                    style={{ background: "none", border: "none" }}
                   >
                     <div className="flex items-center gap-3">
                       <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold"
+                        className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0"
                         style={{ background: "rgba(45,212,168,0.1)", color: "var(--color-primary)" }}
                       >
                         D{day.dayNumber}
@@ -249,17 +359,73 @@ export default function ItineraryPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
+                      {/* Edit day */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); startEditDay(day); }}
+                        className="p-1.5 rounded-lg opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                        style={{ background: "rgba(45,212,168,0.1)", border: "none", cursor: "pointer" }}
+                        title="Edit day title & notes"
+                      >
+                        <StickyNote size={14} style={{ color: "var(--color-primary)" }} />
+                      </button>
+                      {/* Delete day */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteDay(day.id); }}
+                        className="p-1.5 rounded-lg opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                        style={{ background: "rgba(248,113,113,0.1)", border: "none", cursor: "pointer" }}
+                        title="Delete day"
+                      >
+                        <Trash2 size={14} style={{ color: "#f87171" }} />
+                      </button>
                       {isExpanded ? (
                         <ChevronDown size={18} style={{ color: "var(--color-txt-muted)" }} />
                       ) : (
                         <ChevronRight size={18} style={{ color: "var(--color-txt-muted)" }} />
                       )}
                     </div>
-                  </button>
+                  </div>
+
+                  {/* Inline day edit form */}
+                  {isDayEditing && (
+                    <div className="px-4 pb-3 space-y-2" style={{ borderTop: "1px solid var(--color-line)" }}>
+                      <input
+                        placeholder="Day title"
+                        value={editDayForm.title}
+                        onChange={(e) => setEditDayForm({ ...editDayForm, title: e.target.value })}
+                        className="t-input mt-3"
+                        autoFocus
+                        style={{ padding: "8px 12px", fontSize: "0.85rem" }}
+                      />
+                      <textarea
+                        placeholder="Notes for this day..."
+                        value={editDayForm.notes}
+                        onChange={(e) => setEditDayForm({ ...editDayForm, notes: e.target.value })}
+                        className="t-input"
+                        rows={2}
+                        style={{ resize: "none", padding: "8px 12px", fontSize: "0.85rem" }}
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setEditingDay(null); }}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-txt-muted)", fontSize: "0.85rem" }}
+                        >
+                          <X size={14} className="inline mr-1" /> Cancel
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleUpdateDay(day.id); }}
+                          disabled={saving}
+                          className="t-btn-primary"
+                          style={{ padding: "6px 14px", fontSize: "0.8rem" }}
+                        >
+                          {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />} Save
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Day content (items) */}
-                  {isExpanded && (
+                  {isExpanded && !isDayEditing && (
                     <div className="px-4 pb-4 space-y-2" style={{ borderTop: "1px solid var(--color-line)" }}>
                       {day.notes && (
                         <p className="text-xs pt-3 pb-1 italic" style={{ color: "var(--color-txt-secondary)" }}>
@@ -556,7 +722,7 @@ export default function ItineraryPage() {
           <Calendar size={48} className="mx-auto mb-4" style={{ color: "var(--color-txt-dim)" }} />
           <h3 className="text-lg font-semibold mb-2" style={{ color: "var(--color-txt-white)" }}>No Itinerary Yet</h3>
           <p className="text-sm mb-4" style={{ color: "var(--color-txt-muted)" }}>
-            Plan your trip day by day. Activities will be auto-created when you first load.
+            Days are automatically created based on your trip dates. Refresh to get started!
           </p>
         </div>
       )}

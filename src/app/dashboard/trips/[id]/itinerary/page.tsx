@@ -52,41 +52,35 @@ export default function ItineraryPage() {
   const tripId = params.id as string;
 
   const [days, setDays] = useState<ItineraryDay[]>([]);
-  const [trip, setTrip] = useState<{ startDate: string; endDate: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [addingItem, setAddingItem] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<string | null>(null);
-  const [addingDay, setAddingDay] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [initialExpandDone, setInitialExpandDone] = useState(false);
 
   // Form states
   const [itemForm, setItemForm] = useState({
     title: "", description: "", location: "", startTime: "", endTime: "", category: "ACTIVITY",
   });
-  const [dayForm, setDayForm] = useState({ date: "", title: "", notes: "" });
 
   const fetchItinerary = useCallback(async () => {
     try {
-      const [res, tripRes] = await Promise.all([
-        api.get(`/trips/${tripId}/itinerary`),
-        api.get(`/trips/${tripId}`)
-      ]);
+      const res = await api.get(`/trips/${tripId}/itinerary`);
       setDays(res.data || []);
-      setTrip(tripRes.data);
       // Auto-expand all days on first load
-      if (expandedDays.size === 0 && res.data?.length > 0) {
+      if (!initialExpandDone && res.data?.length > 0) {
         setExpandedDays(new Set(res.data.map((d: ItineraryDay) => d.id)));
+        setInitialExpandDone(true);
       }
     } catch {
       // Handle error
     } finally {
       setLoading(false);
     }
-  }, [tripId, expandedDays.size]);
+  }, [tripId, initialExpandDone]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchItinerary();
   }, [fetchItinerary]);
 
@@ -138,25 +132,7 @@ export default function ItineraryPage() {
     } catch {}
   };
 
-  const handleAddDay = async () => {
-    if (!dayForm.date) return;
-    setSaving(true);
-    try {
-      await api.post(`/trips/${tripId}/itinerary/days`, dayForm);
-      setAddingDay(false);
-      setDayForm({ date: "", title: "", notes: "" });
-      await fetchItinerary();
-    } catch {}
-    setSaving(false);
-  };
 
-  const handleDeleteDay = async (dayId: string) => {
-    if (!window.confirm("Delete this entire day and all its activities? This cannot be undone.")) return;
-    try {
-      await api.delete(`/trips/${tripId}/itinerary/days/${dayId}`);
-      await fetchItinerary();
-    } catch {}
-  };
 
   const handleMoveItem = async (dayId: string, itemIndex: number, direction: "up" | "down") => {
     const day = days.find(d => d.id === dayId);
@@ -218,65 +194,9 @@ export default function ItineraryPage() {
             {days.length} days planned • {days.reduce((sum, d) => sum + d.items.length, 0)} activities
           </p>
         </div>
-        <button
-          onClick={() => setAddingDay(true)}
-          className="t-btn-primary"
-          style={{ padding: "10px 20px", fontSize: "0.85rem" }}
-        >
-          <Plus size={16} /> Add Day
-        </button>
       </div>
 
-      {/* Add Day Form */}
-      {addingDay && (
-        <div
-          className="rounded-xl p-5 space-y-4"
-          style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line-active)" }}
-        >
-          <h3 className="text-sm font-semibold" style={{ color: "var(--color-txt-white)" }}>Add New Day</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <input
-              type="date"
-              value={dayForm.date}
-              min={trip?.startDate?.split("T")[0]}
-              max={trip?.endDate?.split("T")[0]}
-              onChange={(e) => setDayForm({ ...dayForm, date: e.target.value })}
-              className="t-input"
-            />
-            <input
-              placeholder="Day title (optional)"
-              value={dayForm.title}
-              onChange={(e) => setDayForm({ ...dayForm, title: e.target.value })}
-              className="t-input"
-            />
-          </div>
-          <textarea
-            placeholder="Notes (optional)"
-            value={dayForm.notes}
-            onChange={(e) => setDayForm({ ...dayForm, notes: e.target.value })}
-            className="t-input"
-            rows={2}
-            style={{ resize: "none" }}
-          />
-          <div className="flex gap-2 justify-end">
-            <button
-              onClick={() => { setAddingDay(false); setDayForm({ date: "", title: "", notes: "" }); }}
-              className="t-btn-outline"
-              style={{ padding: "8px 16px", fontSize: "0.85rem" }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleAddDay}
-              disabled={saving || !dayForm.date}
-              className="t-btn-primary"
-              style={{ padding: "8px 16px", fontSize: "0.85rem" }}
-            >
-              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save Day
-            </button>
-          </div>
-        </div>
-      )}
+
 
       {/* Timeline */}
       <div className="relative">
@@ -330,14 +250,6 @@ export default function ItineraryPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDeleteDay(day.id); }}
-                        className="p-1.5 rounded-lg opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-                        style={{ background: "rgba(248,113,113,0.1)", border: "none", cursor: "pointer" }}
-                        title="Delete day"
-                      >
-                        <Trash2 size={14} style={{ color: "#f87171" }} />
-                      </button>
                       {isExpanded ? (
                         <ChevronDown size={18} style={{ color: "var(--color-txt-muted)" }} />
                       ) : (

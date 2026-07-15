@@ -66,6 +66,7 @@ export default function ItineraryPage() {
   const [editingDay, setEditingDay] = useState<string | null>(null);
   const [addingDay, setAddingDay] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Form states
   const [itemForm, setItemForm] = useState({
@@ -176,13 +177,28 @@ export default function ItineraryPage() {
   // ─── Day handlers ────────────────────────────────────────────
   const handleAddDay = async () => {
     if (!dayForm.date) return;
+    setError(null);
     setSaving(true);
     try {
-      await api.post(`/trips/${tripId}/itinerary/days`, dayForm);
+      // Check if a day already exists for this date (auto-scaffolded days)
+      const existingDay = days.find(d => d.date.split("T")[0] === dayForm.date);
+      if (existingDay) {
+        // Update existing day's title & notes instead of creating a duplicate
+        await api.put(`/trips/${tripId}/itinerary/days/${existingDay.id}`, {
+          title: dayForm.title || existingDay.title,
+          notes: dayForm.notes || existingDay.notes,
+        });
+      } else {
+        // Create new day (for dates outside the trip range)
+        await api.post(`/trips/${tripId}/itinerary/days`, dayForm);
+      }
       setAddingDay(false);
       setDayForm({ date: "", title: "", notes: "" });
       await fetchItinerary();
-    } catch {}
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(msg || "Failed to save day. Please try again.");
+    }
     setSaving(false);
   };
 
@@ -263,13 +279,19 @@ export default function ItineraryPage() {
           style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line-active)" }}
         >
           <h3 className="text-sm font-semibold" style={{ color: "var(--color-txt-white)" }}>Add New Day</h3>
+          {error && (
+            <div
+              className="text-xs px-3 py-2 rounded-lg"
+              style={{ background: "rgba(248,113,113,0.1)", color: "#f87171", border: "1px solid rgba(248,113,113,0.2)" }}
+            >
+              {error}
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input
               type="date"
               value={dayForm.date}
-              min={trip?.startDate?.split("T")[0]}
-              max={trip?.endDate?.split("T")[0]}
-              onChange={(e) => setDayForm({ ...dayForm, date: e.target.value })}
+              onChange={(e) => { setDayForm({ ...dayForm, date: e.target.value }); setError(null); }}
               className="t-input"
             />
             <input
@@ -289,7 +311,7 @@ export default function ItineraryPage() {
           />
           <div className="flex gap-2 justify-end">
             <button
-              onClick={() => { setAddingDay(false); setDayForm({ date: "", title: "", notes: "" }); }}
+              onClick={() => { setAddingDay(false); setDayForm({ date: "", title: "", notes: "" }); setError(null); }}
               className="t-btn-outline"
               style={{ padding: "8px 16px", fontSize: "0.85rem" }}
             >

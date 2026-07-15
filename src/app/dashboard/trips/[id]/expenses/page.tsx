@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, DollarSign, Plus, Trash2, Loader2,
   Utensils, Car, Hotel, Mountain, ShoppingBag, MoreHorizontal,
-  ArrowRightLeft, TrendingUp, PieChart, X, Users, CheckCircle2
+  ArrowRightLeft, TrendingUp, PieChart, X, Users, CheckCircle2, Edit2, Info
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
@@ -87,6 +87,8 @@ export default function ExpensesPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"expenses" | "settlements">("expenses");
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [expandedExpenseId, setExpandedExpenseId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
@@ -97,6 +99,7 @@ export default function ExpensesPage() {
     date: new Date().toISOString().split("T")[0],
     notes: "",
     splitWith: [] as string[],
+    customAmounts: {} as Record<string, number>,
   });
 
   const fetchData = useCallback(async () => {
@@ -120,11 +123,11 @@ export default function ExpensesPage() {
     fetchData();
   }, [fetchData]);
 
-  const handleAdd = async () => {
+  const handleSave = async () => {
     if (!form.title.trim() || !form.amount) return;
     setSaving(true);
     try {
-      await api.post(`/trips/${tripId}/expenses`, {
+      const payload = {
         title: form.title,
         amount: parseFloat(form.amount),
         category: form.category,
@@ -132,9 +135,18 @@ export default function ExpensesPage() {
         date: form.date,
         notes: form.notes || null,
         splitWith: form.splitWith.length > 0 ? form.splitWith : null,
-      });
+        customAmounts: form.splitType === "CUSTOM" ? form.customAmounts : null,
+      };
+
+      if (editingExpenseId) {
+        await api.put(`/trips/${tripId}/expenses/${editingExpenseId}`, payload);
+      } else {
+        await api.post(`/trips/${tripId}/expenses`, payload);
+      }
+      
       setShowAddForm(false);
-      setForm({ title: "", amount: "", category: "FOOD", splitType: "EQUAL", date: new Date().toISOString().split("T")[0], notes: "", splitWith: [] });
+      setEditingExpenseId(null);
+      setForm({ title: "", amount: "", category: "FOOD", splitType: "EQUAL", date: new Date().toISOString().split("T")[0], notes: "", splitWith: [], customAmounts: {} });
       await fetchData();
     } catch {}
     setSaving(false);
@@ -297,8 +309,8 @@ export default function ExpensesPage() {
           style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line-active)" }}
         >
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold" style={{ color: "var(--color-txt-white)" }}>Add Expense</h3>
-            <button onClick={() => setShowAddForm(false)} style={{ background: "none", border: "none", cursor: "pointer" }}>
+            <h3 className="text-sm font-semibold" style={{ color: "var(--color-txt-white)" }}>{editingExpenseId ? "Edit Expense" : "Add Expense"}</h3>
+            <button onClick={() => { setShowAddForm(false); setEditingExpenseId(null); setForm({ title: "", amount: "", category: "FOOD", splitType: "EQUAL", date: new Date().toISOString().split("T")[0], notes: "", splitWith: [], customAmounts: {} }); }} style={{ background: "none", border: "none", cursor: "pointer" }}>
               <X size={18} style={{ color: "var(--color-txt-muted)" }} />
             </button>
           </div>
@@ -360,6 +372,7 @@ export default function ExpensesPage() {
             <div className="flex gap-2">
               {[
                 { key: "EQUAL", label: "Split Equally" },
+                { key: "CUSTOM", label: "Split Individually" },
               ].map(({ key, label }) => (
                 <button
                   key={key}
@@ -380,37 +393,64 @@ export default function ExpensesPage() {
 
           {/* Split with members */}
           <div>
-            <div className="text-xs font-medium mb-2" style={{ color: "var(--color-txt-secondary)" }}>
-              <Users size={12} className="inline mr-1" /> Split with (leave empty for all members)
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {members.map((m) => {
-                const selected = form.splitWith.includes(m.userId);
-                return (
-                  <button
-                    key={m.userId}
-                    onClick={() => {
-                      setForm({
+            {form.splitType !== "CUSTOM" && (
+              <>
+                <div className="text-xs font-medium mb-2" style={{ color: "var(--color-txt-secondary)" }}>
+                  <Users size={12} className="inline mr-1" /> Split with (leave empty for all members)
+                </div>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {members.map((m) => {
+                    const selected = form.splitWith.includes(m.userId);
+                    return (
+                      <button
+                        key={m.userId}
+                        onClick={() => {
+                          setForm({
+                            ...form,
+                            splitWith: selected
+                              ? form.splitWith.filter(id => id !== m.userId)
+                              : [...form.splitWith, m.userId],
+                          });
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                        style={{
+                          background: selected ? "rgba(45,212,168,0.1)" : "var(--color-bg-deep)",
+                          border: `1px solid ${selected ? "var(--color-primary)" : "var(--color-line)"}`,
+                          color: selected ? "var(--color-primary)" : "var(--color-txt-muted)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {selected && <CheckCircle2 size={11} />}
+                        {m.firstName} {m.lastName}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            
+            {form.splitType === "CUSTOM" && (
+              <div className="space-y-2 mt-3 p-3 rounded-lg" style={{ background: "var(--color-bg-deep)" }}>
+                <div className="text-xs mb-1" style={{ color: "var(--color-txt-muted)" }}>Enter exact amounts for each person:</div>
+                {members.map(m => (
+                  <div key={m.userId} className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium" style={{ color: "var(--color-txt-white)" }}>{m.firstName} {m.lastName}</span>
+                    <input
+                      type="number"
+                      placeholder="0.00"
+                      value={form.customAmounts[m.userId] || ""}
+                      onChange={(e) => setForm({
                         ...form,
-                        splitWith: selected
-                          ? form.splitWith.filter(id => id !== m.userId)
-                          : [...form.splitWith, m.userId],
-                      });
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-                    style={{
-                      background: selected ? "rgba(45,212,168,0.1)" : "var(--color-bg-deep)",
-                      border: `1px solid ${selected ? "var(--color-primary)" : "var(--color-line)"}`,
-                      color: selected ? "var(--color-primary)" : "var(--color-txt-muted)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {selected && <CheckCircle2 size={11} />}
-                    {m.firstName} {m.lastName}
-                  </button>
-                );
-              })}
-            </div>
+                        customAmounts: { ...form.customAmounts, [m.userId]: parseFloat(e.target.value) || 0 }
+                      })}
+                      className="t-input text-right w-24 !py-1 !text-xs"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <textarea
@@ -424,19 +464,19 @@ export default function ExpensesPage() {
 
           <div className="flex gap-2 justify-end">
             <button
-              onClick={() => setShowAddForm(false)}
+              onClick={() => { setShowAddForm(false); setEditingExpenseId(null); setForm({ title: "", amount: "", category: "FOOD", splitType: "EQUAL", date: new Date().toISOString().split("T")[0], notes: "", splitWith: [], customAmounts: {} }); }}
               className="t-btn-outline"
               style={{ padding: "8px 16px", fontSize: "0.85rem" }}
             >
               Cancel
             </button>
             <button
-              onClick={handleAdd}
+              onClick={handleSave}
               disabled={saving || !form.title.trim() || !form.amount}
               className="t-btn-primary"
               style={{ padding: "8px 16px", fontSize: "0.85rem" }}
             >
-              {saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add Expense
+              {saving ? <Loader2 size={14} className="animate-spin" /> : (editingExpenseId ? <CheckCircle2 size={14} /> : <Plus size={14} />)} {editingExpenseId ? "Save Changes" : "Add Expense"}
             </button>
           </div>
         </div>
@@ -462,48 +502,118 @@ export default function ExpensesPage() {
               return (
                 <div
                   key={expense.id}
-                  className="group rounded-xl p-4 flex items-center gap-4"
-                  style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}
+                  className="group rounded-xl p-4 flex flex-col gap-4"
+                  style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)", cursor: "pointer" }}
+                  onClick={() => setExpandedExpenseId(expandedExpenseId === expense.id ? null : expense.id)}
                 >
-                  {/* Category icon */}
-                  <div
-                    className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ background: `${cat.color}15`, border: `1px solid ${cat.color}30` }}
-                  >
-                    <CatIcon size={18} style={{ color: cat.color }} />
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium" style={{ color: "var(--color-txt-white)" }}>
-                      {expense.title}
-                    </div>
-                    <div className="text-xs mt-0.5" style={{ color: "var(--color-txt-muted)" }}>
-                      Paid by <span style={{ color: "var(--color-txt-secondary)" }}>{expense.paidByName}</span>
-                      {" • "}
-                      {new Date(expense.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                      {" • "}
-                      Split {expense.splits.length} ways
-                    </div>
-                  </div>
-
-                  {/* Amount */}
-                  <div className="text-right flex-shrink-0">
-                    <div className="text-sm font-bold" style={{ color: "var(--color-txt-white)" }}>
-                      {formatCurrency(expense.amount)}
-                    </div>
-                    <div className="text-xs" style={{ color: cat.color }}>{cat.label}</div>
-                  </div>
-
-                  {/* Delete */}
-                  {canDelete && (
-                    <button
-                      onClick={() => handleDelete(expense.id)}
-                      className="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                      style={{ background: "rgba(248,113,113,0.1)", border: "none", cursor: "pointer" }}
+                  <div className="flex items-center gap-4 w-full">
+                    {/* Category icon */}
+                    <div
+                      className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ background: `${cat.color}15`, border: `1px solid ${cat.color}30` }}
                     >
-                      <Trash2 size={14} style={{ color: "#f87171" }} />
-                    </button>
+                      <CatIcon size={18} style={{ color: cat.color }} />
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium" style={{ color: "var(--color-txt-white)" }}>
+                        {expense.title}
+                      </div>
+                      <div className="text-xs mt-0.5" style={{ color: "var(--color-txt-muted)" }}>
+                        Paid by <span style={{ color: "var(--color-txt-secondary)" }}>{expense.paidByName}</span>
+                        {" • "}
+                        {new Date(expense.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        {" • "}
+                        Split {expense.splits.length} ways
+                      </div>
+                    </div>
+
+                    {/* Amount */}
+                    <div className="text-right flex-shrink-0">
+                      <div className="text-sm font-bold" style={{ color: "var(--color-txt-white)" }}>
+                        {formatCurrency(expense.amount)}
+                      </div>
+                      <div className="text-xs" style={{ color: cat.color }}>{cat.label}</div>
+                    </div>
+
+                    {/* Actions */}
+                    {canDelete && (
+                      <div className="flex items-center gap-1 transition-opacity flex-shrink-0" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const splitIds = expense.splits.map(s => s.userId);
+                            const customAmounts: Record<string, number> = {};
+                            if (expense.splitType === "CUSTOM") {
+                              expense.splits.forEach(s => {
+                                customAmounts[s.userId] = s.amount;
+                              });
+                            }
+                            setForm({
+                              title: expense.title,
+                              amount: expense.amount.toString(),
+                              category: expense.category,
+                              splitType: expense.splitType || "EQUAL",
+                              date: expense.date,
+                              notes: expense.notes || "",
+                              splitWith: splitIds.length === members.length ? [] : splitIds,
+                              customAmounts
+                            });
+                            setEditingExpenseId(expense.id);
+                            setShowAddForm(true);
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                          }}
+                          className="p-2 rounded-lg"
+                          style={{ background: "rgba(45,212,168,0.1)", border: "none", cursor: "pointer" }}
+                        >
+                          <Edit2 size={14} style={{ color: "#2dd4a8" }} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(expense.id);
+                          }}
+                          className="p-2 rounded-lg"
+                          style={{ background: "rgba(248,113,113,0.1)", border: "none", cursor: "pointer" }}
+                        >
+                          <Trash2 size={14} style={{ color: "#f87171" }} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {expandedExpenseId === expense.id && (
+                    <div className="pt-3 mt-1" style={{ borderTop: "1px solid var(--color-line)" }} onClick={e => e.stopPropagation()}>
+                      {expense.notes && (
+                        <div className="text-xs mb-3 p-2 rounded-lg" style={{ background: "var(--color-bg-deep)", color: "var(--color-txt-muted)" }}>
+                          <span className="font-semibold block mb-1">Notes</span>
+                          {expense.notes}
+                        </div>
+                      )}
+                      
+                      <div className="text-xs font-semibold mb-2" style={{ color: "var(--color-txt-white)" }}>
+                        Split Details {expense.splitType === "CUSTOM" && <span style={{ color: "var(--color-txt-dim)", fontWeight: "normal" }}>(Individual)</span>}
+                      </div>
+                      
+                      <div className="space-y-1.5">
+                        {expense.splits.map((split) => (
+                          <div key={split.id} className="flex justify-between items-center text-xs">
+                            <div className="flex items-center gap-2">
+                              <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: "var(--color-primary-dim)", color: "var(--color-primary)" }}>
+                                {split.userName ? split.userName.charAt(0).toUpperCase() : "?"}
+                              </div>
+                              <span style={{ color: split.userId === user?.id ? "var(--color-txt-white)" : "var(--color-txt-secondary)" }}>
+                                {split.userName} {split.userId === user?.id && "(You)"}
+                              </span>
+                            </div>
+                            <span className="font-medium" style={{ color: "var(--color-txt-white)" }}>
+                              {formatCurrency(split.amount)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               );
@@ -561,9 +671,17 @@ export default function ExpensesPage() {
             className="rounded-xl p-4"
             style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}
           >
-            <div className="text-xs font-semibold mb-3" style={{ color: "var(--color-txt-white)" }}>
-              <ArrowRightLeft size={14} className="inline mr-1" style={{ color: "var(--color-primary)" }} />
-              Optimized Settlements
+            <div className="flex items-center gap-2 mb-2">
+              <div className="text-xs font-semibold" style={{ color: "var(--color-txt-white)" }}>
+                <ArrowRightLeft size={14} className="inline mr-1" style={{ color: "var(--color-primary)" }} />
+                Optimized Settlements
+              </div>
+              <div className="group relative">
+                <Info size={14} style={{ color: "var(--color-txt-muted)", cursor: "help" }} />
+                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 p-2 rounded-lg text-[10px] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 text-center" style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)", color: "var(--color-txt-secondary)", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}>
+                  Calculated by finding the fewest number of transactions needed to settle everyone's debts based on their net balance.
+                </div>
+              </div>
             </div>
             {settlements.length === 0 ? (
               <div className="text-center py-8">
@@ -580,24 +698,36 @@ export default function ExpensesPage() {
                     className="flex items-center gap-3 p-3 rounded-xl"
                     style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)" }}
                   >
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                      style={{ background: "rgba(248,113,113,0.1)", color: "#f87171" }}
-                    >
-                      {s.fromUserName?.split(" ").map(n => n[0]).join("").toUpperCase()}
+                    <div className="flex flex-col items-center gap-1 flex-1">
+                      <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                        style={{ background: "rgba(248,113,113,0.1)", color: "#f87171" }}
+                      >
+                        {s.fromUserName?.split(" ").map(n => n[0]).join("").toUpperCase()}
+                      </div>
+                      <span className="text-[10px] text-center truncate w-full px-1" style={{ color: "var(--color-txt-secondary)" }}>
+                        {s.fromUserName}
+                      </span>
                     </div>
-                    <div className="flex-1 text-center">
-                      <div className="text-xs" style={{ color: "var(--color-txt-muted)" }}>pays</div>
-                      <div className="text-lg font-bold" style={{ color: "var(--color-primary)" }}>
+                    
+                    <div className="flex flex-col items-center flex-shrink-0 px-2">
+                      <div className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: "var(--color-txt-muted)" }}>pays</div>
+                      <div className="font-bold text-sm" style={{ color: "var(--color-txt-white)" }}>
                         {formatCurrency(s.amount)}
                       </div>
-                      <div className="text-xs" style={{ color: "var(--color-txt-muted)" }}>to</div>
+                      <ArrowRightLeft size={12} className="mt-1 opacity-50" style={{ color: "var(--color-txt-muted)" }} />
                     </div>
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                      style={{ background: "rgba(45,212,168,0.1)", color: "#2dd4a8" }}
-                    >
-                      {s.toUserName?.split(" ").map(n => n[0]).join("").toUpperCase()}
+
+                    <div className="flex flex-col items-center gap-1 flex-1">
+                      <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                        style={{ background: "rgba(45,212,168,0.1)", color: "#2dd4a8" }}
+                      >
+                        {s.toUserName?.split(" ").map(n => n[0]).join("").toUpperCase()}
+                      </div>
+                      <span className="text-[10px] text-center truncate w-full px-1" style={{ color: "var(--color-txt-secondary)" }}>
+                        {s.toUserName}
+                      </span>
                     </div>
                   </div>
                 ))}

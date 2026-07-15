@@ -133,7 +133,14 @@ export default function TripDetailPage() {
   const [destinationInsights, setDestinationInsights] = useState<any[]>([]);
   const [showInsightModal, setShowInsightModal] = useState(false);
   const [insightForm, setInsightForm] = useState({ category: "ALERT", content: "" });
+  const [editingInsightId, setEditingInsightId] = useState<string | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
+
+  const handleEditInsightClick = (insight: any) => {
+    setInsightForm({ category: insight.category, content: insight.content });
+    setEditingInsightId(insight.id);
+    setShowInsightModal(true);
+  };
 
   // Edit state
   const [editing, setEditing] = useState(false);
@@ -430,13 +437,22 @@ export default function TripDetailPage() {
     if (!insightForm.content.trim() || !trip?.destination) return;
     setInsightLoading(true);
     try {
-      const res = await api.post(`/destinations/${trip.destination}/insights`, {
-        category: insightForm.category,
-        content: insightForm.content
-      });
-      setDestinationInsights([res.data, ...destinationInsights]);
+      if (editingInsightId) {
+        const res = await api.put(`/destinations/insights/${editingInsightId}`, {
+          category: insightForm.category,
+          content: insightForm.content
+        });
+        setDestinationInsights(prev => prev.map(ins => ins.id === editingInsightId ? res.data : ins));
+      } else {
+        const res = await api.post(`/destinations/${trip.destination}/insights`, {
+          category: insightForm.category,
+          content: insightForm.content
+        });
+        setDestinationInsights([res.data, ...destinationInsights]);
+      }
       setShowInsightModal(false);
       setInsightForm({ category: "ALERT", content: "" });
+      setEditingInsightId(null);
     } catch (err: any) {
       alert(err.response?.data?.message || "Failed to post insight. Make sure you are an approved member of a trip to this destination.");
     } finally {
@@ -445,13 +461,38 @@ export default function TripDetailPage() {
   }
 
   async function handleUpvoteInsight(insightId: string) {
+    // Optimistic toggle
+    setDestinationInsights(prev => 
+      prev.map(ins => {
+        if (ins.id === insightId) {
+          const isNowUpvoted = !ins.isUpvotedByMe;
+          return {
+            ...ins,
+            isUpvotedByMe: isNowUpvoted,
+            upvotes: isNowUpvoted ? ins.upvotes + 1 : Math.max(0, ins.upvotes - 1)
+          };
+        }
+        return ins;
+      })
+    );
     try {
       await api.post(`/destinations/insights/${insightId}/upvote`);
-      setDestinationInsights(prev => 
-        prev.map(ins => ins.id === insightId ? { ...ins, upvotes: ins.upvotes + 1 } : ins)
-      );
     } catch (err) {
       console.error("Failed to upvote", err);
+      // Revert on failure
+      setDestinationInsights(prev => 
+        prev.map(ins => {
+          if (ins.id === insightId) {
+            const isNowUpvoted = !ins.isUpvotedByMe;
+            return {
+              ...ins,
+              isUpvotedByMe: isNowUpvoted,
+              upvotes: isNowUpvoted ? ins.upvotes + 1 : Math.max(0, ins.upvotes - 1)
+            };
+          }
+          return ins;
+        })
+      );
     }
   }
 
@@ -791,14 +832,25 @@ export default function TripDetailPage() {
                   </div>
                   <p className="text-sm leading-relaxed" style={{ color: "var(--color-txt-white)" }}>{insight.content}</p>
                 </div>
-                <button 
-                  onClick={() => handleUpvoteInsight(insight.id)}
-                  className="flex flex-col items-center justify-center shrink-0 w-8 h-8 rounded-md transition-colors"
-                  style={{ cursor: "pointer" }}
-                >
-                  <ArrowUp size={14} style={{ color: "var(--color-txt-muted)" }} className="mb-0.5" />
-                  <span className="text-[10px] font-medium" style={{ color: "var(--color-txt-muted)" }}>{insight.upvotes}</span>
-                </button>
+                <div className="flex flex-col gap-1 items-center justify-center shrink-0">
+                  {insight.authorId === user?.id && (
+                    <button 
+                      onClick={() => handleEditInsightClick(insight)}
+                      className="flex items-center justify-center w-8 h-8 rounded-md transition-colors hover:bg-white/5"
+                      style={{ cursor: "pointer", color: "var(--color-txt-muted)" }}
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => handleUpvoteInsight(insight.id)}
+                    className={`flex flex-col items-center justify-center w-8 h-8 rounded-md transition-colors ${insight.isUpvotedByMe ? 'bg-black/20' : ''}`}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <ArrowUp size={14} style={{ color: insight.isUpvotedByMe ? "var(--color-primary)" : "var(--color-txt-muted)" }} className="mb-0.5" />
+                    <span className="text-[10px] font-medium" style={{ color: insight.isUpvotedByMe ? "var(--color-primary)" : "var(--color-txt-muted)" }}>{insight.upvotes}</span>
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -1625,14 +1677,14 @@ export default function TripDetailPage() {
       {/* ─────────── POST INSIGHT MODAL ─────────── */}
       {showInsightModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowInsightModal(false)} />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setShowInsightModal(false); setEditingInsightId(null); setInsightForm({ category: "ALERT", content: "" }); }} />
           <div
             className="relative w-full max-w-md mx-4 rounded-2xl shadow-2xl overflow-hidden p-6"
             style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold" style={{ color: "var(--color-txt-white)" }}>Share Insight for {trip?.destination}</h3>
-              <button onClick={() => setShowInsightModal(false)} className="text-gray-400 hover:text-white transition-colors">
+              <button onClick={() => { setShowInsightModal(false); setEditingInsightId(null); setInsightForm({ category: "ALERT", content: "" }); }} className="text-gray-400 hover:text-white transition-colors">
                 <X size={20} />
               </button>
             </div>
@@ -1666,7 +1718,7 @@ export default function TripDetailPage() {
                 disabled={insightLoading || !insightForm.content.trim()}
                 className="t-btn-primary w-full"
               >
-                {insightLoading ? <Loader2 size={18} className="animate-spin mx-auto" /> : "Post Insight"}
+                {insightLoading ? <Loader2 size={18} className="animate-spin mx-auto" /> : (editingInsightId ? "Save Changes" : "Post Insight")}
               </button>
             </form>
           </div>

@@ -131,6 +131,7 @@ export default function ItineraryPage() {
   };
 
   const handleDeleteItem = async (itemId: string) => {
+    if (!window.confirm("Delete this activity? This cannot be undone.")) return;
     try {
       await api.delete(`/trips/${tripId}/itinerary/items/${itemId}`);
       await fetchItinerary();
@@ -150,6 +151,7 @@ export default function ItineraryPage() {
   };
 
   const handleDeleteDay = async (dayId: string) => {
+    if (!window.confirm("Delete this entire day and all its activities? This cannot be undone.")) return;
     try {
       await api.delete(`/trips/${tripId}/itinerary/days/${dayId}`);
       await fetchItinerary();
@@ -308,7 +310,7 @@ export default function ItineraryPage() {
                   {/* Day header */}
                   <button
                     onClick={() => toggleDay(day.id)}
-                    className="w-full flex items-center justify-between p-4 text-left"
+                    className="group w-full flex items-center justify-between p-4 text-left"
                     style={{ background: "none", border: "none", cursor: "pointer" }}
                   >
                     <div className="flex items-center gap-3">
@@ -330,7 +332,7 @@ export default function ItineraryPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDeleteDay(day.id); }}
-                        className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="p-1.5 rounded-lg opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                         style={{ background: "rgba(248,113,113,0.1)", border: "none", cursor: "pointer" }}
                         title="Delete day"
                       >
@@ -450,7 +452,7 @@ export default function ItineraryPage() {
                             style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)" }}
                           >
                             {/* Reorder buttons */}
-                            <div className="flex flex-col gap-0.5 pt-1 opacity-30 group-hover:opacity-100 transition-opacity">
+                            <div className="flex flex-col gap-0.5 pt-1 opacity-30 md:group-hover:opacity-100 transition-opacity">
                               <button
                                 onClick={() => handleMoveItem(day.id, idx, "up")}
                                 disabled={idx === 0}
@@ -499,7 +501,7 @@ export default function ItineraryPage() {
                                 </div>
 
                                 {/* Actions */}
-                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="flex gap-1 opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                   <button
                                     onClick={() => startEditItem(item)}
                                     className="p-1.5 rounded-lg"

@@ -113,12 +113,27 @@ function DashboardContent() {
     }
   };
 
+  const now = new Date();
   const ongoingTrips = myTrips
-    .filter(t => t.memberStatus === "APPROVED" && t.status === "IN_PROGRESS")
+    .filter(t => {
+      if (t.memberStatus !== "APPROVED") return false;
+      if (t.status === "IN_PROGRESS") return true;
+      if (t.startDate && t.endDate) {
+        const start = new Date(t.startDate);
+        const end = new Date(t.endDate);
+        end.setHours(23, 59, 59, 999);
+        return start <= now && now <= end;
+      }
+      return false;
+    })
     .sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
 
   const upcomingTrips = myTrips
-    .filter(t => t.memberStatus === "APPROVED" && new Date(t.startDate) > new Date() && t.status !== "IN_PROGRESS")
+    .filter(t => {
+      if (t.memberStatus !== "APPROVED") return false;
+      if (t.status === "COMPLETED" || t.status === "CANCELLED") return false;
+      return !ongoingTrips.some(ot => ot.id === t.id);
+    })
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
   const filteredTrips = selectedType
@@ -201,16 +216,80 @@ function DashboardContent() {
         </div>
       )}
 
-      {/* ─── UPCOMING TRIPS (Horizontal scroll) ─── */}
-      {upcomingTrips.length > 0 && (
+      {/* ─── ONGOING & UPCOMING TRIPS (Horizontal scroll) ─── */}
+      {(ongoingTrips.length > 0 || upcomingTrips.length > 0) && (
         <div>
           <h2
             className="text-sm font-semibold uppercase tracking-wide mb-3"
             style={{ color: "var(--text-muted)" }}
           >
-            Your Upcoming Trips
+            {ongoingTrips.length > 0 ? "Your Active & Upcoming Trips" : "Your Upcoming Trips"}
           </h2>
           <div className="flex gap-3 overflow-x-auto pb-2 hide-scrollbar">
+            {/* Ongoing Trips Cards */}
+            {ongoingTrips.map(trip => (
+              <Link
+                key={trip.id}
+                href={`/dashboard/trips/${trip.id}`}
+                className="snap-start shrink-0 w-56 rounded-xl overflow-hidden group transition-all"
+                style={{
+                  background: "var(--bg-card)",
+                  border: "1.5px solid var(--brand)",
+                  boxShadow: "var(--shadow-sm)",
+                }}
+              >
+                <div className="h-24 w-full relative overflow-hidden">
+                  {trip.coverImageUrl ? (
+                    <img
+                      src={trip.coverImageUrl}
+                      alt={trip.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div
+                      className="w-full h-full flex items-center justify-center"
+                      style={{ background: "var(--brand-light)" }}
+                    >
+                      <Mountain size={28} style={{ color: "var(--brand)", opacity: 0.8 }} />
+                    </div>
+                  )}
+                  <div
+                    className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1"
+                    style={{
+                      background: "var(--brand)",
+                      color: "white",
+                      boxShadow: "var(--shadow-sm)",
+                    }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                    ONGOING
+                  </div>
+                </div>
+                <div className="p-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    {trip.memberRole === "CREATOR" ? (
+                      <Crown size={12} style={{ color: "var(--accent)" }} />
+                    ) : (
+                      <User size={12} style={{ color: "var(--brand)" }} />
+                    )}
+                    <span className="text-[10px] font-medium" style={{ color: "var(--text-muted)" }}>
+                      {trip.memberRole === "CREATOR" ? "Creator" : "Member"}
+                    </span>
+                  </div>
+                  <h3
+                    className="font-semibold text-sm truncate"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    {trip.title}
+                  </h3>
+                  <p className="text-xs truncate flex items-center gap-1 mt-0.5" style={{ color: "var(--text-muted)" }}>
+                    <MapPin size={10} /> {trip.destination}
+                  </p>
+                </div>
+              </Link>
+            ))}
+
+            {/* Upcoming Trips Cards */}
             {upcomingTrips.map(trip => (
               <Link
                 key={trip.id}

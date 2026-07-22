@@ -83,6 +83,7 @@ export default function TripChatWindow({ tripId, tripTitle, onBack, height = "10
   const [sending, setSending] = useState(false);
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
 
+  const [chatFilter, setChatFilter] = useState<"CHAT" | "PAYMENTS">("CHAT");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const stompClientRef = useRef<Client | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -251,8 +252,16 @@ export default function TripChatWindow({ tripId, tripTitle, onBack, height = "10
     }
   };
 
+  const isPaymentContent = (msg: ChatMessage) =>
+    msg.messageType === "SYSTEM" || msg.content.includes("💸") || msg.content.includes("✅") || msg.content.includes("settled");
+
+  const filteredMessages = messages.filter((msg) => {
+    if (chatFilter === "PAYMENTS") return isPaymentContent(msg);
+    return !isPaymentContent(msg);
+  });
+
   const groupedMessages: { date: string; messages: ChatMessage[] }[] = [];
-  messages.forEach((msg) => {
+  filteredMessages.forEach((msg) => {
     const date = parseDate(msg.createdAt);
     const dateStr = date ? date.toDateString() : "unknown";
     const last = groupedMessages[groupedMessages.length - 1];
@@ -280,8 +289,13 @@ export default function TripChatWindow({ tripId, tripTitle, onBack, height = "10
       >
         <div className="flex items-center gap-3">
           {onBack && (
-            <button onClick={onBack} className="p-1 rounded-md hover:bg-white/5 transition-colors text-muted lg:hidden">
-              <ArrowLeft size={18} />
+            <button
+              onClick={onBack}
+              className="px-2.5 py-1.5 rounded-lg transition-colors text-muted hover:text-white flex items-center gap-1.5 text-xs font-semibold"
+              style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)" }}
+            >
+              <ArrowLeft size={15} />
+              <span>Back to Trip</span>
             </button>
           )}
           <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(45, 212, 168, 0.1)" }}>
@@ -303,9 +317,35 @@ export default function TripChatWindow({ tripId, tripTitle, onBack, height = "10
                   <span style={{ color: "#f87171" }}>Reconnecting...</span>
                 </>
               )}
-              {" • "}{messages.length} messages
+              {" • "}{filteredMessages.length} messages
             </div>
           </div>
+        </div>
+
+        {/* Chat Filter Tabs */}
+        <div className="flex items-center p-1 rounded-lg gap-1" style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)" }}>
+          <button
+            onClick={() => setChatFilter("CHAT")}
+            className="px-3 py-1 rounded-md text-xs font-bold transition-all"
+            style={{
+              background: chatFilter === "CHAT" ? "linear-gradient(135deg, var(--color-primary), var(--color-accent))" : "transparent",
+              color: chatFilter === "CHAT" ? "#ffffff" : "var(--color-txt-secondary)",
+              boxShadow: chatFilter === "CHAT" ? "0 2px 4px rgba(0,0,0,0.2)" : "none",
+            }}
+          >
+            Chat Messages
+          </button>
+          <button
+            onClick={() => setChatFilter("PAYMENTS")}
+            className="px-3 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1"
+            style={{
+              background: chatFilter === "PAYMENTS" ? "linear-gradient(135deg, var(--color-primary), var(--color-accent))" : "transparent",
+              color: chatFilter === "PAYMENTS" ? "#ffffff" : "var(--color-txt-secondary)",
+              boxShadow: chatFilter === "PAYMENTS" ? "0 2px 4px rgba(0,0,0,0.2)" : "none",
+            }}
+          >
+            Payments 💸
+          </button>
         </div>
       </div>
 
@@ -314,14 +354,14 @@ export default function TripChatWindow({ tripId, tripTitle, onBack, height = "10
         className="flex-1 overflow-y-auto px-4 py-4 space-y-1"
         style={{ background: "var(--color-bg-deep)" }}
       >
-        {messages.length === 0 && (
+        {filteredMessages.length === 0 && (
           <div className="text-center py-16">
             <MessageCircle size={48} className="mx-auto mb-4" style={{ color: "var(--color-txt-dim)" }} />
             <h3 className="text-lg font-semibold mb-2" style={{ color: "var(--color-txt-white)" }}>
-              Start the Conversation
+              {chatFilter === "PAYMENTS" ? "No Payment Updates Yet" : "Start the Conversation"}
             </h3>
             <p className="text-sm" style={{ color: "var(--color-txt-muted)" }}>
-              Say hello to the group!
+              {chatFilter === "PAYMENTS" ? "Recorded payment notifications will appear here." : "Say hello to the group!"}
             </p>
           </div>
         )}
@@ -338,17 +378,22 @@ export default function TripChatWindow({ tripId, tripTitle, onBack, height = "10
 
             {group.messages.map((msg) => {
               const isOwn = msg.senderId === user?.id;
-              const isSystem = msg.messageType === "SYSTEM";
+              const isPayment = isPaymentContent(msg);
 
-              if (isSystem) {
+              if (isPayment) {
                 return (
-                  <div key={msg.id} className="text-center py-2">
-                    <span
-                      className="text-xs px-3 py-1 rounded-full"
-                      style={{ background: "var(--color-bg-surface)", color: "var(--color-txt-muted)" }}
+                  <div key={msg.id} className="flex justify-center my-3">
+                    <div
+                      className="text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 max-w-lg shadow-sm text-center"
+                      style={{
+                        background: "rgba(45, 212, 168, 0.08)",
+                        border: "1px solid rgba(45, 212, 168, 0.25)",
+                        color: "var(--color-txt-white)",
+                      }}
                     >
-                      {msg.content}
-                    </span>
+                      <span className="text-sm">💸</span>
+                      <span className="font-medium">{msg.content}</span>
+                    </div>
                   </div>
                 );
               }

@@ -74,6 +74,21 @@ interface TripMember {
   profilePhotoUrl?: string;
 }
 
+interface TripSettlementHistory {
+  id: string;
+  tripId: string;
+  fromUserId: string;
+  fromUserName: string;
+  toUserId: string;
+  toUserName: string;
+  amount: number;
+  paymentMethod: string;
+  status: "PENDING" | "CONFIRMED" | "REJECTED";
+  notes?: string;
+  rejectionReason?: string;
+  createdAt: string;
+}
+
 export default function ExpensesPage() {
   const params = useParams();
   const router = useRouter();
@@ -83,6 +98,7 @@ export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [summary, setSummary] = useState<ExpenseSummary | null>(null);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
+  const [settlementHistory, setSettlementHistory] = useState<TripSettlementHistory[]>([]);
   const [members, setMembers] = useState<TripMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"expenses" | "settlements">("expenses");
@@ -90,6 +106,21 @@ export default function ExpensesPage() {
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [expandedExpenseId, setExpandedExpenseId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Settlement Modal State
+  const [showSettleModal, setShowSettleModal] = useState(false);
+  const [settleSubmitting, setSettleSubmitting] = useState(false);
+  const [isRecipientLocked, setIsRecipientLocked] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState<"ALL" | "MINE">("ALL");
+  const [settleForm, setSettleForm] = useState({
+    toUserId: "",
+    amount: "",
+    paymentMethod: "UPI" as "CASH" | "UPI" | "BANK_TRANSFER" | "OTHER",
+    notes: "",
+    isDirectReceipt: false,
+  });
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   const [form, setForm] = useState({
     title: "",
@@ -104,19 +135,64 @@ export default function ExpensesPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [expRes, sumRes, setRes, memRes] = await Promise.all([
+      const [expRes, sumRes, setRes, memRes, histRes] = await Promise.all([
         api.get(`/trips/${tripId}/expenses`),
         api.get(`/trips/${tripId}/expenses/summary`),
         api.get(`/trips/${tripId}/expenses/settlements`),
         api.get(`/trips/${tripId}/members`),
+        api.get(`/trips/${tripId}/expenses/settlements/history`).catch(() => ({ data: [] })),
       ]);
       setExpenses(expRes.data || []);
       setSummary(sumRes.data);
       setSettlements(setRes.data || []);
       setMembers((memRes.data || []).filter((m: TripMember) => m.status === "APPROVED"));
+      setSettlementHistory(histRes.data || []);
     } catch {}
     setLoading(false);
   }, [tripId]);
+
+  const handleRecordSettlement = async () => {
+    if (!settleForm.toUserId || !settleForm.amount) return;
+    setSettleSubmitting(true);
+    try {
+      await api.post(`/trips/${tripId}/expenses/settlements/pay`, {
+        toUserId: settleForm.toUserId,
+        amount: parseFloat(settleForm.amount),
+        paymentMethod: settleForm.paymentMethod,
+        notes: settleForm.notes || null,
+        isDirectReceipt: settleForm.isDirectReceipt,
+      });
+      setShowSettleModal(false);
+      setSettleForm({ toUserId: "", amount: "", paymentMethod: "UPI", notes: "", isDirectReceipt: false });
+      await fetchData();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to record payment.");
+    } finally {
+      setSettleSubmitting(false);
+    }
+  };
+
+  const handleConfirmSettlement = async (settlementId: string) => {
+    try {
+      await api.post(`/trips/${tripId}/expenses/settlements/${settlementId}/confirm`);
+      await fetchData();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to confirm settlement.");
+    }
+  };
+
+  const handleRejectSettlement = async (settlementId: string) => {
+    try {
+      await api.post(`/trips/${tripId}/expenses/settlements/${settlementId}/reject`, null, {
+        params: { reason: rejectReason || null }
+      });
+      setRejectingId(null);
+      setRejectReason("");
+      await fetchData();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to decline settlement.");
+    }
+  };
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -625,6 +701,86 @@ export default function ExpensesPage() {
       {/* Settlements */}
       {activeTab === "settlements" && (
         <div className="space-y-4">
+
+          {/* Pending Verification Banner for Recipient */}
+          {settlementHistory.filter(s => s.toUserId === user?.id && s.status === "PENDING").length > 0 && (
+            <div
+              className="rounded-xl p-4 space-y-3"
+              style={{ background: "rgba(245, 158, 11, 0.1)", border: "1px solid rgba(245, 158, 11, 0.3)" }}
+            >
+              <div className="flex items-center gap-2 text-sm font-bold" style={{ color: "#f59e0b" }}>
+                <Info size={16} />
+                Pending Payment Verifications ({settlementHistory.filter(s => s.toUserId === user?.id && s.status === "PENDING").length})
+              </div>
+              <p className="text-xs" style={{ color: "var(--color-txt-secondary)" }}>
+                The following trip members have recorded a payment to you. Please confirm once you receive the funds:
+              </p>
+              <div className="space-y-2">
+                {settlementHistory.filter(s => s.toUserId === user?.id && s.status === "PENDING").map(s => (
+                  <div
+                    key={s.id}
+                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-lg gap-2"
+                    style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)" }}
+                  >
+                    <div>
+                      <div className="text-xs font-semibold" style={{ color: "var(--color-txt-white)" }}>
+                        {s.fromUserName} paid you <span style={{ color: "#2dd4a8" }}>{formatCurrency(s.amount)}</span> via {s.paymentMethod}
+                      </div>
+                      {s.notes && (
+                        <div className="text-[11px] mt-0.5" style={{ color: "var(--color-txt-muted)" }}>
+                          Note: {s.notes}
+                        </div>
+                      )}
+                    </div>
+
+                    {rejectingId === s.id ? (
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <input
+                          type="text"
+                          placeholder="Reason (optional)"
+                          value={rejectReason}
+                          onChange={(e) => setRejectReason(e.target.value)}
+                          className="t-input !py-1 !text-xs flex-1"
+                        />
+                        <button
+                          onClick={() => handleRejectSettlement(s.id)}
+                          className="px-2.5 py-1 rounded text-xs font-bold"
+                          style={{ background: "#f87171", color: "white" }}
+                        >
+                          Confirm Decline
+                        </button>
+                        <button
+                          onClick={() => setRejectingId(null)}
+                          className="px-2 py-1 text-xs"
+                          style={{ color: "var(--color-txt-muted)" }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleConfirmSettlement(s.id)}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                          style={{ background: "#2dd4a8", color: "var(--color-bg-deep)" }}
+                        >
+                          <CheckCircle2 size={13} /> Confirm Receipt
+                        </button>
+                        <button
+                          onClick={() => { setRejectingId(s.id); setRejectReason(""); }}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                          style={{ background: "rgba(248,113,113,0.1)", color: "#f87171", border: "1px solid rgba(248,113,113,0.2)" }}
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Member balances */}
           {summary && summary.memberSummaries.length > 0 && (
             <div
@@ -633,35 +789,49 @@ export default function ExpensesPage() {
             >
               <div className="text-xs font-semibold mb-3" style={{ color: "var(--color-txt-white)" }}>Member Balances</div>
               <div className="space-y-2">
-                {summary.memberSummaries.map((m) => (
-                  <div key={m.userId} className="flex items-center justify-between py-2">
-                    <div className="flex items-center gap-2">
+                {summary.memberSummaries.map((m) => {
+                  const pendingItem = settlementHistory.find(s => s.status === "PENDING" && (s.fromUserId === m.userId || s.toUserId === m.userId));
+                  const isFullySettled = Math.abs(m.netBalance) < 0.01 && !pendingItem;
+                  return (
+                    <div key={m.userId} className="flex items-center justify-between py-2">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                          style={{
+                            background: m.userId === user?.id ? "linear-gradient(135deg, var(--color-primary), var(--color-accent))" : "var(--color-bg-elevated)",
+                            color: m.userId === user?.id ? "var(--color-bg-deep)" : "var(--color-txt-secondary)",
+                          }}
+                        >
+                          {m.userName?.split(" ").map(n => n[0]).join("").toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium" style={{ color: "var(--color-txt-white)" }}>
+                            {m.userName} {m.userId === user?.id && <span className="text-xs" style={{ color: "var(--color-primary)" }}>(You)</span>}
+                          </div>
+                          <div className="text-xs" style={{ color: "var(--color-txt-muted)" }}>
+                            Paid {formatCurrency(m.totalPaid)} • Owes {formatCurrency(m.totalOwed)}
+                          </div>
+                          {pendingItem && (
+                            <div className="text-[11px] font-semibold mt-0.5" style={{ color: "#f59e0b" }}>
+                              ⏳ {formatCurrency(pendingItem.amount)} payment pending confirmation
+                            </div>
+                          )}
+                          {isFullySettled && (
+                            <div className="text-[11px] font-semibold mt-0.5" style={{ color: "#2dd4a8" }}>
+                              ✅ Fully Settled
+                            </div>
+                          )}
+                        </div>
+                      </div>
                       <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                        style={{
-                          background: m.userId === user?.id ? "linear-gradient(135deg, var(--color-primary), var(--color-accent))" : "var(--color-bg-elevated)",
-                          color: m.userId === user?.id ? "var(--color-bg-deep)" : "var(--color-txt-secondary)",
-                        }}
+                        className="text-sm font-bold"
+                        style={{ color: m.netBalance >= 0 ? "#2dd4a8" : "#f87171" }}
                       >
-                        {m.userName?.split(" ").map(n => n[0]).join("").toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium" style={{ color: "var(--color-txt-white)" }}>
-                          {m.userName} {m.userId === user?.id && <span className="text-xs" style={{ color: "var(--color-primary)" }}>(You)</span>}
-                        </div>
-                        <div className="text-xs" style={{ color: "var(--color-txt-muted)" }}>
-                          Paid {formatCurrency(m.totalPaid)} • Owes {formatCurrency(m.totalOwed)}
-                        </div>
+                        {m.netBalance >= 0 ? "+" : ""}{formatCurrency(m.netBalance)}
                       </div>
                     </div>
-                    <div
-                      className="text-sm font-bold"
-                      style={{ color: m.netBalance >= 0 ? "#2dd4a8" : "#f87171" }}
-                    >
-                      {m.netBalance >= 0 ? "+" : ""}{formatCurrency(m.netBalance)}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -671,18 +841,32 @@ export default function ExpensesPage() {
             className="rounded-xl p-4"
             style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}
           >
-            <div className="flex items-center gap-2 mb-2">
-              <div className="text-xs font-semibold" style={{ color: "var(--color-txt-white)" }}>
-                <ArrowRightLeft size={14} className="inline mr-1" style={{ color: "var(--color-primary)" }} />
-                Optimized Settlements
-              </div>
-              <div className="group relative">
-                <Info size={14} style={{ color: "var(--color-txt-muted)", cursor: "help" }} />
-                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 p-2 rounded-lg text-[10px] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 text-center" style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)", color: "var(--color-txt-secondary)", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}>
-                  Calculated by finding the fewest number of transactions needed to settle everyone's debts based on their net balance.
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="text-xs font-semibold" style={{ color: "var(--color-txt-white)" }}>
+                  <ArrowRightLeft size={14} className="inline mr-1" style={{ color: "var(--color-primary)" }} />
+                  Optimized Settlements
+                </div>
+                <div className="group relative">
+                  <Info size={14} style={{ color: "var(--color-txt-muted)", cursor: "help" }} />
+                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 p-2 rounded-lg text-[10px] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 text-center" style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)", color: "var(--color-txt-secondary)", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}>
+                    Calculated by finding the fewest number of transactions needed to settle everyone's debts.
+                  </div>
                 </div>
               </div>
+
+              <button
+                onClick={() => {
+                  setSettleForm({ toUserId: "", amount: "", paymentMethod: "UPI", notes: "", isDirectReceipt: false });
+                  setIsRecipientLocked(false);
+                  setShowSettleModal(true);
+                }}
+                className="t-btn-primary !py-1 !px-3 !text-xs flex items-center gap-1"
+              >
+                <DollarSign size={13} /> Record Payment
+              </button>
             </div>
+
             {settlements.length === 0 ? (
               <div className="text-center py-8">
                 <CheckCircle2 size={32} className="mx-auto mb-2" style={{ color: "var(--color-primary)" }} />
@@ -695,47 +879,266 @@ export default function ExpensesPage() {
                 {settlements.map((s, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-3 p-3 rounded-xl"
+                    className="flex flex-col sm:flex-row items-center justify-between p-3 rounded-xl gap-3"
                     style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)" }}
                   >
-                    <div className="flex flex-col items-center gap-1 flex-1">
-                      <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                        style={{ background: "rgba(248,113,113,0.1)", color: "#f87171" }}
-                      >
-                        {s.fromUserName?.split(" ").map(n => n[0]).join("").toUpperCase()}
+                    <div className="flex items-center gap-3 flex-1 w-full sm:w-auto">
+                      <div className="flex flex-col items-center gap-1">
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                          style={{ background: "rgba(248,113,113,0.1)", color: "#f87171" }}
+                        >
+                          {s.fromUserName?.split(" ").map(n => n[0]).join("").toUpperCase()}
+                        </div>
+                        <span className="text-[10px] text-center truncate max-w-[80px]" style={{ color: "var(--color-txt-secondary)" }}>
+                          {s.fromUserName} {s.fromUserId === user?.id && "(You)"}
+                        </span>
                       </div>
-                      <span className="text-[10px] text-center truncate w-full px-1" style={{ color: "var(--color-txt-secondary)" }}>
-                        {s.fromUserName}
-                      </span>
-                    </div>
-                    
-                    <div className="flex flex-col items-center flex-shrink-0 px-2">
-                      <div className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: "var(--color-txt-muted)" }}>pays</div>
-                      <div className="font-bold text-sm" style={{ color: "var(--color-txt-white)" }}>
-                        {formatCurrency(s.amount)}
+
+                      <div className="flex flex-col items-center px-2">
+                        <div className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: "var(--color-txt-muted)" }}>pays</div>
+                        <div className="font-bold text-sm" style={{ color: "var(--color-txt-white)" }}>
+                          {formatCurrency(s.amount)}
+                        </div>
+                        <ArrowRightLeft size={12} className="mt-1 opacity-50" style={{ color: "var(--color-txt-muted)" }} />
                       </div>
-                      <ArrowRightLeft size={12} className="mt-1 opacity-50" style={{ color: "var(--color-txt-muted)" }} />
+
+                      <div className="flex flex-col items-center gap-1">
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                          style={{ background: "rgba(45,212,168,0.1)", color: "#2dd4a8" }}
+                        >
+                          {s.toUserName?.split(" ").map(n => n[0]).join("").toUpperCase()}
+                        </div>
+                        <span className="text-[10px] text-center truncate max-w-[80px]" style={{ color: "var(--color-txt-secondary)" }}>
+                          {s.toUserName} {s.toUserId === user?.id && "(You)"}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="flex flex-col items-center gap-1 flex-1">
-                      <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                        style={{ background: "rgba(45,212,168,0.1)", color: "#2dd4a8" }}
+                    {(s.fromUserId === user?.id || s.toUserId === user?.id) && (
+                      <button
+                        onClick={() => {
+                          setSettleForm({
+                            toUserId: s.toUserId === user?.id ? s.fromUserId : s.toUserId,
+                            amount: s.amount.toString(),
+                            paymentMethod: "UPI",
+                            notes: "",
+                            isDirectReceipt: s.toUserId === user?.id,
+                          });
+                          setIsRecipientLocked(true);
+                          setShowSettleModal(true);
+                        }}
+                        className="t-btn-outline !py-1.5 !px-3 !text-xs w-full sm:w-auto"
                       >
-                        {s.toUserName?.split(" ").map(n => n[0]).join("").toUpperCase()}
-                      </div>
-                      <span className="text-[10px] text-center truncate w-full px-1" style={{ color: "var(--color-txt-secondary)" }}>
-                        {s.toUserName}
-                      </span>
-                    </div>
+                        {s.fromUserId === user?.id ? "Record I Paid" : "Record Cash Received"}
+                      </button>
+                    )}
                   </div>
                 ))}
-                <p className="text-xs text-center pt-2" style={{ color: "var(--color-txt-dim)" }}>
-                  Optimized to {settlements.length} transaction{settlements.length !== 1 ? "s" : ""}
-                </p>
               </div>
             )}
+          </div>
+
+          {/* Payment Settlement History - Always Visible */}
+          <div
+            className="rounded-xl p-4"
+            style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-xs font-semibold" style={{ color: "var(--color-txt-white)" }}>
+                Settlement History ({settlementHistory.length})
+              </div>
+
+              {/* 2-Way Filter Toggle */}
+              <div className="flex items-center p-1 rounded-lg gap-1" style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)" }}>
+                <button
+                  onClick={() => setHistoryFilter("ALL")}
+                  className="px-2.5 py-1 rounded-md text-xs font-bold transition-all"
+                  style={{
+                    background: historyFilter === "ALL" ? "linear-gradient(135deg, var(--color-primary), var(--color-accent))" : "transparent",
+                    color: historyFilter === "ALL" ? "#ffffff" : "var(--color-txt-secondary)",
+                    boxShadow: historyFilter === "ALL" ? "0 2px 4px rgba(0,0,0,0.2)" : "none",
+                  }}
+                >
+                  All Group Payments
+                </button>
+                <button
+                  onClick={() => setHistoryFilter("MINE")}
+                  className="px-2.5 py-1 rounded-md text-xs font-bold transition-all"
+                  style={{
+                    background: historyFilter === "MINE" ? "linear-gradient(135deg, var(--color-primary), var(--color-accent))" : "transparent",
+                    color: historyFilter === "MINE" ? "#ffffff" : "var(--color-txt-secondary)",
+                    boxShadow: historyFilter === "MINE" ? "0 2px 4px rgba(0,0,0,0.2)" : "none",
+                  }}
+                >
+                  My Payments Only
+                </button>
+              </div>
+            </div>
+
+            {(() => {
+              const filteredList = historyFilter === "MINE"
+                ? settlementHistory.filter(s => s.fromUserId === user?.id || s.toUserId === user?.id)
+                : settlementHistory;
+
+              if (filteredList.length === 0) {
+                return (
+                  <div className="text-center py-6 text-xs" style={{ color: "var(--color-txt-muted)" }}>
+                    {settlementHistory.length === 0 ? "No settlements recorded yet." : "No personal settlement history found."}
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-2">
+                  {filteredList.map(s => {
+                    const isPending = s.status === "PENDING";
+                    const isConfirmed = s.status === "CONFIRMED";
+                    const isRejected = s.status === "REJECTED";
+                    return (
+                      <div
+                        key={s.id}
+                        className="flex items-center justify-between p-3 rounded-lg text-xs"
+                        style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)" }}
+                      >
+                        <div>
+                          <div className="font-medium" style={{ color: "var(--color-txt-white)" }}>
+                            {s.fromUserName} ➔ {s.toUserName}: <span className="font-bold">{formatCurrency(s.amount)}</span> ({s.paymentMethod})
+                          </div>
+                          <div className="text-[11px] mt-0.5" style={{ color: "var(--color-txt-muted)" }}>
+                            {new Date(s.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            {s.notes && ` • Note: ${s.notes}`}
+                            {s.rejectionReason && ` • Declined: ${s.rejectionReason}`}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 font-bold text-[11px] px-2 py-1 rounded">
+                          {isConfirmed && <span style={{ color: "#2dd4a8" }}>✅ Confirmed</span>}
+                          {isPending && <span style={{ color: "#f59e0b" }}>⏳ Pending</span>}
+                          {isRejected && <span style={{ color: "#f87171" }}>❌ Declined</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+
+        </div>
+      )}
+
+      {/* Record Settlement Modal */}
+      {showSettleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div
+            className="w-full max-w-md rounded-2xl p-6 space-y-4"
+            style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold" style={{ color: "var(--color-txt-white)" }}>
+                Record Settlement Payment
+              </h3>
+              <button onClick={() => setShowSettleModal(false)} className="p-1 text-muted hover:text-white">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold flex items-center justify-between mb-1" style={{ color: "var(--color-txt-secondary)" }}>
+                  <span>{settleForm.isDirectReceipt ? "Paying Member" : "Recipient Member"}</span>
+                  {isRecipientLocked && <span className="text-[10px] text-muted">🔒 Locked from card</span>}
+                </label>
+                <select
+                  value={settleForm.toUserId}
+                  onChange={(e) => setSettleForm({ ...settleForm, toUserId: e.target.value })}
+                  disabled={isRecipientLocked}
+                  className="t-input w-full disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <option value="">Select member...</option>
+                  {members.filter(m => m.userId !== user?.id).map(m => (
+                    <option key={m.userId} value={m.userId}>
+                      {m.firstName} {m.lastName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-txt-secondary)" }}>
+                  Amount (INR)
+                </label>
+                <input
+                  type="number"
+                  placeholder="0.00"
+                  value={settleForm.amount}
+                  onChange={(e) => setSettleForm({ ...settleForm, amount: e.target.value })}
+                  className="t-input w-full"
+                  min="1"
+                  step="0.01"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-txt-secondary)" }}>
+                  Payment Method
+                </label>
+                <div className="flex gap-2">
+                  {(["UPI", "CASH", "BANK_TRANSFER", "OTHER"] as const).map(method => (
+                    <button
+                      key={method}
+                      type="button"
+                      onClick={() => setSettleForm({ ...settleForm, paymentMethod: method })}
+                      className="flex-1 py-1.5 rounded-lg text-xs font-medium transition-all"
+                      style={{
+                        background: settleForm.paymentMethod === method ? "var(--color-primary-dim)" : "var(--color-bg-deep)",
+                        border: `1px solid ${settleForm.paymentMethod === method ? "var(--color-primary)" : "var(--color-line)"}`,
+                        color: settleForm.paymentMethod === method ? "var(--color-primary)" : "var(--color-txt-muted)"
+                      }}
+                    >
+                      {method === "UPI" ? "📱 UPI" : method === "CASH" ? "💵 Cash" : method === "BANK_TRANSFER" ? "🏦 Bank" : "💳 Other"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold block mb-1" style={{ color: "var(--color-txt-secondary)" }}>
+                  Notes / Ref ID (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. UPI Ref: 4123xxxx"
+                  value={settleForm.notes}
+                  onChange={(e) => setSettleForm({ ...settleForm, notes: e.target.value })}
+                  className="t-input w-full"
+                />
+              </div>
+
+              <div className="p-3 rounded-lg text-xs" style={{ background: "var(--color-bg-deep)", color: "var(--color-txt-muted)", border: "1px solid var(--color-line)" }}>
+                {settleForm.isDirectReceipt ? (
+                  <span>💡 <b>Direct Receipt:</b> As the recipient logging this payment, it will be marked as <b style={{ color: "#2dd4a8" }}>Confirmed</b> immediately.</span>
+                ) : (
+                  <span>📩 <b>Pending Verification:</b> A confirmation request will be sent to the recipient to verify before balances update.</span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end pt-2">
+              <button onClick={() => setShowSettleModal(false)} className="t-btn-outline" style={{ padding: "8px 16px", fontSize: "0.85rem" }}>
+                Cancel
+              </button>
+              <button
+                onClick={handleRecordSettlement}
+                disabled={settleSubmitting || !settleForm.toUserId || !settleForm.amount}
+                className="t-btn-primary"
+                style={{ padding: "8px 16px", fontSize: "0.85rem" }}
+              >
+                {settleSubmitting ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} {settleForm.isDirectReceipt ? "Record & Confirm" : "Submit for Confirmation"}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -11,7 +11,7 @@ export default function ChatPage() {
   return (
     <TripChatWindow 
       tripId={tripId} 
-      onBack={() => router.back()} 
+      onBack={() => router.push(`/dashboard/trips/${tripId}`)} 
       height="calc(100vh - 80px)" 
     />
   );

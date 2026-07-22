@@ -344,7 +344,7 @@ export default function TripChatWindow({ tripId, tripTitle, onBack, height = "10
               boxShadow: chatFilter === "PAYMENTS" ? "0 2px 4px rgba(0,0,0,0.2)" : "none",
             }}
           >
-            Payments 💸
+            Payments
           </button>
         </div>
       </div>

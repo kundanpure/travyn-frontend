@@ -69,6 +69,44 @@ export default function MyTripsPage() {
     return true;
   });
 
+  const getTripCategory = (trip: MyTrip) => {
+    if (trip.status === "CANCELLED" || trip.status === "COMPLETED") {
+      return { priority: 3, label: trip.status, isOngoing: false };
+    }
+
+    const now = new Date();
+    const start = trip.startDate ? new Date(trip.startDate) : null;
+    const end = trip.endDate ? new Date(trip.endDate) : null;
+    if (end) end.setHours(23, 59, 59, 999);
+
+    if (trip.status === "IN_PROGRESS" || (start && end && start <= now && now <= end)) {
+      return { priority: 1, label: "ONGOING", isOngoing: true };
+    }
+
+    if (start && start > now) {
+      return { priority: 2, label: "UPCOMING", isOngoing: false };
+    }
+
+    return { priority: 3, label: "PAST", isOngoing: false };
+  };
+
+  const sortedFiltered = [...filtered].sort((a, b) => {
+    const catA = getTripCategory(a);
+    const catB = getTripCategory(b);
+
+    if (catA.priority !== catB.priority) {
+      return catA.priority - catB.priority; // 1 (Ongoing) -> 2 (Upcoming) -> 3 (Past)
+    }
+
+    if (catA.priority === 1) {
+      return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+    }
+    if (catA.priority === 2) {
+      return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+    }
+    return new Date(b.endDate).getTime() - new Date(a.endDate).getTime();
+  });
+
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
@@ -112,10 +150,10 @@ export default function MyTripsPage() {
             {label}
             {activeTab === key && (
               <span
-                className="px-1.5 py-0.5 rounded text-xs"
+                className="px-1.5 py-0.5 rounded text-xs font-bold"
                 style={{ background: "var(--color-primary)", color: "#06080c" }}
               >
-                {filtered.length}
+                {sortedFiltered.length}
               </span>
             )}
           </button>
@@ -127,7 +165,7 @@ export default function MyTripsPage() {
         <div className="flex items-center justify-center py-16">
           <Loader2 size={32} className="animate-spin" style={{ color: "var(--color-primary)" }} />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : sortedFiltered.length === 0 ? (
         <div
           className="text-center py-16 rounded-2xl"
           style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}
@@ -155,9 +193,16 @@ export default function MyTripsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((trip) => {
-            const isFuture = new Date(trip.startDate) > new Date(new Date().setHours(0,0,0,0));
-            const sc = statusColors[trip.status] || statusColors.DRAFT;
+          {sortedFiltered.map((trip) => {
+            const cat = getTripCategory(trip);
+            const isOngoing = cat.isOngoing;
+            const isUpcoming = cat.label === "UPCOMING";
+            const sc = isOngoing
+              ? { bg: "rgba(45, 212, 168, 0.15)", text: "#2dd4a8" }
+              : isUpcoming
+              ? statusColors["UPCOMING"]
+              : statusColors[trip.status] || statusColors.DRAFT;
+
             return (
               <Link
                 key={trip.id}
@@ -165,14 +210,14 @@ export default function MyTripsPage() {
                 className="flex items-center gap-4 p-4 rounded-xl group transition-all hover:-translate-y-0.5"
                 style={{
                   background: "var(--color-bg-surface)",
-                  border: "1px solid var(--color-line)",
+                  border: isOngoing ? "1px solid rgba(45, 212, 168, 0.4)" : "1px solid var(--color-line)",
                   textDecoration: "none",
                 }}
               >
                 {/* Left Color Bar */}
                 <div
                   className="w-1 h-14 rounded-full flex-shrink-0"
-                  style={{ background: isFuture && (trip.status === "OPEN" || trip.status === "FULL") ? statusColors["UPCOMING"].text : sc.text }}
+                  style={{ background: sc.text }}
                 />
 
                 {/* Info */}
@@ -184,19 +229,11 @@ export default function MyTripsPage() {
                     >
                       {trip.title}
                     </h3>
-                    {isFuture && (trip.status === "OPEN" || trip.status === "FULL") && (
-                      <span
-                        className="px-2 py-0.5 rounded text-xs font-medium flex-shrink-0"
-                        style={{ background: statusColors["UPCOMING"].bg, color: statusColors["UPCOMING"].text }}
-                      >
-                        UPCOMING
-                      </span>
-                    )}
                     <span
-                      className="px-2 py-0.5 rounded text-xs font-medium flex-shrink-0"
+                      className={`px-2 py-0.5 rounded text-xs font-bold flex-shrink-0 ${isOngoing ? "animate-pulse" : ""}`}
                       style={{ background: sc.bg, color: sc.text }}
                     >
-                      {trip.status?.replace("_", " ")}
+                      {isOngoing ? "🟢 ONGOING" : cat.label}
                     </span>
                   </div>
                   <div className="flex items-center gap-4 text-xs" style={{ color: "var(--color-txt-muted)" }}>
@@ -204,7 +241,7 @@ export default function MyTripsPage() {
                       <MapPin size={12} /> {trip.destination}
                     </span>
                     <span className="flex items-center gap-1">
-                      <Calendar size={12} /> {formatDate(trip.startDate)}
+                      <Calendar size={12} /> {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
                     </span>
                     <span className="flex items-center gap-1">
                       <Users size={12} /> {trip.memberCount}/{trip.maxSize}

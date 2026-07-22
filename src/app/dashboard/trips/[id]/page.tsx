@@ -938,203 +938,120 @@ export default function TripDetailPage() {
         className="rounded-xl p-5"
         style={{ background: "var(--color-bg-surface)", border: "1px solid var(--color-line)" }}
       >
-        <h3 className="text-sm font-semibold mb-4" style={{ color: "var(--color-txt-white)" }}>
-          Members ({members.filter(m => m.status === "APPROVED").length})
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {members.filter(m => m.status === "APPROVED").map((m) => (
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold" style={{ color: "var(--color-txt-white)" }}>
+            Members ({members.filter(m => m.status === "APPROVED").length})
+          </h3>
+          {trip.status === "COMPLETED" && reviewWindow?.windowOpen && (
             <div
-              key={m.userId}
-              className="flex items-center gap-3 p-3 rounded-xl"
-              style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)" }}
+              className="px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5"
+              style={{ background: "rgba(240, 160, 48, 0.15)", color: "#f0a030", border: "1px solid rgba(240, 160, 48, 0.3)" }}
+              title="Reviews auto-publish when window closes"
             >
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden"
-                style={{
-                  background: m.profilePhotoUrl ? "transparent" : (m.role === "CREATOR"
-                    ? "linear-gradient(135deg, var(--color-primary), var(--color-accent))"
-                    : "var(--color-bg-surface)"),
-                  color: m.role === "CREATOR" ? "#06080c" : "var(--color-txt-secondary)",
-                }}
-              >
-                {m.profilePhotoUrl ? (
-                  <img src={m.profilePhotoUrl} alt={m.firstName} className="w-full h-full object-cover" />
-                ) : (
-                  <>{m.firstName[0]}{m.lastName[0]}</>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate flex items-center gap-1.5" style={{ color: "var(--color-txt-white)" }}>
-                  {m.firstName} {m.lastName}
-                  {m.verified ? <VerifiedBadge size={14} /> : <UnverifiedBadge size={14} />}
-                </div>
-                <div className="text-xs flex items-center gap-1" style={{ color: "var(--color-txt-muted)" }}>
-                  {m.role === "CREATOR" && <Crown size={10} style={{ color: "var(--color-accent)" }} />}
-                  {m.role === "CREATOR" ? "Creator" : "Member"}
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                {/* Transfer Admin Button - Only if I am the creator and the other is a member */}
-                {isCreator && m.userId !== user?.id && trip.status !== "CANCELLED" && trip.status !== "COMPLETED" && (
-                  <button
-                    onClick={() => handleTransferAdmin(m.userId, m.firstName)}
-                    disabled={actionLoading === `transfer-${m.userId}`}
-                    className="p-2 rounded-lg transition-colors flex items-center justify-center hover:scale-105"
-                    style={{ background: "rgba(251, 191, 36, 0.1)", border: "1px solid rgba(251, 191, 36, 0.3)", color: "#fbbf24" }}
-                    title="Make Admin"
-                  >
-                    {actionLoading === `transfer-${m.userId}` ? (
-                      <div className="w-4 h-4 border-2 border-[#fbbf24] border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <Crown size={16} />
-                    )}
-                  </button>
-                )}
-
-                {/* Message Button - Only if it's an active trip and not myself */}
-                {m.userId !== user?.id && (isCreator || myMembership?.status === "APPROVED") && (
-                  <a
-                    href={`/dashboard/messages?partnerId=${m.userId}`}
-                    className="p-2 rounded-lg transition-colors flex items-center justify-center hover:scale-105"
-                    style={{ background: "rgba(45, 212, 168, 0.1)", border: "1px solid rgba(45, 212, 168, 0.3)", color: "#2dd4a8" }}
-                    title="Send Message"
-                  >
-                    <MessageCircle size={16} />
-                  </a>
-                )}
-              </div>
+              <Star size={13} />
+              <span>
+                Peer Reviews Open ({(() => {
+                  const now = new Date();
+                  const closes = new Date(reviewWindow.windowCloses);
+                  const diff = closes.getTime() - now.getTime();
+                  if (diff <= 0) return "closing now";
+                  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                  return days > 0 ? `${days}d ${hours}h left` : `${hours}h left`;
+                })()})
+              </span>
             </div>
-          ))}
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {members.filter(m => m.status === "APPROVED").map((m) => {
+            const peerInfo = reviewWindow?.peers?.find(p => p.peerId?.toLowerCase() === m.userId?.toLowerCase());
+            return (
+              <div
+                key={m.userId}
+                className="flex items-center gap-3 p-3 rounded-xl"
+                style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)" }}
+              >
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden"
+                  style={{
+                    background: m.profilePhotoUrl ? "transparent" : (m.role === "CREATOR"
+                      ? "linear-gradient(135deg, var(--color-primary), var(--color-accent))"
+                      : "var(--color-bg-surface)"),
+                    color: m.role === "CREATOR" ? "#06080c" : "var(--color-txt-secondary)",
+                  }}
+                >
+                  {m.profilePhotoUrl ? (
+                    <img src={m.profilePhotoUrl} alt={m.firstName} className="w-full h-full object-cover" />
+                  ) : (
+                    <>{m.firstName[0]}{m.lastName[0]}</>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate flex items-center gap-1.5" style={{ color: "var(--color-txt-white)" }}>
+                    {m.firstName} {m.lastName}
+                    {m.verified ? <VerifiedBadge size={14} /> : <UnverifiedBadge size={14} />}
+                  </div>
+                  <div className="text-xs flex items-center gap-1" style={{ color: "var(--color-txt-muted)" }}>
+                    {m.role === "CREATOR" && <Crown size={10} style={{ color: "var(--color-accent)" }} />}
+                    {m.role === "CREATOR" ? "Creator" : "Member"}
+                    {peerInfo?.iReviewedThem && !peerInfo?.published && (
+                      <span className="ml-1 text-[10px]" style={{ color: "#fbbf24" }}>• Reviewed</span>
+                    )}
+                    {peerInfo?.published && (
+                      <span className="ml-1 text-[10px]" style={{ color: "#2dd4a8" }}>• Published</span>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  {/* Peer Review Button */}
+                  {reviewWindow?.windowOpen && peerInfo && !peerInfo.iReviewedThem && !peerInfo.published && m.userId !== user?.id && (
+                    <button
+                      onClick={() => setReviewMember({ id: peerInfo.peerId, name: peerInfo.peerName })}
+                      className="p-2 rounded-lg transition-colors flex items-center justify-center hover:scale-105"
+                      style={{ background: "rgba(240, 160, 48, 0.15)", border: "1px solid rgba(240, 160, 48, 0.3)", color: "#f0a030" }}
+                      title="Review Your Trip Mate (Auto-publishes when window closes)"
+                    >
+                      <Star size={16} />
+                    </button>
+                  )}
+
+                  {/* Transfer Admin Button - Only if I am the creator and the other is a member */}
+                  {isCreator && m.userId !== user?.id && trip.status !== "CANCELLED" && trip.status !== "COMPLETED" && (
+                    <button
+                      onClick={() => handleTransferAdmin(m.userId, m.firstName)}
+                      disabled={actionLoading === `transfer-${m.userId}`}
+                      className="p-2 rounded-lg transition-colors flex items-center justify-center hover:scale-105"
+                      style={{ background: "rgba(251, 191, 36, 0.1)", border: "1px solid rgba(251, 191, 36, 0.3)", color: "#fbbf24" }}
+                      title="Make Admin"
+                    >
+                      {actionLoading === `transfer-${m.userId}` ? (
+                        <div className="w-4 h-4 border-2 border-[#fbbf24] border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Crown size={16} />
+                      )}
+                    </button>
+                  )}
+
+                  {/* Message Button - Only if it's an active trip and not myself */}
+                  {m.userId !== user?.id && (isCreator || myMembership?.status === "APPROVED") && (
+                    <a
+                      href={`/dashboard/messages?partnerId=${m.userId}`}
+                      className="p-2 rounded-lg transition-colors flex items-center justify-center hover:scale-105"
+                      style={{ background: "rgba(45, 212, 168, 0.1)", border: "1px solid rgba(45, 212, 168, 0.3)", color: "#2dd4a8" }}
+                      title="Send Message"
+                    >
+                      <MessageCircle size={16} />
+                    </a>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
-
-      {/* ─────────── REVIEW WINDOW SECTION ─────────── */}
-      {trip.status === "COMPLETED" && (isCreator || myMembership?.status === "APPROVED") && reviewWindow && (() => {
-        const now = new Date();
-        const opens = new Date(reviewWindow.windowOpens);
-        const closes = new Date(reviewWindow.windowCloses);
-        const isBeforeWindow = now < opens;
-        const isWindowOpen = reviewWindow.windowOpen;
-        const isWindowClosed = now > closes;
-
-        // Format remaining time
-        const formatTimeLeft = (target: Date) => {
-          const diff = target.getTime() - now.getTime();
-          if (diff <= 0) return "now";
-          const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-          const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-          if (days > 0) return `${days}d ${hours}h`;
-          const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-          return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-        };
-
-        return (
-          <div
-            className="rounded-xl p-5"
-            style={{ background: "var(--color-bg-surface)", border: `1px solid ${isWindowOpen ? "rgba(240, 160, 48, 0.3)" : "var(--color-line)"}` }}
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 rounded-xl" style={{ background: "rgba(240, 160, 48, 0.1)" }}>
-                <Star size={20} style={{ color: "#f0a030" }} />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold" style={{ color: "var(--color-txt-white)" }}>
-                  Review Your Trip Mates
-                </h3>
-                {isBeforeWindow && (
-                  <p className="text-xs" style={{ color: "var(--color-txt-muted)" }}>
-                    <Hourglass size={10} className="inline mr-1" />
-                    Review window opens in {formatTimeLeft(opens)}
-                  </p>
-                )}
-                {isWindowOpen && (
-                  <p className="text-xs" style={{ color: "#f0a030" }}>
-                    <Clock size={10} className="inline mr-1" />
-                    Window closes in {formatTimeLeft(closes)} — reviews auto-publish after that
-                  </p>
-                )}
-                {isWindowClosed && (
-                  <p className="text-xs" style={{ color: "var(--color-txt-muted)" }}>
-                    Review window closed on {closes.toLocaleDateString()}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {reviewWindow.peers.map((peer) => (
-                <div
-                  key={peer.peerId}
-                  className="flex items-center gap-3 p-3 rounded-xl"
-                  style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)" }}
-                >
-                  <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden"
-                    style={{ background: peer.profilePhotoUrl ? "transparent" : "var(--color-bg-surface)", color: "var(--color-txt-secondary)" }}
-                  >
-                    {peer.profilePhotoUrl ? (
-                      <img src={peer.profilePhotoUrl} alt={peer.peerName} className="w-full h-full object-cover" />
-                    ) : (
-                      peer.peerName.split(" ").map(n => n[0]).join("")
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate" style={{ color: "var(--color-txt-white)" }}>
-                      {peer.peerName}
-                    </div>
-                    <div className="text-xs" style={{ color: "var(--color-txt-muted)" }}>
-                      {peer.published ? (
-                        <span style={{ color: "#2dd4a8" }}><CheckCircle2 size={10} className="inline mr-1" />Reviews published</span>
-                      ) : peer.iReviewedThem && !peer.theyReviewedMe ? (
-                        <span style={{ color: "#fbbf24" }}><Hourglass size={10} className="inline mr-1" />Waiting for their review</span>
-                      ) : !peer.iReviewedThem && peer.theyReviewedMe ? (
-                        <span style={{ color: "#f0a030" }}><Star size={10} className="inline mr-1" />They reviewed you — review them back!</span>
-                      ) : peer.iReviewedThem && peer.theyReviewedMe ? (
-                        <span style={{ color: "#2dd4a8" }}><CheckCircle2 size={10} className="inline mr-1" />Both reviewed</span>
-                      ) : (
-                        <span><Eye size={10} className="inline mr-1" />Waiting for your review</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {isWindowOpen && !peer.iReviewedThem && !peer.published && (
-                      <button
-                        onClick={() => setReviewMember({ id: peer.peerId, name: peer.peerName })}
-                        className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105"
-                        style={{
-                          background: "rgba(240, 160, 48, 0.15)",
-                          color: "#f0a030",
-                          border: "1px solid rgba(240, 160, 48, 0.3)",
-                          cursor: "pointer",
-                        }}
-                      >
-                        <Star size={12} className="inline mr-1" />Review
-                      </button>
-                    )}
-                    {peer.iReviewedThem && !peer.published && (
-                      <span
-                        className="px-3 py-1.5 rounded-lg text-xs font-medium"
-                        style={{ background: "rgba(251, 191, 36, 0.1)", color: "#fbbf24", border: "1px solid rgba(251, 191, 36, 0.2)" }}
-                      >
-                        ✓ Submitted
-                      </span>
-                    )}
-                    {peer.published && (
-                      <span
-                        className="px-3 py-1.5 rounded-lg text-xs font-medium"
-                        style={{ background: "rgba(45, 212, 168, 0.1)", color: "#2dd4a8", border: "1px solid rgba(45, 212, 168, 0.2)" }}
-                      >
-                        ✓ Published
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Creator Admin Panel */}
       {isCreator && requests.length > 0 && (

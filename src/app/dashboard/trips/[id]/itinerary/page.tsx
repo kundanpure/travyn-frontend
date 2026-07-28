@@ -6,7 +6,7 @@ import {
   ArrowLeft, Calendar, MapPin, Clock, Plus, Trash2, Edit3,
   ChevronDown, ChevronRight, GripVertical, Loader2,
   Car, Utensils, Mountain, Hotel, Coffee, Save, X, ArrowUp, ArrowDown,
-  CalendarPlus, StickyNote
+  CalendarPlus, StickyNote, RotateCcw
 } from "lucide-react";
 import api from "@/lib/api";
 
@@ -56,6 +56,7 @@ export default function ItineraryPage() {
   const router = useRouter();
   const tripId = params.id as string;
   const initialExpandDone = useRef(false);
+  const savedSnapshotRef = useRef<Map<string, ItineraryItem[]>>(new Map());
 
   const [days, setDays] = useState<ItineraryDay[]>([]);
   const [trip, setTrip] = useState<TripInfo | null>(null);
@@ -81,11 +82,20 @@ export default function ItineraryPage() {
         api.get(`/trips/${tripId}/itinerary`),
         api.get(`/trips/${tripId}`)
       ]);
-      setDays(res.data || []);
+      const fetchedDays: ItineraryDay[] = res.data || [];
+      setDays(fetchedDays);
       setTrip(tripRes.data);
+
+      // Save initial snapshot on first load for Reset functionality
+      if (savedSnapshotRef.current.size === 0 && fetchedDays.length > 0) {
+        fetchedDays.forEach(d => {
+          savedSnapshotRef.current.set(d.id, JSON.parse(JSON.stringify(d.items)));
+        });
+      }
+
       // Auto-expand all days on first load only
-      if (!initialExpandDone.current && res.data?.length > 0) {
-        setExpandedDays(new Set(res.data.map((d: ItineraryDay) => d.id)));
+      if (!initialExpandDone.current && fetchedDays.length > 0) {
+        setExpandedDays(new Set(fetchedDays.map((d: ItineraryDay) => d.id)));
         initialExpandDone.current = true;
       }
     } catch {
@@ -148,18 +158,149 @@ export default function ItineraryPage() {
     } catch {}
   };
 
-  const handleMoveItem = async (dayId: string, itemIndex: number, direction: "up" | "down") => {
+  // Drag and drop state
+  const [draggedItem, setDraggedItem] = useState<{ dayId: string; index: number } | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<{ dayId: string; index: number } | null>(null);
+
+  // ─── Conflict & Reorder Helpers ────────────────────────────────
+  const getItemMinutes = (timeStr?: string) => {
+    if (!timeStr) return null;
+    const trimmed = timeStr.trim();
+    if (!trimmed) return null;
+
+    const isPM = /pm/i.test(trimmed);
+    const isAM = /am/i.test(trimmed);
+
+    const cleanStr = trimmed.replace(/[^\d:]/g, "");
+    const parts = cleanStr.split(":");
+    if (parts.length < 2) return null;
+
+    let hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    if (isNaN(hours) || isNaN(minutes)) return null;
+
+    if (isPM && hours < 12) hours += 12;
+    if (isAM && hours === 12) hours = 0;
+
+    return hours * 60 + minutes;
+  };
+
+  const isTimeConflict = (items: ItineraryItem[], idx: number) => {
+    const item = items[idx];
+    const currStart = getItemMinutes(item.startTime);
+    if (currStart === null) return false;
+    const currEnd = getItemMinutes(item.endTime);
+
+    for (let i = 0; i < items.length; i++) {
+      if (i === idx) continue;
+      const otherStart = getItemMinutes(items[i].startTime);
+      if (otherStart === null) continue;
+      const otherEnd = getItemMinutes(items[i].endTime);
+
+      // Check preceding items in list (i < idx)
+      if (i < idx) {
+        // Conflict 1: Preceding item starts AFTER current item
+        if (otherStart > currStart) return true;
+        // Conflict 2: Preceding item has explicit endTime extending PAST current item start
+        if (otherEnd !== null && otherEnd > currStart) return true;
+      }
+
+      // Check succeeding items in list (i > idx)
+      if (i > idx) {
+        // Conflict 1: Succeeding item starts BEFORE current item
+        if (otherStart < currStart) return true;
+        // Conflict 2: Current item has explicit endTime extending PAST succeeding item start
+        if (currEnd !== null && currEnd > otherStart) return true;
+      }
+    }
+    return false;
+  };
+
+  const handleResetDayOrder = async (dayId: string) => {
+    const originalItems = savedSnapshotRef.current.get(dayId);
+    if (!originalItems || originalItems.length === 0) return;
+
+    setSaving(true);
+    try {
+      // Re-apply original item order and original time slots
+      const itemIds = originalItems.map(i => i.id);
+      
+      const updatePromises = originalItems.map(item => {
+        return api.put(`/trips/${tripId}/itinerary/items/${item.id}`, {
+          title: item.title,
+          description: item.description,
+          location: item.location,
+          category: item.category,
+          startTime: item.startTime || null,
+          endTime: item.endTime || null,
+        });
+      });
+
+      await Promise.all([
+        ...updatePromises,
+        api.put(`/trips/${tripId}/itinerary/days/${dayId}/reorder`, { itemIds })
+      ]);
+
+      setDays(prev => prev.map(d => d.id === dayId ? { ...d, items: JSON.parse(JSON.stringify(originalItems)) } : d));
+      await fetchItinerary();
+    } catch {
+      await fetchItinerary();
+    }
+    setSaving(false);
+  };
+
+  const handleDragSwap = async (dayId: string, fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
     const day = days.find(d => d.id === dayId);
     if (!day) return;
+
     const items = [...day.items];
-    const newIndex = direction === "up" ? itemIndex - 1 : itemIndex + 1;
-    if (newIndex < 0 || newIndex >= items.length) return;
-    [items[itemIndex], items[newIndex]] = [items[newIndex], items[itemIndex]];
+    const sourceItem = items[fromIndex];
+    const targetItem = items[toIndex];
+
+    // Smart Time Slot Swapping: Swap startTime and endTime between source and target items
+    const sourceStart = sourceItem.startTime;
+    const sourceEnd = sourceItem.endTime;
+    const targetStart = targetItem.startTime;
+    const targetEnd = targetItem.endTime;
+
+    // Perform swap in local array
+    [items[fromIndex], items[toIndex]] = [items[toIndex], items[fromIndex]];
     const itemIds = items.map(i => i.id);
+
+    // Optimistically update state for crisp UI responsiveness
+    setDays(prev => prev.map(d => d.id === dayId ? { ...d, items } : d));
+
     try {
-      await api.put(`/trips/${tripId}/itinerary/days/${dayId}/reorder`, { itemIds });
+      // Persist swapped time slots and new sort order to backend
+      await Promise.all([
+        api.put(`/trips/${tripId}/itinerary/items/${sourceItem.id}`, {
+          title: sourceItem.title,
+          description: sourceItem.description,
+          location: sourceItem.location,
+          category: sourceItem.category,
+          startTime: targetStart || null,
+          endTime: targetEnd || null,
+        }),
+        api.put(`/trips/${tripId}/itinerary/items/${targetItem.id}`, {
+          title: targetItem.title,
+          description: targetItem.description,
+          location: targetItem.location,
+          category: targetItem.category,
+          startTime: sourceStart || null,
+          endTime: sourceEnd || null,
+        }),
+        api.put(`/trips/${tripId}/itinerary/days/${dayId}/reorder`, { itemIds }),
+      ]);
       await fetchItinerary();
-    } catch {}
+    } catch {
+      await fetchItinerary();
+    }
+  };
+
+  const handleMoveItem = async (dayId: string, itemIndex: number, direction: "up" | "down") => {
+    const newIndex = direction === "up" ? itemIndex - 1 : itemIndex + 1;
+    await handleDragSwap(dayId, itemIndex, newIndex);
   };
 
   const startEditItem = (item: ItineraryItem) => {
@@ -373,19 +514,30 @@ export default function ItineraryPage() {
                         D{day.dayNumber}
                       </div>
                       <div>
-                        <div className="text-sm font-semibold" style={{ color: "var(--color-txt-white)" }}>
-                          {day.title || `Day ${day.dayNumber}`}
+                        <div className="text-sm font-semibold flex items-center gap-2" style={{ color: "var(--color-txt-white)" }}>
+                          <span>{day.title || `Day ${day.dayNumber}`}</span>
                         </div>
                         <div className="text-xs" style={{ color: "var(--color-txt-muted)" }}>
                           {formatDate(day.date)} • {day.items.length} {day.items.length === 1 ? "activity" : "activities"}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-2">
+                      {/* Reset Order */}
+                      {day.items.length > 1 && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleResetDayOrder(day.id); }}
+                          className="p-1.5 rounded-lg opacity-80 hover:opacity-100 transition-opacity flex items-center gap-1"
+                          style={{ background: "rgba(96, 165, 250, 0.1)", border: "none", cursor: "pointer" }}
+                          title="Reset timeline: Auto-sort activities chronologically by time"
+                        >
+                          <RotateCcw size={14} style={{ color: "#60a5fa" }} />
+                        </button>
+                      )}
                       {/* Edit day */}
                       <button
                         onClick={(e) => { e.stopPropagation(); startEditDay(day); }}
-                        className="p-1.5 rounded-lg opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                        className="p-1.5 rounded-lg opacity-80 hover:opacity-100 transition-opacity"
                         style={{ background: "rgba(45,212,168,0.1)", border: "none", cursor: "pointer" }}
                         title="Edit day title & notes"
                       >
@@ -394,7 +546,7 @@ export default function ItineraryPage() {
                       {/* Delete day */}
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDeleteDay(day.id); }}
-                        className="p-1.5 rounded-lg opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                        className="p-1.5 rounded-lg opacity-80 hover:opacity-100 transition-opacity"
                         style={{ background: "rgba(248,113,113,0.1)", border: "none", cursor: "pointer" }}
                         title="Delete day"
                       >
@@ -467,6 +619,8 @@ export default function ItineraryPage() {
                         const cat = categoryConfig[item.category] || categoryConfig.ACTIVITY;
                         const CatIcon = cat.icon;
                         const isEditing = editingItem === item.id;
+                        const conflict = isTimeConflict(day.items, idx);
+                        const isBeingDraggedOver = dragOverIndex?.dayId === day.id && dragOverIndex?.index === idx;
 
                         if (isEditing) {
                           return (
@@ -476,7 +630,7 @@ export default function ItineraryPage() {
                               style={{ background: "var(--color-bg-elevated)", border: "1px solid var(--color-line-active)" }}
                             >
                               <input
-                                placeholder="Activity title"
+                                placeholder="Activity title *"
                                 value={itemForm.title}
                                 onChange={(e) => setItemForm({ ...itemForm, title: e.target.value })}
                                 className="t-input"
@@ -504,6 +658,14 @@ export default function ItineraryPage() {
                                 onChange={(e) => setItemForm({ ...itemForm, location: e.target.value })}
                                 className="t-input"
                                 style={{ padding: "10px 14px", fontSize: "0.85rem" }}
+                              />
+                              <textarea
+                                placeholder="Description / Notes (optional)"
+                                value={itemForm.description}
+                                onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })}
+                                className="t-input"
+                                rows={2}
+                                style={{ resize: "none", padding: "10px 14px", fontSize: "0.85rem" }}
                               />
                               <div className="flex flex-wrap gap-2">
                                 {Object.entries(categoryConfig).map(([key, cfg]) => {
@@ -534,7 +696,7 @@ export default function ItineraryPage() {
                                 </button>
                                 <button
                                   onClick={() => handleUpdateItem(item.id)}
-                                  disabled={saving}
+                                  disabled={saving || !itemForm.title.trim()}
                                   className="t-btn-primary"
                                   style={{ padding: "6px 14px", fontSize: "0.8rem" }}
                                 >
@@ -548,23 +710,47 @@ export default function ItineraryPage() {
                         return (
                           <div
                             key={item.id}
-                            className="group flex items-start gap-3 rounded-lg p-3 transition-all"
-                            style={{ background: "var(--color-bg-deep)", border: "1px solid var(--color-line)" }}
+                            draggable={!editingItem && !saving}
+                            onDragStart={() => setDraggedItem({ dayId: day.id, index: idx })}
+                            onDragOver={(e) => { e.preventDefault(); setDragOverIndex({ dayId: day.id, index: idx }); }}
+                            onDragLeave={() => setDragOverIndex(null)}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              if (draggedItem && draggedItem.dayId === day.id && draggedItem.index !== idx) {
+                                handleDragSwap(day.id, draggedItem.index, idx);
+                              }
+                              setDraggedItem(null);
+                              setDragOverIndex(null);
+                            }}
+                            onDragEnd={() => { setDraggedItem(null); setDragOverIndex(null); }}
+                            className="group flex items-start gap-3 rounded-lg p-3 transition-all cursor-grab active:cursor-grabbing"
+                            style={{
+                              background: conflict ? "rgba(245, 158, 11, 0.06)" : "var(--color-bg-deep)",
+                              border: isBeingDraggedOver
+                                ? "2px dashed var(--color-primary)"
+                                : conflict
+                                ? "1px solid rgba(245, 158, 11, 0.4)"
+                                : "1px solid var(--color-line)",
+                            }}
                           >
-                            {/* Reorder buttons */}
-                            <div className="flex flex-col gap-0.5 pt-1 opacity-30 md:group-hover:opacity-100 transition-opacity">
+                            {/* Reorder grip & buttons */}
+                            <div className="flex flex-col gap-0.5 pt-1 opacity-70 hover:opacity-100 transition-opacity">
                               <button
                                 onClick={() => handleMoveItem(day.id, idx, "up")}
                                 disabled={idx === 0}
                                 style={{ background: "none", border: "none", cursor: idx === 0 ? "default" : "pointer", padding: "2px" }}
+                                title="Move up (swaps time slot)"
                               >
                                 <ArrowUp size={12} style={{ color: idx === 0 ? "var(--color-txt-dim)" : "var(--color-txt-muted)" }} />
                               </button>
-                              <GripVertical size={12} style={{ color: "var(--color-txt-dim)" }} />
+                              <span title="Hold & drag to reorder" className="flex items-center justify-center">
+                                <GripVertical size={13} style={{ color: "var(--color-primary)" }} />
+                              </span>
                               <button
                                 onClick={() => handleMoveItem(day.id, idx, "down")}
                                 disabled={idx === day.items.length - 1}
                                 style={{ background: "none", border: "none", cursor: idx === day.items.length - 1 ? "default" : "pointer", padding: "2px" }}
+                                title="Move down (swaps time slot)"
                               >
                                 <ArrowDown size={12} style={{ color: idx === day.items.length - 1 ? "var(--color-txt-dim)" : "var(--color-txt-muted)" }} />
                               </button>
@@ -582,8 +768,16 @@ export default function ItineraryPage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start justify-between">
                                 <div>
-                                  <div className="text-sm font-medium" style={{ color: "var(--color-txt-white)" }}>
-                                    {item.title}
+                                  <div className="text-sm font-medium flex items-center gap-2" style={{ color: "var(--color-txt-white)" }}>
+                                    <span>{item.title}</span>
+                                    {conflict && (
+                                      <span
+                                        className="text-[10px] font-semibold px-2 py-0.5 rounded flex items-center gap-1"
+                                        style={{ background: "rgba(245, 158, 11, 0.2)", color: "#f59e0b", border: "1px solid rgba(245, 158, 11, 0.4)" }}
+                                      >
+                                        ⚠️ Time Conflict
+                                      </span>
+                                    )}
                                   </div>
                                   {item.location && (
                                     <div className="flex items-center gap-1 text-xs mt-0.5" style={{ color: "var(--color-txt-secondary)" }}>
@@ -591,7 +785,7 @@ export default function ItineraryPage() {
                                     </div>
                                   )}
                                   {(item.startTime || item.endTime) && (
-                                    <div className="flex items-center gap-1 text-xs mt-0.5" style={{ color: "var(--color-txt-muted)" }}>
+                                    <div className="flex items-center gap-1 text-xs mt-0.5" style={{ color: conflict ? "#f59e0b" : "var(--color-txt-muted)" }}>
                                       <Clock size={10} />
                                       {item.startTime && item.startTime.substring(0, 5)}
                                       {item.startTime && item.endTime && " – "}
@@ -600,21 +794,23 @@ export default function ItineraryPage() {
                                   )}
                                 </div>
 
-                                {/* Actions */}
-                                <div className="flex gap-1 opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                {/* Actions - Always Visible */}
+                                <div className="flex gap-1">
                                   <button
                                     onClick={() => startEditItem(item)}
-                                    className="p-1.5 rounded-lg"
-                                    style={{ background: "rgba(45,212,168,0.1)", border: "none", cursor: "pointer" }}
+                                    className="p-1.5 rounded-lg transition-transform hover:scale-105"
+                                    style={{ background: "rgba(45,212,168,0.15)", border: "1px solid rgba(45,212,168,0.3)", cursor: "pointer" }}
+                                    title="Edit activity"
                                   >
-                                    <Edit3 size={12} style={{ color: "var(--color-primary)" }} />
+                                    <Edit3 size={13} style={{ color: "var(--color-primary)" }} />
                                   </button>
                                   <button
                                     onClick={() => handleDeleteItem(item.id)}
-                                    className="p-1.5 rounded-lg"
-                                    style={{ background: "rgba(248,113,113,0.1)", border: "none", cursor: "pointer" }}
+                                    className="p-1.5 rounded-lg transition-transform hover:scale-105"
+                                    style={{ background: "rgba(248,113,113,0.15)", border: "1px solid rgba(248,113,113,0.3)", cursor: "pointer" }}
+                                    title="Delete activity"
                                   >
-                                    <Trash2 size={12} style={{ color: "#f87171" }} />
+                                    <Trash2 size={13} style={{ color: "#f87171" }} />
                                   </button>
                                 </div>
                               </div>
